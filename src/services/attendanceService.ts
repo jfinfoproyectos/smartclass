@@ -1,5 +1,5 @@
 
-import { AttendanceStatus } from "../generated/prisma/client";
+import { AttendanceStatus } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 
 
