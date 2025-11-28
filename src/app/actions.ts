@@ -202,6 +202,8 @@ export async function createActivityAction(formData: FormData) {
     const maxAttemptsStr = formData.get("maxAttempts") as string;
     const allowLinkSubmissionStr = formData.get("allowLinkSubmission") as string;
 
+    console.log("SERVER ACTION: createActivityAction received:", { title, courseId, type });
+
     const activity = await activityService.createActivity({
         title,
         description,

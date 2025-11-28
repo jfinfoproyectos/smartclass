@@ -79,14 +79,6 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   }
 
   return (
-    /* 
-      🔒 SECURITY NOTE: dangerouslySetInnerHTML is used here for dynamic CSS generation
-      This is safe because:
-      1. The content is generated from the chart config object (controlled by developers)
-      2. It creates CSS custom properties for chart colors
-      3. No user input is involved in the CSS generation
-      4. The config is validated and typed with TypeScript
-    */
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)

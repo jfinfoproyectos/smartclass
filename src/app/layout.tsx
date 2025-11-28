@@ -17,14 +17,6 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* 
-          🔒 SECURITY NOTE: dangerouslySetInnerHTML is used here for theme initialization
-          This is safe because:
-          1. The content is a hardcoded string literal (not user input)
-          2. It sets CSS custom properties for theme colors
-          3. It runs before hydration to prevent theme flash
-          4. No external data or user input is involved
-        */}
         <script
           dangerouslySetInnerHTML={{
             __html:
