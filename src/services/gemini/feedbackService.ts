@@ -1,11 +1,11 @@
-import { getGeminiModel } from "./client";
+import { getGeminiClient, MODEL_NAME } from "./client";
 
 /**
  * Improve teacher-written feedback using AI
  */
 export async function improveFeedback(text: string, userId?: string): Promise<string> {
     try {
-        const model = await getGeminiModel(userId);
+        const ai = await getGeminiClient(userId);
         const prompt = `
         Actúa como un editor de texto profesional y empático.
         Tu tarea es mejorar la siguiente retroalimentación escrita por un profesor para un estudiante.
@@ -22,11 +22,12 @@ export async function improveFeedback(text: string, userId?: string): Promise<st
         **SALIDA**: Solo el texto mejorado, sin comillas ni introducciones.
         `;
 
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+        const result = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: prompt,
         });
 
-        return result.response.text();
+        return result.text || "";
     } catch (error: any) {
         console.error("Gemini API Error (Improve Feedback):", error);
         throw new Error("No se pudo mejorar la retroalimentación en este momento.");

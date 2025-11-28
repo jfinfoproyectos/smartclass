@@ -1,15 +1,16 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { decrypt } from "@/lib/encryption";
 import prisma from "@/lib/prisma";
 
-export const MODEL_NAME = "gemini-2.0-flash-lite-preview-02-05";
+export const MODEL_NAME = "gemini-2.5-flash";
 
 /**
- * Get a configured Gemini model instance
+ * Get a configured GoogleGenAI instance
  * @param userId - Optional user ID for fetching user-specific API key
+ * @returns GoogleGenAI instance configured with the appropriate API key
  */
-export async function getGeminiModel(userId?: string) {
- 
+export async function getGeminiClient(userId?: string): Promise<GoogleGenAI> {
+
     // Get system settings
     const settings = await prisma.systemSettings.findUnique({
         where: { id: "settings" }
@@ -44,8 +45,8 @@ export async function getGeminiModel(userId?: string) {
         throw new Error("Gemini API Key not configured. Please contact the administrator.");
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    return genAI.getGenerativeModel({ model: MODEL_NAME });
+    // Return the GoogleGenAI instance - use ai.models.generateContent() to make calls
+    return new GoogleGenAI({ apiKey });
 }
 
 /**

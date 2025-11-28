@@ -1,4 +1,4 @@
-import { getGeminiModel, extractJSON, repairFeedbackText } from "./client";
+import { getGeminiClient, MODEL_NAME, extractJSON, repairFeedbackText } from "./client";
 import { analyzeFile, FileAnalysis } from "./codeAnalysisService";
 import { githubService } from "../githubService";
 
@@ -16,7 +16,7 @@ export async function finalizeSubmission(
     missingFiles: string[],
     userId?: string
 ): Promise<GradingResult> {
-    const model = await getGeminiModel(userId);
+    const ai = await getGeminiClient(userId);
     const analysesText = JSON.stringify(analyses, null, 2);
 
     const prompt = `
@@ -42,12 +42,16 @@ export async function finalizeSubmission(
     }
     `;
 
-    const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
+    const result = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", maxOutputTokens: 8192 }
     });
 
-    const text = result.response.text();
+    const text = result.text;
+    if (!text) {
+        throw new Error("No response text received from AI");
+    }
     const json = extractJSON<GradingResult>(text);
 
     // Repair feedback

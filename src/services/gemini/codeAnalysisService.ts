@@ -1,4 +1,4 @@
-import { getGeminiModel, extractJSON } from "./client";
+import { getGeminiClient, MODEL_NAME, extractJSON } from "./client";
 
 export interface FileAnalysis {
     filename: string;
@@ -21,7 +21,7 @@ export async function analyzeFile(
     userId?: string
 ): Promise<FileAnalysis> {
     try {
-        const model = await getGeminiModel(userId);
+        const ai = await getGeminiClient(userId);
         const prompt = `
         Actúa como un tutor experto y evaluador de código senior.
         Analiza el siguiente archivo de código individualmente con respecto a la rúbrica proporcionada.
@@ -50,12 +50,16 @@ export async function analyzeFile(
         }
         `;
 
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+        const result = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
         });
 
-        const text = result.response.text();
+        const text = result.text;
+        if (!text) {
+            throw new Error(`No response text received from AI for file: ${filename}`);
+        }
 
         let analysis: FileAnalysis;
         try {
