@@ -1,0 +1,403 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  role String? // "admin", "teacher", "student"
+
+  banned     Boolean?  @default(false)
+  banReason  String?
+  banExpires DateTime?
+
+  // Relations
+  coursesCreated        Course[]           @relation("TeacherCourses")
+  enrollments           Enrollment[]
+  submissions           Submission[]
+  profile               Profile?
+  attendances           Attendance[]
+  remarks               Remark[]
+  remarksCreated        Remark[]           @relation("TeacherRemarks")
+  notificationsCreated  Notification[]     @relation("TeacherNotifications")
+  notificationReads     NotificationRead[]
+  announcements         Announcement[]
+  encryptedGeminiApiKey String?
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  identificacion String
+  nombres        String
+  apellido       String
+  telefono       String?
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("profile")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersonatedBy String?
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}
+
+model Course {
+  id                   String    @id @default(cuid())
+  title                String
+  description          String?
+  registrationOpen     Boolean   @default(true)
+  registrationDeadline DateTime?
+  startDate            DateTime?
+  endDate              DateTime?
+  teacherId            String
+  teacher              User      @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade)
+  externalUrl          String? // Optional external course URL (e.g., Google Classroom, Moodle)
+  lateCode             String?
+  lateCodeExpiresAt    DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  enrollments   Enrollment[]
+  activities    Activity[]
+  attendances   Attendance[]
+  remarks       Remark[]
+  schedules     CourseSchedule[]
+  notifications Notification[]
+
+  @@map("course")
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@map("enrollment")
+}
+
+enum ActivityType {
+  GITHUB
+  MANUAL
+  GOOGLE_COLAB
+}
+
+model Activity {
+  id                  String       @id @default(cuid())
+  title               String
+  description         String? // Rubric or instructions
+  statement           String? // Activity statement / Enunciado
+  filePaths           String? // Comma separated list of file paths to grade
+  deadline            DateTime
+  type                ActivityType @default(GITHUB)
+  weight              Float        @default(1.0)
+  maxAttempts         Int          @default(1)
+  order               Int          @default(0)
+  openDate            DateTime?
+  allowLinkSubmission Boolean      @default(false) // For MANUAL activities - allows students to submit links
+  courseId            String
+  course              Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  submissions Submission[]
+
+  @@map("activity")
+}
+
+model Submission {
+  id              String   @id @default(cuid())
+  url             String
+  grade           Float?
+  feedback        String?
+  attemptCount    Int      @default(1)
+  lastSubmittedAt DateTime @default(now())
+  activityId      String
+  activity        Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, activityId])
+  @@map("submission")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  LATE
+}
+
+model Attendance {
+  id               String           @id @default(cuid())
+  date             DateTime
+  status           AttendanceStatus @default(ABSENT)
+  arrivalTime      DateTime?
+  justification    String?
+  justificationUrl String?
+  courseId         String
+  course           Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([courseId, userId, date])
+  @@map("attendance")
+}
+
+enum RemarkType {
+  ATTENTION
+  COMMENDATION
+}
+
+model Remark {
+  id          String     @id @default(cuid())
+  type        RemarkType
+  title       String
+  description String
+  date        DateTime   @default(now())
+  courseId    String
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     User       @relation("TeacherRemarks", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("remark")
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model CourseSchedule {
+  id        String    @id @default(cuid())
+  courseId  String
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  dayOfWeek DayOfWeek
+  startTime String // Format: "HH:mm" (e.g., "08:00")
+  endTime   String // Format: "HH:mm" (e.g., "10:00")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("course_schedule")
+}
+
+enum NotificationTarget {
+  ALL_COURSES
+  SPECIFIC_COURSE
+  SPECIFIC_STUDENTS
+}
+
+model Notification {
+  id         String             @id @default(cuid())
+  title      String
+  message    String
+  target     NotificationTarget
+  courseId   String?
+  course     Course?            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentIds String[] // Array of user IDs for SPECIFIC_STUDENTS target
+  teacherId  String
+  teacher    User               @relation("TeacherNotifications", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  reads      NotificationRead[] // Track which students have read this notification
+
+  @@map("notification")
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@unique([notificationId, userId])
+  @@map("notification_read")
+}
+
+enum GeminiApiKeyMode {
+  GLOBAL
+  USER
+}
+
+model SystemSettings {
+  id                    String           @id @default("settings")
+  institutionName       String?
+  institutionLogo       String?
+  institutionHeroImage  String?
+  geminiApiKeyMode      GeminiApiKeyMode @default(GLOBAL)
+  encryptedGlobalApiKey String?
+  updatedAt             DateTime         @updatedAt
+
+  @@map("system_settings")
+}
+
+enum AnnouncementType {
+  INFO
+  URGENT
+  EVENT
+  MAINTENANCE
+  SUCCESS
+  WARNING
+  NEWSLETTER
+  CELEBRATION
+}
+
+model Announcement {
+  id            String           @id @default(cuid())
+  title         String
+  content       String
+  imageUrl      String?
+  showImage     Boolean          @default(true)
+  imagePosition String           @default("LEFT")
+  type          AnnouncementType @default(INFO)
+  visible       Boolean          @default(true)
+  startDate     DateTime?
+  endDate       DateTime?
+  authorId      String
+  author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("announcement")
+}
+
+enum LogAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  GRADE
+  SUBMIT
+  ENROLL
+  UNENROLL
+  ATTENDANCE_MARK
+  REMARK_CREATE
+  NOTIFICATION_SEND
+  OTHER
+}
+
+enum LogEntity {
+  USER
+  COURSE
+  ACTIVITY
+  SUBMISSION
+  ENROLLMENT
+  ATTENDANCE
+  REMARK
+  NOTIFICATION
+  SYSTEM
+  OTHER
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  action       LogAction
+  entity       LogEntity
+  entityId     String? // ID of the affected entity
+  userId       String? // User who performed the action
+  userName     String? // Cached user name for faster queries
+  userRole     String? // Cached user role
+  description  String // Human-readable description
+  metadata     String? // JSON string with additional data
+  ipAddress    String?
+  userAgent    String?
+  success      Boolean   @default(true)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  @@index([action])
+  @@index([entity])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([success])
+  @@map("audit_log")
+}

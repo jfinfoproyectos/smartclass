@@ -1,0 +1,21 @@
+import { AdminSettings } from "@/features/admin/AdminSettings";
+import { getSystemSettingsAction } from "@/app/admin-actions";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
+export default async function SettingsPage() {
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session || session.user.role !== "admin") {
+        redirect("/dashboard/student");
+    }
+
+    const settings = await getSystemSettingsAction();
+
+    return (
+        <div className="flex-1 space-y-4 p-8 pt-6">
+            <AdminSettings initialSettings={settings} />
+        </div>
+    );
+}
