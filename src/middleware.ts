@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, origin } = request.nextUrl;
   const prefixes = ["/dashboard/admin", "/dashboard/student", "/dashboard/teacher"];
   const protectedPrefix = prefixes.find((p) => pathname.startsWith(p));
