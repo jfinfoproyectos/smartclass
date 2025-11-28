@@ -465,8 +465,7 @@ export async function submitActivityAction(prevState: any, formData: FormData) {
         });
 
         // 🎯 AUDIT LOG
-        const { auditLogger } = await import("@/services/auditLogger");
-        const { PrismaClient } = await import("@/generated/prisma/client");
+        const { auditLogger } = await import("@/services/auditLogger");      
 
 
         const activity = await prisma.activity.findUnique({
