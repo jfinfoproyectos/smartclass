@@ -59,6 +59,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    runtime: "nodejs", // Required for auth.api calls
-    matcher: ["/", "/signin", "/signup", "/dashboard/admin/:path*", "/dashboard/student/:path*", "/dashboard/teacher/:path*"],
+    matcher: ["/", "/signin", "/signup", "/dashboard/admin/:path*", "/dashboard/student/:path*", "/dashboard/teacher/:path*"]
 };
