@@ -12,15 +12,6 @@ export const auth = betterAuth({
     provider: "postgresql", // o "mysql" o "sqlite"
   }),
 
-  // URL base - importante para producción
-  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-
-  // Orígenes confiables para producción
-  trustedOrigins: [
-    process.env.NEXT_PUBLIC_APP_URL,
-    "http://localhost:3000",
-  ].filter(Boolean) as string[],
-
   // Campos adicionales del usuario expuestos en sesión
   user: {
     additionalFields: {
