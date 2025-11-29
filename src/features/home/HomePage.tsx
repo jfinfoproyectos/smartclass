@@ -1,7 +1,5 @@
 "use client";
 
-import { AuroraBackground } from "@/components/ui/aceternity/aurora-background";
-import { motion } from "framer-motion";
 import { Bell, Calendar, Info, AlertTriangle, Wrench, Trophy, AlertCircle, Newspaper, PartyPopper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getAnnouncementsAction, getSettingsAction } from "@/app/actions";
@@ -243,17 +241,8 @@ export default function HomePage() {
     };
 
     return (
-        <AuroraBackground className="min-h-[calc(100vh-4rem)] h-auto -ml-4 -mr-4 -mb-4 w-[calc(100%+2rem)] rounded-none items-start justify-start overflow-hidden">
-            <motion.div
-                initial={{ opacity: 0.0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{
-                    delay: 0.3,
-                    duration: 0.8,
-                    ease: "easeInOut",
-                }}
-                className="relative flex flex-col w-full"
-            >
+        <div className="min-h-[calc(100vh-4rem)] h-auto -ml-4 -mr-4 -mb-4 w-[calc(100%+2rem)] rounded-none overflow-hidden">
+            <div className="relative flex flex-col w-full">
                 <div className="w-full relative min-h-[calc(100vh-4rem)] flex flex-col justify-center overflow-hidden">
                     {settings.institutionHeroImage ? (
                         <div className="absolute inset-0">
@@ -262,39 +251,20 @@ export default function HomePage() {
                                 alt="Hero Background"
                                 className="w-full h-full object-cover opacity-60"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
                         </div>
-                    ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-500/20" />
-                    )}
+                    ) : null}
 
                     <div className="relative z-10 flex flex-col items-center justify-center py-20 px-4 text-center">
                         {settings.institutionLogo && (
-                            <motion.img
-                                initial={{ scale: 0.5, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ duration: 0.5 }}
+                            <img
                                 src={settings.institutionLogo || undefined}
                                 alt="Logo Institucional"
                                 className="w-40 h-40 object-contain mb-8 drop-shadow-2xl bg-white/10 backdrop-blur-sm rounded-full p-4"
                             />
                         )}
-                        <motion.h1
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.2 }}
-                            className="text-5xl md:text-8xl font-extrabold text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)] tracking-tight"
-                        >
-                            {settings.institutionName || "Bienvenido a la Plataforma Educativa"}
-                        </motion.h1>
-                        <motion.p
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.8 }}
-                            className="font-light text-xl md:text-3xl dark:text-neutral-200 mt-6 max-w-2xl mx-auto"
-                        >
-                            Tu espacio de aprendizaje y colaboración.
-                        </motion.p>
+                        <h1 className="text-5xl md:text-8xl font-extrabold text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)] tracking-tight">
+                            {settings.institutionName}
+                        </h1>
                     </div>
                 </div>
 
@@ -314,7 +284,7 @@ export default function HomePage() {
                         </div>
                     )}
                 </div>
-            </motion.div>
-        </AuroraBackground>
+            </div>
+        </div>
     );
 }

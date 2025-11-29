@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BookOpen, Settings2, Bell, Calendar, CalendarClock, BarChart, Users, FileText, Activity, ScrollText } from "lucide-react"
+import { BookOpen, Settings2, Bell, Calendar, CalendarClock, BarChart, Users, FileText, Activity, ScrollText, Home } from "lucide-react"
 
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -63,7 +63,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {
           title: "Inicio",
           url: "/dashboard/home",
-          icon: BookOpen, // Or Home icon if imported
+          icon: Home,
           isActive: false,
         },
         {
@@ -108,7 +108,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: "Inicio",
             url: "/dashboard/home",
-            icon: BookOpen,
+            icon: Home,
             isActive: false,
           },
           {
@@ -146,7 +146,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: "Inicio",
             url: "/dashboard/home",
-            icon: BookOpen,
+            icon: Home,
             isActive: false,
           },
           {

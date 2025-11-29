@@ -20,7 +20,7 @@ export function CourseCatalog({ courses }: { courses: any[] }) {
                     <CardContent>
                         <div className="flex items-center text-sm text-muted-foreground mb-2">
                             <User className="mr-1 h-3 w-3" />
-                            {course.teacher.name}
+                            Profesor: {course.teacher.name}
                         </div>
                         <p className="text-xs text-muted-foreground mb-4 line-clamp-2">
                             {course.description || "Sin descripción"}

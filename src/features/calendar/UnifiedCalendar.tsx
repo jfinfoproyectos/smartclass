@@ -37,7 +37,9 @@ import {
     ChevronsUpDown,
     FileCheck,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Maximize2,
+    Minimize2
 } from "lucide-react";
 import { es } from "date-fns/locale";
 import { startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, format, isSameDay, startOfDay } from "date-fns";
@@ -93,6 +95,7 @@ export function UnifiedCalendar() {
     // View mode (day, week, month)
     const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [isCompact, setIsCompact] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -312,12 +315,24 @@ export function UnifiedCalendar() {
                             <TabsTrigger value="month">Mes</TabsTrigger>
                         </TabsList>
                     </Tabs>
+
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setIsCompact(!isCompact)}
+                        title={isCompact ? "Tamaño normal" : "Disminuir tamaño"}
+                    >
+                        {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                    </Button>
                 </div>
             </div>
 
             {/* Calendar Views */}
             {viewMode === 'month' && (
-                <div className="w-full border rounded-md overflow-hidden bg-background">
+                <div className={cn(
+                    "w-full border rounded-md overflow-hidden bg-background transition-all duration-300",
+                    isCompact && "max-w-5xl mx-auto"
+                )}>
                     <CalendarProvider locale={es as any}>
                         <CalendarDate>
                             <CalendarDatePicker>
@@ -379,7 +394,10 @@ export function UnifiedCalendar() {
 
             {/* Day View */}
             {viewMode === 'day' && (
-                <div className="w-full border rounded-md bg-background p-4">
+                <div className={cn(
+                    "w-full border rounded-md bg-background p-4 transition-all duration-300",
+                    isCompact && "max-w-3xl mx-auto"
+                )}>
                     <div className="flex items-center justify-between mb-4">
                         <Button
                             variant="outline"
@@ -470,7 +488,10 @@ export function UnifiedCalendar() {
 
             {/* Week View */}
             {viewMode === 'week' && (
-                <div className="w-full border rounded-md bg-background p-4">
+                <div className={cn(
+                    "w-full border rounded-md bg-background p-4 transition-all duration-300",
+                    isCompact && "max-w-5xl mx-auto"
+                )}>
                     <div className="flex items-center justify-between mb-4">
                         <Button
                             variant="outline"
@@ -608,12 +629,14 @@ export function UnifiedCalendar() {
                                                 : "No definida"}
                                         </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Fecha de Vencimiento</Label>
-                                        <div className="text-sm">
-                                            {new Date(selectedEvent.details.deadline).toLocaleDateString()}
+                                    {(selectedEvent.details.activityType !== 'MANUAL' || selectedEvent.details.requiresSubmission) && (
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Fecha de Vencimiento</Label>
+                                            <div className="text-sm">
+                                                {new Date(selectedEvent.details.deadline).toLocaleDateString()}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-xs text-muted-foreground">Peso</Label>

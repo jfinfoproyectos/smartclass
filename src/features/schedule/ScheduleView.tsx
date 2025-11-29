@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { getScheduleViewAction } from "@/app/actions";
 import { useSession } from "@/lib/auth-client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -98,6 +99,7 @@ export function ScheduleView() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCompact, setIsCompact] = useState(false);
 
     // Get user session to determine role
     const { data: session } = useSession();
@@ -205,6 +207,15 @@ export function ScheduleView() {
                     </TabsList>
                 </Tabs>
 
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCompact(!isCompact)}
+                    title={isCompact ? "Tamaño normal" : "Disminuir tamaño"}
+                >
+                    {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                </Button>
+
                 <div className="flex items-center gap-4">
                     <Button variant="outline" size="sm" onClick={handlePrevious}>
                         <ChevronLeft className="h-4 w-4 mr-1" />
@@ -222,7 +233,10 @@ export function ScheduleView() {
 
             {/* Day View */}
             {viewMode === 'day' && (
-                <div className="border rounded-lg overflow-hidden">
+                <div className={cn(
+                    "border rounded-lg overflow-hidden transition-all duration-300",
+                    isCompact && "max-w-3xl mx-auto"
+                )}>
                     <div className="grid grid-cols-1 border-b bg-muted/50">
                         <div className="p-3 text-center font-semibold text-sm">
                             {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
@@ -282,7 +296,10 @@ export function ScheduleView() {
 
             {/* Week View */}
             {viewMode === 'week' && (
-                <div className="border rounded-lg overflow-hidden">
+                <div className={cn(
+                    "border rounded-lg overflow-hidden transition-all duration-300",
+                    isCompact && "max-w-5xl mx-auto"
+                )}>
                     <div className="overflow-x-auto">
                         <div className="min-w-[800px]">
                             {/* Header Row */}
@@ -360,7 +377,10 @@ export function ScheduleView() {
 
             {/* Month View */}
             {viewMode === 'month' && (
-                <div className="border rounded-lg overflow-hidden">
+                <div className={cn(
+                    "border rounded-lg overflow-hidden transition-all duration-300",
+                    isCompact && "max-w-5xl mx-auto"
+                )}>
                     <div className="grid grid-cols-7 border-b bg-muted/50">
                         {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
                             <div key={day} className="p-3 text-center font-semibold text-sm border-r last:border-r-0">

@@ -34,30 +34,20 @@ export async function proxy(request: NextRequest) {
         "/dashboard/student": ["student"],
     };
 
-    // Define home routes for each role
-    const roleHome: Record<string, string> = {
-        admin: "/dashboard/admin",
-        teacher: "/dashboard/teacher",
-        student: "/dashboard/student",
-    };
-
-    // Determine the correct prefix for the user's role
-    const rolePrefix = roleHome[role] || "/dashboard/student";
-
-    // Redirect users trying to access other role dashboards
-    if (protectedPrefix && !pathname.startsWith(rolePrefix)) {
-        return NextResponse.redirect(new URL(roleHome[role] || "/signin", request.url));
+    // Redirect authenticated users from root or signin to unified home page
+    if (pathname === "/" || pathname === "/signin" || pathname === "/signup") {
+        return NextResponse.redirect(new URL("/dashboard/home", request.url));
     }
 
     // Check if user has permission for the protected route
     if (protectedPrefix && !allowed[protectedPrefix].includes(role)) {
-        const target = roleHome[role] || "/signin";
-        return NextResponse.redirect(new URL(target, request.url));
+        // Redirect to home if user doesn't have permission
+        return NextResponse.redirect(new URL("/dashboard/home", request.url));
     }
 
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ["/", "/signin", "/signup", "/dashboard/admin/:path*", "/dashboard/student/:path*", "/dashboard/teacher/:path*"]
+    matcher: ["/", "/signin", "/signup", "/dashboard/admin/:path*", "/dashboard/student/:path*", "/dashboard/teacher/:path*", "/dashboard/home"]
 };
