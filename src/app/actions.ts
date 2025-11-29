@@ -330,7 +330,7 @@ export async function addStudentToCourseAction(formData: FormData) {
         throw new Error("Missing required fields");
     }
 
-    const enrollment = await courseService.enrollStudent(userId, courseId);
+    const enrollment = await courseService.enrollStudent(userId, courseId, 'APPROVED');
 
     // 🎯 AUDIT LOG
     const { auditLogger } = await import("@/services/auditLogger");
@@ -465,7 +465,7 @@ export async function submitActivityAction(prevState: any, formData: FormData) {
         });
 
         // 🎯 AUDIT LOG
-        const { auditLogger } = await import("@/services/auditLogger");      
+        const { auditLogger } = await import("@/services/auditLogger");
 
 
         const activity = await prisma.activity.findUnique({
@@ -801,6 +801,47 @@ export async function getStudentCourseEnrollmentAction(userId: string, courseId:
 
     return await courseService.getStudentCourseEnrollment(userId, courseId);
 }
+
+export async function getPendingEnrollmentsAction() {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    return await courseService.getPendingEnrollments(session.user.id);
+}
+
+export async function approveEnrollmentAction(enrollmentId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    await courseService.updateEnrollmentStatus(enrollmentId, 'APPROVED');
+    revalidatePath("/dashboard/teacher");
+}
+
+export async function rejectEnrollmentAction(enrollmentId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    await courseService.updateEnrollmentStatus(enrollmentId, 'REJECTED');
+    revalidatePath("/dashboard/teacher");
+}
+
+export async function updateStudentStatusAction(enrollmentId: string, status: 'APPROVED' | 'REJECTED') {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    await courseService.updateEnrollmentStatus(enrollmentId, status);
+    revalidatePath("/dashboard/teacher/courses/[courseId]", "page");
+}
+
+
 
 export async function improveFeedbackAction(text: string) {
     const session = await getSession();

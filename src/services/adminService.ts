@@ -107,6 +107,13 @@ export const adminService = {
         });
     },
 
+    async toggleUserBan(userId: string, banned: boolean) {
+        return await prisma.user.update({
+            where: { id: userId },
+            data: { banned }
+        });
+    },
+
     async deleteUser(userId: string) {
         // This will cascade delete related records based on schema
         return await prisma.user.delete({

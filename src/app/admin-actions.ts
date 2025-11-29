@@ -134,6 +134,36 @@ export async function updateUserRoleAction(userId: string, newRole: "teacher" | 
 }
 
 
+export async function toggleUserBanAction(userId: string, banned: boolean) {
+    const session = await requireAdmin();
+
+    // Get user info before update
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true }
+    });
+
+    const result = await adminService.toggleUserBan(userId, banned);
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "USER",
+        entityId: userId,
+        userId: session.user.id,
+        userName: session.user.name || "Admin",
+        userRole: "admin",
+        description: `Usuario ${banned ? 'baneado' : 'desbaneado'}: ${user?.name || "Usuario"} (${user?.email})`,
+        metadata: { banned, email: user?.email },
+        success: true,
+    });
+
+    revalidatePath("/dashboard/admin/users");
+    return result;
+}
+
+
 
 export async function deleteUserAction(userId: string) {
     const session = await requireAdmin();

@@ -12,6 +12,12 @@ export default async function Page() {
 
   const availableCourses = await courseService.getAllCourses();
   const myEnrollments = await courseService.getStudentEnrollments(session.user.id);
+  const pendingEnrollments = await courseService.getStudentPendingEnrollments(session.user.id);
 
-  return <StudentDashboard availableCourses={availableCourses} myEnrollments={myEnrollments} studentName={session.user.name} />;
+  return <StudentDashboard
+    availableCourses={availableCourses}
+    myEnrollments={myEnrollments}
+    studentName={session.user.name}
+    pendingEnrollments={pendingEnrollments}
+  />;
 }

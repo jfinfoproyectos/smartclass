@@ -48,8 +48,9 @@ import {
 } from "@/components/ui/sheet";
 import { Search, Trash2, Eye, UserCog, Users as UsersIcon, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { updateUserRoleAction, deleteUserAction, createUserAction } from "@/app/admin-actions";
+import { updateUserRoleAction, deleteUserAction, createUserAction, toggleUserBanAction } from "@/app/admin-actions";
 import { format } from "date-fns";
+import { Switch } from "@/components/ui/switch";
 
 interface User {
     id: string;
@@ -58,6 +59,7 @@ interface User {
     role: string | null;
     image: string | null;
     createdAt: Date;
+    banned?: boolean | null;
     profile?: {
         identificacion: string | null;
         nombres: string | null;
@@ -141,6 +143,26 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
             } catch (error: any) {
                 toast.error("Error", {
                     description: error.message || "No se pudo eliminar el usuario"
+                });
+            }
+        });
+    };
+
+    const handleToggleBan = async (userId: string, currentBanned: boolean) => {
+        startTransition(async () => {
+            try {
+                await toggleUserBanAction(userId, !currentBanned);
+
+                setUsers(prev => prev.map(u =>
+                    u.id === userId ? { ...u, banned: !currentBanned } : u
+                ));
+
+                toast.success(!currentBanned ? "Usuario baneado" : "Usuario desbaneado", {
+                    description: `El usuario ha sido ${!currentBanned ? 'baneado' : 'desbaneado'} exitosamente`
+                });
+            } catch (error: any) {
+                toast.error("Error", {
+                    description: error.message || "No se pudo actualizar el estado del usuario"
                 });
             }
         });
@@ -289,6 +311,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                     <TableHead>Usuario</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Rol</TableHead>
+                                    <TableHead>Estado</TableHead>
                                     <TableHead>Estadísticas</TableHead>
                                     <TableHead>Fecha Registro</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
@@ -297,7 +320,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                             <TableBody>
                                 {filteredUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
+                                        <TableCell colSpan={7} className="h-24 text-center">
                                             No se encontraron usuarios
                                         </TableCell>
                                     </TableRow>
@@ -347,6 +370,18 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                         <SelectItem value="admin">Administrador</SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Switch
+                                                        checked={!user.banned}
+                                                        onCheckedChange={() => handleToggleBan(user.id, user.banned || false)}
+                                                        disabled={isPending}
+                                                    />
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {user.banned ? "Baneado" : "Activo"}
+                                                    </span>
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 {user._count && (

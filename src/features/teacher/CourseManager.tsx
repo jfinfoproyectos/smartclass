@@ -204,7 +204,10 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
     );
 }
 
-export function CourseManager({ initialCourses }: { initialCourses: any[] }) {
+import { EnrollmentRequests } from "./EnrollmentRequests";
+import { Badge } from "@/components/ui/badge";
+
+export function CourseManager({ initialCourses, pendingEnrollments = [] }: { initialCourses: any[], pendingEnrollments?: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [editCourse, setEditCourse] = useState<any>(null);
     const [isCloning, setIsCloning] = useState(false);
@@ -628,12 +631,23 @@ export function CourseManager({ initialCourses }: { initialCourses: any[] }) {
                 <TabsList>
                     <TabsTrigger value="active">Cursos Activos ({activeCourses.length})</TabsTrigger>
                     <TabsTrigger value="archived">Cursos Archivados ({archivedCourses.length})</TabsTrigger>
+                    <TabsTrigger value="requests" className="relative">
+                        Solicitudes
+                        {pendingEnrollments.length > 0 && (
+                            <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-orange-500 hover:bg-orange-600">
+                                {pendingEnrollments.length}
+                            </Badge>
+                        )}
+                    </TabsTrigger>
                 </TabsList>
                 <TabsContent value="active" className="mt-4">
                     <CourseTable courses={activeCourses} />
                 </TabsContent>
                 <TabsContent value="archived" className="mt-4">
                     <CourseTable courses={archivedCourses} />
+                </TabsContent>
+                <TabsContent value="requests" className="mt-4">
+                    <EnrollmentRequests requests={pendingEnrollments} />
                 </TabsContent>
             </Tabs>
         </div>

@@ -24,11 +24,13 @@ import { cn } from "@/lib/utils";
 export function StudentDashboard({
     availableCourses,
     myEnrollments,
-    studentName
+    studentName,
+    pendingEnrollments = []
 }: {
     availableCourses: any[],
     myEnrollments: any[],
-    studentName: string
+    studentName: string,
+    pendingEnrollments?: string[]
 }) {
     const [selectedCourse, setSelectedCourse] = useState<string>("");
     const [openCombobox, setOpenCombobox] = useState(false);
@@ -49,6 +51,12 @@ export function StudentDashboard({
                     SmartClass
                 </p>
             </div>
+
+            {pendingEnrollments.length > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-200">
+                    Tienes {pendingEnrollments.length} solicitud{pendingEnrollments.length !== 1 ? 'es' : ''} de inscripción pendiente{pendingEnrollments.length !== 1 ? 's' : ''} de aprobación por el profesor.
+                </div>
+            )}
 
             {/* Tabs */}
             <Tabs defaultValue="my-courses" className="space-y-6">
@@ -113,10 +121,13 @@ export function StudentDashboard({
                     />
                 </TabsContent>
                 <TabsContent value="catalog" className="space-y-6 mt-0">
-                    <CourseCatalog courses={availableCourses.filter(course =>
-                        !myEnrollments.some(enrollment => enrollment.courseId === course.id) &&
-                        (!course.endDate || new Date(course.endDate) >= new Date())
-                    )} />
+                    <CourseCatalog
+                        courses={availableCourses.filter(course =>
+                            !myEnrollments.some(enrollment => enrollment.courseId === course.id) &&
+                            (!course.endDate || new Date(course.endDate) >= new Date())
+                        )}
+                        pendingEnrollments={pendingEnrollments}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

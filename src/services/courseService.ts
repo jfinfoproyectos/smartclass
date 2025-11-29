@@ -175,6 +175,7 @@ export const courseService = {
         const enrollments = await prisma.enrollment.findMany({
             where: {
                 userId,
+                status: 'APPROVED',
                 course: {
                     OR: [
                         { endDate: null },
@@ -235,7 +236,7 @@ export const courseService = {
         });
     },
 
-    async enrollStudent(userId: string, courseId: string) {
+    async enrollStudent(userId: string, courseId: string, status: 'PENDING' | 'APPROVED' = 'PENDING') {
         // Check if course registration is open
         const course = await prisma.course.findUnique({
             where: { id: courseId },
@@ -273,6 +274,7 @@ export const courseService = {
             data: {
                 userId,
                 courseId,
+                status: status as any,
             },
         });
     },
@@ -281,6 +283,7 @@ export const courseService = {
         const enrollments = await prisma.enrollment.findMany({
             where: {
                 userId,
+                status: 'APPROVED',
                 course: {
                     OR: [
                         { endDate: null },
@@ -360,8 +363,80 @@ export const courseService = {
         return enrichedEnrollments;
     },
 
+    async getStudentPendingEnrollments(userId: string) {
+        const enrollments = await prisma.enrollment.findMany({
+            where: {
+                userId,
+                status: 'PENDING'
+            },
+            select: {
+                courseId: true
+            }
+        });
+        return enrollments.map(e => e.courseId);
+    },
+
+    async getPendingEnrollments(teacherId: string) {
+        return await prisma.enrollment.findMany({
+            where: {
+                status: 'PENDING',
+                course: {
+                    teacherId: teacherId
+                }
+            },
+            include: {
+                course: {
+                    select: {
+                        id: true,
+                        title: true
+                    }
+                },
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        image: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+    },
+
+    async updateEnrollmentStatus(enrollmentId: string, status: 'APPROVED' | 'REJECTED') {
+        // We no longer delete on REJECTED, we just update the status to suspend access
+        return await prisma.enrollment.update({
+            where: { id: enrollmentId },
+            data: { status: status as any }
+        });
+    },
+
     async getActivity(activityId: string, userId: string) {
+        // First check if user is enrolled and approved
         const activity = await prisma.activity.findUnique({
+            where: { id: activityId },
+            select: { courseId: true }
+        });
+
+        if (!activity) return null;
+
+        const enrollment = await prisma.enrollment.findUnique({
+            where: {
+                userId_courseId: {
+                    userId,
+                    courseId: activity.courseId
+                }
+            }
+        });
+
+        if (!enrollment || enrollment.status !== 'APPROVED') {
+            return null;
+        }
+
+        return await prisma.activity.findUnique({
             where: { id: activityId },
             include: {
                 course: {
@@ -376,8 +451,6 @@ export const courseService = {
                 },
             },
         });
-
-        return activity;
     },
 
     async getCourseStudents(courseId: string) {
@@ -401,6 +474,11 @@ export const courseService = {
                     },
                 },
             },
+            orderBy: {
+                user: {
+                    name: 'asc'
+                }
+            }
         });
     },
 

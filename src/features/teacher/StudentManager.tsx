@@ -30,12 +30,20 @@ import {
     SheetTrigger,
     SheetFooter,
 } from "@/components/ui/sheet";
-import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar } from "lucide-react";
-import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction } from "@/app/actions";
+import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck } from "lucide-react";
+import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction } from "@/app/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StudentActivityDetails } from "./components/StudentActivityDetails";
 import { toast } from "sonner";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function StudentManager({ courseId, initialStudents }: { courseId: string, initialStudents: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -109,6 +117,15 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
         }
     };
 
+    const handleStatusChange = async (enrollmentId: string, newStatus: 'APPROVED' | 'REJECTED') => {
+        try {
+            await updateStudentStatusAction(enrollmentId, newStatus);
+            toast.success(`Estado actualizado a ${newStatus === 'APPROVED' ? 'Activo' : 'Suspendido'}`);
+        } catch (error) {
+            toast.error("Error al actualizar estado");
+        }
+    };
+
     const filteredStudents = initialStudents.filter(enrollment =>
         enrollment.user.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
         enrollment.user.email.toLowerCase().includes(filterQuery.toLowerCase()) ||
@@ -117,6 +134,19 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
         enrollment.user.profile?.apellido?.toLowerCase().includes(filterQuery.toLowerCase()) ||
         enrollment.user.profile?.telefono?.toLowerCase().includes(filterQuery.toLowerCase())
     );
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'APPROVED':
+                return <Badge className="bg-green-500 hover:bg-green-600">Activo</Badge>;
+            case 'PENDING':
+                return <Badge variant="outline" className="text-orange-500 border-orange-500">Pendiente</Badge>;
+            case 'REJECTED':
+                return <Badge variant="destructive">Suspendido</Badge>;
+            default:
+                return <Badge variant="secondary">{status}</Badge>;
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -361,6 +391,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                             <TableHead>Identificación</TableHead>
                             <TableHead>Correo</TableHead>
                             <TableHead>Teléfono</TableHead>
+                            <TableHead>Estado</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -381,6 +412,9 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                 <TableCell>{enrollment.user.profile?.identificacion || "-"}</TableCell>
                                 <TableCell>{enrollment.user.email}</TableCell>
                                 <TableCell>{enrollment.user.profile?.telefono || "-"}</TableCell>
+                                <TableCell>
+                                    {getStatusBadge(enrollment.status || 'APPROVED')}
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
                                         <Button
@@ -400,56 +434,78 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                         >
                                             <Eye className="h-4 w-4" />
                                         </Button>
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Eliminar">
-                                                    <Trash2 className="h-4 w-4" />
+
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Eliminar Estudiante</DialogTitle>
-                                                    <DialogDescription>
-                                                        Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{enrollment.user.name}</strong> del curso y todos sus registros de asistencia y calificaciones.
-                                                        <br /><br />
-                                                        Escribe <strong>eliminar</strong> para confirmar.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="py-2">
-                                                    <Input
-                                                        placeholder="Escribe eliminar"
-                                                        onChange={(e) => {
-                                                            const btn = document.getElementById(`delete-btn-${enrollment.user.id}`) as HTMLButtonElement;
-                                                            if (btn) btn.disabled = e.target.value !== "eliminar";
-                                                        }}
-                                                    />
-                                                </div>
-                                                <DialogFooter>
-                                                    <form action={async () => {
-                                                        const formData = new FormData();
-                                                        formData.append("userId", enrollment.user.id);
-                                                        formData.append("courseId", courseId);
-                                                        await removeStudentFromCourseAction(formData);
-                                                    }}>
-                                                        <Button
-                                                            id={`delete-btn-${enrollment.user.id}`}
-                                                            type="submit"
-                                                            variant="destructive"
-                                                            disabled
-                                                        >
-                                                            Eliminar
-                                                        </Button>
-                                                    </form>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {enrollment.status === 'REJECTED' ? (
+                                                    <DropdownMenuItem onClick={() => handleStatusChange(enrollment.id, 'APPROVED')}>
+                                                        <ShieldCheck className="mr-2 h-4 w-4" /> Activar
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem onClick={() => handleStatusChange(enrollment.id, 'REJECTED')}>
+                                                        <ShieldAlert className="mr-2 h-4 w-4" /> Suspender
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuSeparator />
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                                        </DropdownMenuItem>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Eliminar Estudiante</DialogTitle>
+                                                            <DialogDescription>
+                                                                Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{enrollment.user.name}</strong> del curso y todos sus registros de asistencia y calificaciones.
+                                                                <br /><br />
+                                                                Escribe <strong>eliminar</strong> para confirmar.
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="py-2">
+                                                            <Input
+                                                                placeholder="Escribe eliminar"
+                                                                onChange={(e) => {
+                                                                    const btn = document.getElementById(`delete-btn-${enrollment.user.id}`) as HTMLButtonElement;
+                                                                    if (btn) btn.disabled = e.target.value !== "eliminar";
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <form action={async () => {
+                                                                const formData = new FormData();
+                                                                formData.append("userId", enrollment.user.id);
+                                                                formData.append("courseId", courseId);
+                                                                await removeStudentFromCourseAction(formData);
+                                                            }}>
+                                                                <Button
+                                                                    id={`delete-btn-${enrollment.user.id}`}
+                                                                    type="submit"
+                                                                    variant="destructive"
+                                                                    disabled
+                                                                >
+                                                                    Eliminar
+                                                                </Button>
+                                                            </form>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </TableCell>
                             </TableRow>
                         ))}
                         {filteredStudents.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                     No hay estudiantes inscritos.
                                 </TableCell>
                             </TableRow>
