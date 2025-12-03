@@ -23,7 +23,8 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { createCourseAction, deleteCourseAction, updateRegistrationSettingsAction, cloneCourseAction } from "@/app/actions";
-import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy } from "lucide-react";
+import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning } from "lucide-react";
+
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -145,6 +146,8 @@ function RegistrationSettingsDialog({ course }: { course: any }) {
         </Dialog>
     );
 }
+
+
 
 
 function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, courseTitle: string }) {
@@ -334,6 +337,16 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                     >
                                         <Copy className="h-4 w-4" />
                                     </Button>
+                                    <Link href={`/dashboard/teacher/courses/${course.id}/duplicates`}>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            title="Reporte de Duplicados"
+                                            className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                        >
+                                            <FileWarning className="h-4 w-4" />
+                                        </Button>
+                                    </Link>
                                     <DeleteCourseDialog courseId={course.id} courseTitle={course.title} />
                                 </div>
                             </TableCell>
@@ -369,7 +382,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                     <DialogTrigger asChild>
                         <Button><Plus className="mr-2 h-4 w-4" /> Crear Curso</Button>
                     </DialogTrigger>
-                    <DialogContent className="!max-w-7xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-7xl! max-h-[90vh] overflow-y-auto">
                         <form action={async (formData) => {
                             // Add schedules to formData
                             formData.append("schedules", JSON.stringify(schedules));

@@ -75,15 +75,43 @@ export const attendanceService = {
             throw new Error("El código ha expirado.");
         }
 
-        const normalizedDate = new Date();
-        normalizedDate.setHours(0, 0, 0, 0);
+        // Find existing attendance record close to now (to handle timezone differences)
+        // We look for a record within +/- 24 hours
+        const now = new Date();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const existingRecord = await prisma.attendance.findFirst({
+            where: {
+                courseId,
+                userId,
+                date: {
+                    gte: yesterday,
+                    lte: tomorrow
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        // If we found a record, use its date to ensure we update it instead of creating a new one
+        // If not, use the current server date normalized
+        let targetDate = new Date();
+        targetDate.setHours(0, 0, 0, 0);
+
+        if (existingRecord) {
+            targetDate = existingRecord.date;
+        }
 
         return await prisma.attendance.upsert({
             where: {
                 courseId_userId_date: {
                     courseId,
                     userId,
-                    date: normalizedDate,
+                    date: targetDate,
                 },
             },
             update: {
@@ -94,7 +122,7 @@ export const attendanceService = {
             create: {
                 courseId,
                 userId,
-                date: normalizedDate,
+                date: targetDate,
                 status: "LATE",
                 arrivalTime: new Date(),
                 justification,
@@ -179,6 +207,21 @@ export const attendanceService = {
         } else {
             throw new Error("No hay justificación para eliminar en este registro");
         }
+    },
+
+    async deleteAttendanceRecord(attendanceId: string) {
+        const record = await prisma.attendance.findUnique({
+            where: { id: attendanceId },
+        });
+
+        if (!record) {
+            throw new Error("Registro de asistencia no encontrado");
+        }
+
+        // Completely delete the attendance record
+        return await prisma.attendance.delete({
+            where: { id: attendanceId },
+        });
     },
 
     async getCourseAttendance(courseId: string) {

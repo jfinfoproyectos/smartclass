@@ -36,6 +36,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     const isGraded = submission && submission.grade !== null;
     const { resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
+    const [activeTab, setActiveTab] = useState(isGraded ? "feedback" : "instructions");
     const componentRef = useRef<HTMLDivElement>(null);
 
     const handlePrint = useReactToPrint({
@@ -46,6 +47,12 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (isGraded) {
+            setActiveTab("feedback");
+        }
+    }, [isGraded]);
 
     const mode = mounted ? (resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto") : "light";
 
@@ -119,6 +126,15 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                             )}
                         </div>
 
+                        {maxAttempts > 1 && (
+                            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 rounded-md flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                <p className="text-xs">
+                                    <strong>Nota importante:</strong> Tienes {maxAttempts} intentos disponibles. Se guardará automáticamente la nota más alta que obtengas entre todos tus intentos.
+                                </p>
+                            </div>
+                        )}
+
                         <Separator />
 
                         {isSubmitted ? (
@@ -138,6 +154,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                             activityId={activity.id}
                                             description={activity.description}
                                             filePaths={activity.filePaths || ""}
+                                            onEvaluationComplete={() => setActiveTab("feedback")}
                                         />
                                     </div>
                                 )}
@@ -147,12 +164,13 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                 activityId={activity.id}
                                 description={activity.description}
                                 filePaths={activity.filePaths || ""}
+                                onEvaluationComplete={() => setActiveTab("feedback")}
                             />
                         )}
                     </CardContent>
                 </Card>
 
-                <Tabs defaultValue="instructions" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="instructions">Instrucciones</TabsTrigger>
                         <TabsTrigger value="rubric">Enunciado / Rúbrica</TabsTrigger>
@@ -165,12 +183,8 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                 <CardTitle>Instrucciones</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div data-color-mode={mode}>
-                                    <MDEditor.Markdown source={activity.description || "**No hay instrucciones disponibles.**"} style={{ background: 'transparent' }} />
-                                </div>
-
                                 {activity.filePaths && (
-                                    <div className="mt-6 p-4 bg-muted/50 rounded-lg border">
+                                    <div className="mb-6 p-4 bg-muted/50 rounded-lg border">
                                         <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                                             <AlertCircle className="h-4 w-4 text-primary" />
                                             Archivos Requeridos para Evaluación
@@ -187,6 +201,10 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                         </div>
                                     </div>
                                 )}
+
+                                <div data-color-mode={mode}>
+                                    <MDEditor.Markdown source={activity.description || "**No hay instrucciones disponibles.**"} style={{ background: 'transparent' }} />
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -227,7 +245,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     );
 }
 
-function SubmissionForm({ activityId, description, filePaths }: { activityId: string, description: string, filePaths: string }) {
+function SubmissionForm({ activityId, description, filePaths, onEvaluationComplete }: { activityId: string, description: string, filePaths: string, onEvaluationComplete?: () => void }) {
     const [status, setStatus] = useState<'idle' | 'grading' | 'success' | 'error'>('idle');
     const [progress, setProgress] = useState<string>("");
     const [logs, setLogs] = useState<string[]>([]);
@@ -303,6 +321,14 @@ function SubmissionForm({ activityId, description, filePaths }: { activityId: st
 
             setStatus('success');
             addLog("🎉 Evaluación completada exitosamente.");
+
+            // Call the callback to switch to feedback tab
+            if (onEvaluationComplete) {
+                setTimeout(() => {
+                    onEvaluationComplete();
+                }, 1000); // Small delay to let user see success message
+            }
+
             router.refresh();
         } catch (err: any) {
             console.error(err);
@@ -342,13 +368,13 @@ function SubmissionForm({ activityId, description, filePaths }: { activityId: st
 
             {status === 'grading' && (
                 <div className="p-4 bg-muted rounded-lg space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {progress}
+                    <div className="flex items-center gap-2 text-sm font-medium text-blue-600 wrap-break-word">
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        <span className="wrap-break-word">{progress}</span>
                     </div>
                     <div className="space-y-1 max-h-40 overflow-y-auto text-xs font-mono bg-background p-2 rounded border">
                         {logs.map((log, i) => (
-                            <div key={i} className="truncate">{log}</div>
+                            <div key={i} className="wrap-break-word">{log}</div>
                         ))}
                     </div>
                 </div>

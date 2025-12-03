@@ -156,7 +156,12 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
 
             {paths.length > 0 && (
                 <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Archivos seleccionados:</Label>
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Archivos seleccionados:</Label>
+                        <Badge variant="outline" className="text-xs">
+                            {paths.length} {paths.length === 1 ? 'archivo' : 'archivos'}
+                        </Badge>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                         {paths.map((path, index) => (
                             <Badge key={index} variant="secondary" className="font-mono text-xs flex items-center gap-1 pr-1">
@@ -314,7 +319,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                             <div className="space-y-2">
                                                 <Label>Archivos a evaluar (GitHub)</Label>
                                                 <FilePathInput name="filePaths" placeholder="src/index.ts" />
-                                                <p className="text-xs text-muted-foreground">Agrega las rutas de los archivos individualmente.</p>
+                                                <p className="text-xs text-muted-foreground">Agrega las rutas de los archivos individualmente. Sin límite de archivos.</p>
                                             </div>
                                         )}
 
@@ -583,7 +588,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                     {selectedType === "GITHUB" && (
                                         <>
                                             <FilePathInput name="filePaths" defaultValue={activity.filePaths || ""} placeholder="src/index.ts" />
-                                            <p className="text-xs text-muted-foreground">Agrega las rutas de los archivos individualmente.</p>
+                                            <p className="text-xs text-muted-foreground">Agrega las rutas de los archivos individualmente. Sin límite de archivos.</p>
                                         </>
                                     )}
 

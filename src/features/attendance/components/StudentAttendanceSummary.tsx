@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getStudentAttendanceStatsAction, registerLateArrivalAction, registerAbsenceJustificationAction, deleteJustificationAction } from "@/app/actions";
+import { getStudentAttendanceStatsAction, registerLateArrivalAction, registerAbsenceJustificationAction, deleteAttendanceRecordAction } from "@/app/actions";
 import { AlertCircle, Clock, CheckCircle, ExternalLink, Trash2, Eye } from "lucide-react";
 import {
     Table,
@@ -70,7 +70,14 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
 
     const handleOpenDialog = (date: Date) => {
         setSelectedDate(date);
-        setJustificationType("LATE"); // Default to late arrival
+
+        // Check if the selected date is today
+        const today = new Date();
+        const isToday = new Date(date).toLocaleDateString() === today.toLocaleDateString();
+
+        // Only allow LATE if it's today, otherwise default to WITH_SUPPORT
+        setJustificationType(isToday ? "LATE" : "WITH_SUPPORT");
+
         setCode("");
         setJustification("");
         setDocumentUrl("");
@@ -129,11 +136,11 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
         if (!recordToDelete) return;
 
         try {
-            await deleteJustificationAction(recordToDelete.id, courseId);
-            toast.success("Justificación eliminada exitosamente");
+            await deleteAttendanceRecordAction(recordToDelete.id, courseId);
+            toast.success("Registro de asistencia eliminado exitosamente");
             fetchStats();
         } catch (error: any) {
-            toast.error(error.message || "Error al eliminar justificación");
+            toast.error(error.message || "Error al eliminar registro");
         } finally {
             setIsDeleteDialogOpen(false);
             setRecordToDelete(null);
@@ -218,22 +225,25 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                                                     Ver Justificación
                                                 </Button>
                                             )}
-                                            {readonly && (record.status === "LATE" || record.status === "EXCUSED") && (
+                                            {/* Teacher view: Show view and delete for all records */}
+                                            {readonly && (
                                                 <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleViewJustification(record)}
-                                                        title="Ver Justificación"
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
+                                                    {(record.status === "LATE" || record.status === "EXCUSED") && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleViewJustification(record)}
+                                                            title="Ver Justificación"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
                                                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                                         onClick={() => handleDeleteClick(record)}
-                                                        title="Eliminar Justificación"
+                                                        title="Eliminar Registro"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
@@ -265,7 +275,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                     <div className="space-y-4 py-4">
                         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
                             <div className="flex">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <AlertCircle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
                                 </div>
                                 <div className="ml-3">
@@ -277,14 +287,27 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 mb-4">
-                            <Button
-                                type="button"
-                                variant={justificationType === "LATE" ? "default" : "outline"}
-                                onClick={() => setJustificationType("LATE")}
-                                className="text-xs h-auto py-2 px-1"
-                            >
-                                Llegada Tarde
-                            </Button>
+                            {(() => {
+                                if (!selectedDate) return null;
+                                const today = new Date();
+                                const date = new Date(selectedDate);
+
+                                // Compare dates using local string representation to avoid timezone issues
+                                const isToday = date.toLocaleDateString() === today.toLocaleDateString();
+
+                                if (!isToday) return null;
+
+                                return (
+                                    <Button
+                                        type="button"
+                                        variant={justificationType === "LATE" ? "default" : "outline"}
+                                        onClick={() => setJustificationType("LATE")}
+                                        className="text-xs h-auto py-2 px-1"
+                                    >
+                                        Llegada Tarde
+                                    </Button>
+                                );
+                            })()}
                             <Button
                                 type="button"
                                 variant={justificationType === "WITH_SUPPORT" ? "default" : "outline"}
@@ -425,7 +448,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción eliminará la justificación del estudiante. Esta acción no se puede deshacer.
+                            Esta acción eliminará completamente el registro de asistencia del estudiante para esta fecha. Esta acción no se puede deshacer.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

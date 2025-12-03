@@ -1023,6 +1023,40 @@ export async function deleteJustificationAction(attendanceId: string, courseId: 
     revalidatePath(`/dashboard/teacher/courses/${courseId}`);
 }
 
+export async function deleteAttendanceRecordAction(attendanceId: string, courseId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    // Get attendance info before deletion for audit log
+    const attendance = await prisma.attendance.findUnique({
+        where: { id: attendanceId },
+        include: {
+            user: { select: { name: true } },
+            course: { select: { title: true } }
+        }
+    });
+
+    const { attendanceService } = await import("@/services/attendanceService");
+    await attendanceService.deleteAttendanceRecord(attendanceId);
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "DELETE",
+        entity: "ATTENDANCE",
+        entityId: attendanceId,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Registro de asistencia eliminado: ${attendance?.user.name || "Estudiante"} en ${attendance?.course.title || "Curso"} (${attendance?.date ? new Date(attendance.date).toLocaleDateString() : "fecha desconocida"})`,
+        success: true,
+    });
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+}
+
 // Remark Actions
 export async function createRemarkAction(formData: FormData) {
     const session = await getSession();
@@ -1542,4 +1576,83 @@ export async function updateSettingsAction(formData: FormData) {
 
     revalidatePath("/");
     revalidatePath("/dashboard/home");
+}
+
+export async function getCourseDuplicateLinksAction(courseId: string) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+        throw new Error("Unauthorized");
+    }
+
+    // Fetch activities for the course
+    const activities = await prisma.activity.findMany({
+        where: {
+            courseId,
+            OR: [
+                { type: { not: "MANUAL" } },
+                { AND: [{ type: "MANUAL" }, { allowLinkSubmission: true }] }
+            ]
+        },
+        select: { id: true, title: true }
+    });
+
+    const activityIds = activities.map(a => a.id);
+
+    // Fetch all submissions with URLs for these activities
+    const submissions = await prisma.submission.findMany({
+        where: {
+            activityId: { in: activityIds },
+        },
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    email: true
+                }
+            }
+        }
+    });
+
+    // Group by Activity -> URL
+    const duplicatesByActivity: any[] = [];
+
+    for (const activity of activities) {
+        const activitySubmissions = submissions.filter(s => s.activityId === activity.id);
+        const urlGroups = new Map<string, typeof activitySubmissions>();
+
+        for (const sub of activitySubmissions) {
+            if (!sub.url) continue;
+            // Normalize URL for comparison (remove trailing slash, lowercase)
+            const normalizedUrl = sub.url.trim().toLowerCase().replace(/\/$/, "");
+
+            if (!urlGroups.has(normalizedUrl)) {
+                urlGroups.set(normalizedUrl, []);
+            }
+            urlGroups.get(normalizedUrl)?.push(sub);
+        }
+
+        const duplicates: any[] = [];
+        urlGroups.forEach((subs, url) => {
+            if (subs.length > 1) {
+                duplicates.push({
+                    url: subs[0].url, // Use original URL for display
+                    students: subs.map(s => ({
+                        name: s.user.name,
+                        email: s.user.email,
+                        submissionDate: s.createdAt
+                    }))
+                });
+            }
+        });
+
+        if (duplicates.length > 0) {
+            duplicatesByActivity.push({
+                activityId: activity.id,
+                activityTitle: activity.title,
+                duplicates
+            });
+        }
+    }
+
+    return duplicatesByActivity;
 }
