@@ -9,7 +9,7 @@ async function getSession() {
     return await auth.api.getSession({ headers: await headers() });
 }
 
-export async function getStatisticsData(courseId?: string, studentId?: string) {
+export async function getStatisticsData(courseId?: string) {
     const session = await getSession();
     if (!session?.user || session.user.role !== "teacher") {
         throw new Error("Unauthorized");
@@ -24,115 +24,109 @@ export async function getStatisticsData(courseId?: string, studentId?: string) {
         orderBy: { title: 'asc' }
     });
 
-    // 2. Fetch Students for Filter (belonging to teacher's courses)
+    if (courses.length === 0) {
+        return null;
+    }
+
+    // Default to first course if no courseId provided or "all" (which shouldn't happen but safe to handle)
+    const selectedCourseId = (!courseId || courseId === "all") ? courses[0].id : courseId;
+    const selectedCourse = courses.find(c => c.id === selectedCourseId) || courses[0];
+
+    // 2. Fetch Students enrolled in the selected course
     const students = await prisma.user.findMany({
         where: {
             enrollments: {
                 some: {
-                    course: { teacherId }
+                    courseId: selectedCourseId
                 }
             },
             role: "student"
         },
         select: { id: true, name: true, email: true },
-        orderBy: { name: 'asc' },
-        distinct: ['id']
+        orderBy: { name: 'asc' }
     });
 
-    // 3. Build Filters
-    const whereCourse = courseId && courseId !== "all" ? { courseId } : { course: { teacherId } };
-    const whereStudent = studentId && studentId !== "all" ? { userId: studentId } : {};
-
-    // 4. Fetch Grades Data (Submissions)
-    const submissions = await prisma.submission.findMany({
-        where: {
-            activity: {
-                ...whereCourse
+    // 3. Fetch Data for the selected course
+    const [submissions, attendance, remarks, activities] = await Promise.all([
+        // Submissions
+        prisma.submission.findMany({
+            where: {
+                activity: { courseId: selectedCourseId },
+                grade: { not: null }
             },
-            ...whereStudent,
-            grade: { not: null }
-        },
-        include: {
-            activity: { select: { title: true, courseId: true } },
-            user: { select: { name: true } }
-        },
-        orderBy: { createdAt: 'asc' }
-    });
-
-    // 5. Fetch Attendance Data
-    const attendance = await prisma.attendance.findMany({
-        where: {
-            ...whereCourse,
-            ...whereStudent
-        },
-        orderBy: { date: 'asc' }
-    });
-
-    // 6. Fetch Observations (Remarks)
-    const remarks = await prisma.remark.findMany({
-        where: {
-            ...whereCourse,
-            ...whereStudent
-        },
-        orderBy: { date: 'asc' }
-    });
+            include: {
+                activity: { select: { id: true, title: true } },
+                user: { select: { id: true, name: true } }
+            },
+            orderBy: { createdAt: 'asc' }
+        }),
+        // Attendance
+        prisma.attendance.findMany({
+            where: { courseId: selectedCourseId },
+            orderBy: { date: 'asc' }
+        }),
+        // Remarks
+        prisma.remark.findMany({
+            where: { courseId: selectedCourseId },
+            orderBy: { date: 'asc' }
+        }),
+        // Activities (to calculate completion)
+        prisma.activity.findMany({
+            where: { courseId: selectedCourseId },
+            select: { id: true, title: true }
+        })
+    ]);
 
     // --- Data Aggregation ---
 
-    // A. Grades Over Time (Average per day/activity)
-    const gradesMap = new Map<string, { date: string; total: number; count: number; activityName: string }>();
+    // A. Student Metrics
+    const studentMetrics = students.map(student => {
+        const studentSubmissions = submissions.filter(s => s.userId === student.id);
+        const studentAttendance = attendance.filter(a => a.userId === student.id);
+        const studentRemarks = remarks.filter(r => r.userId === student.id);
 
+        // Average Grade
+        const totalGrade = studentSubmissions.reduce((acc, curr) => acc + (curr.grade || 0), 0);
+        const averageGrade = studentSubmissions.length > 0 ? totalGrade / studentSubmissions.length : 0;
+
+        // Attendance %
+        const totalSessions = studentAttendance.length;
+        const presentSessions = studentAttendance.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length; // Late counts as present-ish? Or maybe just PRESENT. Let's count PRESENT + LATE as attended.
+        const attendancePercentage = totalSessions > 0 ? (presentSessions / totalSessions) * 100 : 0;
+
+        // Missing Activities
+        // This is a rough estimate. Ideally we check against all activities.
+        const submittedActivityIds = new Set(studentSubmissions.map(s => s.activityId));
+        const missingActivities = activities.length - submittedActivityIds.size;
+
+        return {
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            averageGrade: parseFloat(averageGrade.toFixed(2)),
+            attendancePercentage: parseFloat(attendancePercentage.toFixed(1)),
+            missingActivities: Math.max(0, missingActivities),
+            remarksCount: studentRemarks.length
+        };
+    }).sort((a, b) => b.averageGrade - a.averageGrade);
+
+    // B. Activity Performance (Average grade per activity)
+    const activityPerformanceMap = new Map<string, { title: string; total: number; count: number }>();
     submissions.forEach(sub => {
-        const date = sub.createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
-        // Group by date for simplicity in this view, or by activity
-        if (!gradesMap.has(date)) {
-            gradesMap.set(date, { date, total: 0, count: 0, activityName: sub.activity.title });
+        if (!activityPerformanceMap.has(sub.activityId)) {
+            activityPerformanceMap.set(sub.activityId, { title: sub.activity.title, total: 0, count: 0 });
         }
-        const entry = gradesMap.get(date)!;
+        const entry = activityPerformanceMap.get(sub.activityId)!;
         entry.total += sub.grade || 0;
         entry.count += 1;
     });
 
-    const gradesOverTime = Array.from(gradesMap.values()).map(entry => ({
-        date: entry.date,
-        average: parseFloat((entry.total / entry.count).toFixed(2)),
-        activity: entry.activityName
-    })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const activityPerformance = Array.from(activityPerformanceMap.values()).map(entry => ({
+        activity: entry.title,
+        average: parseFloat((entry.total / entry.count).toFixed(2))
+    })).sort((a, b) => a.average - b.average); // Sort by difficulty (lowest average first)
 
-
-    // B. Attendance Trends
-    const attendanceMap = new Map<string, { date: string; present: number; absent: number; late: number; excused: number }>();
-
-    attendance.forEach(att => {
-        const date = att.date.toISOString().split('T')[0];
-        if (!attendanceMap.has(date)) {
-            attendanceMap.set(date, { date, present: 0, absent: 0, late: 0, excused: 0 });
-        }
-        const entry = attendanceMap.get(date)!;
-        if (att.status === 'PRESENT') entry.present++;
-        else if (att.status === 'ABSENT') entry.absent++;
-        else if (att.status === 'LATE') entry.late++;
-        else if (att.status === 'EXCUSED') entry.excused++;
-    });
-
-    const attendanceTrends = Array.from(attendanceMap.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // C. Observations Trends
-    const remarksMap = new Map<string, { date: string; positive: number; negative: number }>();
-
-    remarks.forEach(rem => {
-        const date = rem.date.toISOString().split('T')[0];
-        if (!remarksMap.has(date)) {
-            remarksMap.set(date, { date, positive: 0, negative: 0 });
-        }
-        const entry = remarksMap.get(date)!;
-        if (rem.type === 'COMMENDATION') entry.positive++;
-        else if (rem.type === 'ATTENTION') entry.negative++;
-    });
-
-    const remarksTrends = Array.from(remarksMap.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // D. Grade Distribution (Pie Chart)
+    // C. Grade Distribution (Pie Chart)
     const distribution = [
         { name: "Excelente (4.5 - 5.0)", value: 0, fill: "var(--chart-2)" },
         { name: "Bueno (4.0 - 4.49)", value: 0, fill: "var(--chart-1)" },
@@ -140,72 +134,41 @@ export async function getStatisticsData(courseId?: string, studentId?: string) {
         { name: "Insuficiente (0.0 - 2.99)", value: 0, fill: "var(--destructive)" },
     ];
 
-    if (studentId && studentId !== "all") {
-        // Single Student: Distribution of Activity Grades
-        submissions.forEach(sub => {
-            const grade = sub.grade || 0;
-            if (grade >= 4.5) distribution[0].value++;
-            else if (grade >= 4.0) distribution[1].value++;
-            else if (grade >= 3.0) distribution[2].value++;
-            else distribution[3].value++;
-        });
-    } else {
-        // All Students: Distribution of Student Averages
-        const studentGrades = new Map<string, { total: number; count: number }>();
-        submissions.forEach(sub => {
-            if (!studentGrades.has(sub.userId)) {
-                studentGrades.set(sub.userId, { total: 0, count: 0 });
-            }
-            const entry = studentGrades.get(sub.userId)!;
-            entry.total += sub.grade || 0;
-            entry.count += 1;
-        });
-
-        studentGrades.forEach(entry => {
-            const average = entry.total / entry.count;
-            if (average >= 4.5) distribution[0].value++;
-            else if (average >= 4.0) distribution[1].value++;
-            else if (average >= 3.0) distribution[2].value++;
-            else distribution[3].value++;
-        });
-    }
-
-    // E. Attendance by Month (Bar Chart - Multiple)
-    const attendanceByMonthMap = new Map<string, { month: string; absent: number; late: number; excused: number }>();
-
-    attendance.forEach(att => {
-        const date = new Date(att.date);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
-        const monthName = date.toLocaleString('es-ES', { month: 'long' });
-
-        if (!attendanceByMonthMap.has(monthKey)) {
-            attendanceByMonthMap.set(monthKey, {
-                month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-                absent: 0,
-                late: 0,
-                excused: 0
-            });
-        }
-        const entry = attendanceByMonthMap.get(monthKey)!;
-
-        if (att.status === 'ABSENT') entry.absent++;
-        else if (att.status === 'LATE') entry.late++;
-        else if (att.status === 'EXCUSED') entry.excused++;
+    studentMetrics.forEach(student => {
+        const avg = student.averageGrade;
+        if (avg >= 4.5) distribution[0].value++;
+        else if (avg >= 4.0) distribution[1].value++;
+        else if (avg >= 3.0) distribution[2].value++;
+        else distribution[3].value++;
     });
 
-    const attendanceByMonth = Array.from(attendanceByMonthMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([_, value]) => value);
+    // D. Attendance Trends (Line Chart)
+    const attendanceMap = new Map<string, { date: string; present: number; total: number }>();
+    attendance.forEach(att => {
+        const date = att.date.toISOString().split('T')[0];
+        if (!attendanceMap.has(date)) {
+            attendanceMap.set(date, { date, present: 0, total: 0 });
+        }
+        const entry = attendanceMap.get(date)!;
+        entry.total++;
+        if (att.status === 'PRESENT' || att.status === 'LATE') entry.present++;
+    });
+
+    const attendanceTrends = Array.from(attendanceMap.values())
+        .map(entry => ({
+            date: entry.date,
+            percentage: parseFloat(((entry.present / entry.total) * 100).toFixed(1))
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return {
         courses,
-        students,
+        selectedCourseId,
+        studentMetrics,
         charts: {
-            grades: gradesOverTime,
-            attendance: attendanceTrends,
-            remarks: remarksTrends,
+            activityPerformance,
             distribution,
-            attendanceByMonth // Added attendanceByMonth
+            attendanceTrends
         }
     };
 }

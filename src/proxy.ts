@@ -36,18 +36,18 @@ export async function proxy(request: NextRequest) {
 
     // Redirect authenticated users from root or signin to unified home page
     if (pathname === "/" || pathname === "/signin" || pathname === "/signup") {
-        return NextResponse.redirect(new URL("/dashboard/home", request.url));
+        return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     // Check if user has permission for the protected route
     if (protectedPrefix && !allowed[protectedPrefix].includes(role)) {
         // Redirect to home if user doesn't have permission
-        return NextResponse.redirect(new URL("/dashboard/home", request.url));
+        return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ["/", "/signin", "/signup", "/dashboard/admin/:path*", "/dashboard/student/:path*", "/dashboard/teacher/:path*", "/dashboard/home"]
+    matcher: ["/", "/signin", "/signup", "/dashboard/admin/:path*", "/dashboard/student/:path*", "/dashboard/teacher/:path*", "/dashboard"]
 };

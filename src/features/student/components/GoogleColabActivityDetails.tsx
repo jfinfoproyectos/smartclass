@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, ExternalLink, CheckCircle, ArrowLeft, Download } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, CheckCircle, Download } from "lucide-react";
 import { format } from "date-fns";
 import { FeedbackViewer } from "../FeedbackViewer";
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,11 +51,6 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
     return (
         <div className="space-y-6 w-full p-6">
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
-                    <Link href="/dashboard/student">
-                        <ArrowLeft className="h-5 w-5" />
-                    </Link>
-                </Button>
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{activity.title}</h1>
                     <p className="text-muted-foreground">{activity.course.title}</p>

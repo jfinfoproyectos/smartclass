@@ -7,9 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { ExternalLink, Link as LinkIcon } from "lucide-react";
 import { FeedbackViewer } from "../FeedbackViewer";
-import Link from "next/link";
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
@@ -56,11 +55,6 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
     return (
         <div className="space-y-6 w-full p-6">
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
-                    <Link href="/dashboard/student">
-                        <ArrowLeft className="h-5 w-5" />
-                    </Link>
-                </Button>
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{activity.title}</h1>
                     <p className="text-muted-foreground">{activity.course.title}</p>

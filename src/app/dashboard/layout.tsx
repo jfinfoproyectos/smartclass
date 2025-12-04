@@ -4,6 +4,7 @@ import { ModeToggle } from "@/components/theme/ModeToggle";
 import { ThemeSwatches } from "@/components/theme/ThemeSwatches";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@radix-ui/react-separator";
+import { DynamicBreadcrumb } from "@/components/navigation/DynamicBreadcrumb";
 
 export default function DashboardLayout({
   children,
@@ -22,6 +23,7 @@ export default function DashboardLayout({
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4"
             />
+            <DynamicBreadcrumb />
             <div className="ml-auto flex items-center gap-2 me-2">
               <ThemeSwatches />
               <ModeToggle />

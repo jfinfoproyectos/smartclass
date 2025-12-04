@@ -39,8 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Eye, ArrowLeft, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
-import Link from "next/link";
+import { Eye, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { FeedbackViewer } from "../student/FeedbackViewer";
 import { deleteSubmissionAction, validateUniqueLinksAction } from "@/app/actions";
 import { toast } from "sonner";
@@ -143,11 +142,6 @@ export function ActivityDetail({
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <Link href={`/dashboard/teacher/courses/${activity.courseId}`}>
-                    <Button variant="ghost" size="icon">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                </Link>
                 <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                         <h2 className="text-2xl font-bold tracking-tight">{activity.title}</h2>

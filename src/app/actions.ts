@@ -1497,7 +1497,7 @@ export async function createAnnouncementAction(formData: FormData) {
         type
     });
 
-    revalidatePath("/dashboard/home");
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/admin/announcements");
 }
 
@@ -1534,7 +1534,7 @@ export async function updateAnnouncementAction(formData: FormData) {
         type
     });
 
-    revalidatePath("/dashboard/home");
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/admin/announcements");
 }
 
@@ -1547,7 +1547,7 @@ export async function deleteAnnouncementAction(formData: FormData) {
     const id = formData.get("id") as string;
     await announcementService.deleteAnnouncement(id);
 
-    revalidatePath("/dashboard/home");
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/admin/announcements");
 }
 
@@ -1575,7 +1575,7 @@ export async function updateSettingsAction(formData: FormData) {
     });
 
     revalidatePath("/");
-    revalidatePath("/dashboard/home");
+    revalidatePath("/dashboard");
 }
 
 export async function getCourseDuplicateLinksAction(courseId: string) {

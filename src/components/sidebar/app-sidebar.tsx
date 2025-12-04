@@ -62,7 +62,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ? [
         {
           title: "Inicio",
-          url: "/dashboard/home",
+          url: "/dashboard",
           icon: Home,
           isActive: false,
         },
@@ -107,7 +107,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ? [
           {
             title: "Inicio",
-            url: "/dashboard/home",
+            url: "/dashboard",
             icon: Home,
             isActive: false,
           },
@@ -145,7 +145,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         : [
           {
             title: "Inicio",
-            url: "/dashboard/home",
+            url: "/dashboard",
             icon: Home,
             isActive: false,
           },

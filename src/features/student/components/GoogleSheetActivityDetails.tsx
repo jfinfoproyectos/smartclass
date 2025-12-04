@@ -2,8 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 
 interface GoogleSheetActivityDetailsProps {
     activity: any;
@@ -15,11 +13,6 @@ export function GoogleSheetActivityDetails({ activity, userId, studentName }: Go
     return (
         <div className="space-y-6 w-full p-6">
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
-                    <Link href="/dashboard/student">
-                        <ArrowLeft className="h-5 w-5" />
-                    </Link>
-                </Button>
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{activity.title}</h1>
                     <p className="text-muted-foreground">{activity.course.title}</p>
