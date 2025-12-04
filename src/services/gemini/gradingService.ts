@@ -77,6 +77,10 @@ export async function gradeSubmission(
             throw new Error("Información de repositorio inválida.");
         }
 
+        // Get GitHub token
+        const { getGithubToken } = await import("@/lib/githubTokenHelper");
+        const token = await getGithubToken();
+
         const paths = filePaths.split(',').map(p => p.trim());
         const missingFiles: string[] = [];
         const analyses: FileAnalysis[] = [];
@@ -85,7 +89,7 @@ export async function gradeSubmission(
 
         // MAP STEP: Analyze each file individually
         for (const path of paths) {
-            const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path);
+            const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, token || undefined);
             if (content) {
                 console.log(`[GradingService] Analyzing file: ${path}`);
                 const analysis = await analyzeFile(path, content, description, repoUrl, userId);

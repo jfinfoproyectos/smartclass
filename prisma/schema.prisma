@@ -320,6 +320,7 @@ model SystemSettings {
   institutionHeroImage  String?
   geminiApiKeyMode      GeminiApiKeyMode @default(GLOBAL)
   encryptedGlobalApiKey String?
+  encryptedGithubToken  String?
   updatedAt             DateTime         @updatedAt
 
   @@map("system_settings")

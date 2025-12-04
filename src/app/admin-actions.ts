@@ -325,7 +325,8 @@ export async function getSystemSettingsAction() {
         institutionName: settings.institutionName,
         institutionLogo: settings.institutionLogo,
         institutionHeroImage: settings.institutionHeroImage,
-        hasGlobalKey: !!settings.encryptedGlobalApiKey
+        hasGlobalKey: !!settings.encryptedGlobalApiKey,
+        hasGithubToken: !!settings.encryptedGithubToken
     };
 }
 
@@ -333,6 +334,7 @@ export async function getSystemSettingsAction() {
 export async function updateSystemSettingsAction(data: {
     geminiApiKeyMode: "GLOBAL" | "USER";
     globalApiKey?: string;
+    githubToken?: string;
 }) {
     const session = await requireAdmin();
 
@@ -344,6 +346,10 @@ export async function updateSystemSettingsAction(data: {
 
     if (data.globalApiKey) {
         updateData.encryptedGlobalApiKey = await encrypt(data.globalApiKey);
+    }
+
+    if (data.githubToken) {
+        updateData.encryptedGithubToken = await encrypt(data.githubToken);
     }
 
     const settings = await prisma.systemSettings.upsert({

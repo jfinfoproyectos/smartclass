@@ -22,14 +22,19 @@ export const githubService = {
         }
     },
 
-    async getFileContent(owner: string, repo: string, path: string): Promise<string | null> {
+    async getFileContent(owner: string, repo: string, path: string, token?: string): Promise<string | null> {
         try {
             // Use raw.githubusercontent.com for simpler raw content fetching
             // Format: https://raw.githubusercontent.com/owner/repo/HEAD/path/to/file
             // Using HEAD to get the default branch's latest version is a safe bet if we don't know the branch
             const url = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
 
-            const response = await fetch(url);
+            const headers: HeadersInit = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, { headers });
 
             if (!response.ok) {
                 console.error(`Failed to fetch ${url}: ${response.statusText}`);
@@ -43,12 +48,18 @@ export const githubService = {
         }
     },
 
-    async getRepoStructure(owner: string, repo: string): Promise<string[]> {
+    async getRepoStructure(owner: string, repo: string, token?: string): Promise<string[]> {
         try {
             // Use GitHub API to get the tree
             // https://api.github.com/repos/OWNER/REPO/git/trees/HEAD?recursive=1
             const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
-            const response = await fetch(url);
+
+            const headers: HeadersInit = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, { headers });
 
             if (!response.ok) {
                 console.error(`Failed to fetch repo structure: ${response.statusText}`);

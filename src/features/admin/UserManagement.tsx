@@ -46,11 +46,12 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
-import { Search, Trash2, Eye, UserCog, Users as UsersIcon, UserPlus } from "lucide-react";
+import { Search, Trash2, Eye, UserCog, Users as UsersIcon, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { updateUserRoleAction, deleteUserAction, createUserAction, toggleUserBanAction } from "@/app/admin-actions";
+import { updateUserRoleAction, deleteUserAction, createUserAction, toggleUserBanAction, getAllUsersAction } from "@/app/admin-actions";
 import { format } from "date-fns";
 import { Switch } from "@/components/ui/switch";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface User {
     id: string;
@@ -95,6 +96,17 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
     const [newUserRole, setNewUserRole] = useState<"teacher" | "admin">("teacher");
     const [newUserPassword, setNewUserPassword] = useState("");
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isLoadingPage, setIsLoadingPage] = useState(false);
+    const usersPerPage = 20;
+    const totalPages = Math.ceil(totalCount / usersPerPage);
+
+    // Role change confirmation state
+    const [roleChangeDialogOpen, setRoleChangeDialogOpen] = useState(false);
+    const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; newRole: "teacher" | "student" | "admin"; userName: string } | null>(null);
+    const [roleChangeConfirmation, setRoleChangeConfirmation] = useState("");
+
     const filteredUsers = users.filter(user => {
         const matchesSearch =
             user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -105,18 +117,55 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
         return matchesSearch && matchesRole;
     });
 
+    const handlePageChange = async (newPage: number) => {
+        if (newPage < 1 || newPage > totalPages || isLoadingPage) return;
+
+        setIsLoadingPage(true);
+        try {
+            const offset = (newPage - 1) * usersPerPage;
+            const { users: newUsers } = await getAllUsersAction({
+                limit: usersPerPage,
+                offset,
+                role: roleFilter !== "all" ? roleFilter as any : undefined,
+                search: searchQuery || undefined
+            });
+            setUsers(newUsers);
+            setCurrentPage(newPage);
+        } catch (error) {
+            toast.error("Error al cargar usuarios");
+        } finally {
+            setIsLoadingPage(false);
+        }
+    };
+
     const handleRoleChange = async (userId: string, newRole: "teacher" | "student" | "admin") => {
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+
+        // Open confirmation dialog
+        setPendingRoleChange({ userId, newRole, userName: user.name || user.email });
+        setRoleChangeDialogOpen(true);
+    };
+
+    const confirmRoleChange = async () => {
+        if (!pendingRoleChange || roleChangeConfirmation !== "cambiar") return;
+
         startTransition(async () => {
             try {
-                await updateUserRoleAction(userId, newRole);
+                await updateUserRoleAction(pendingRoleChange.userId, pendingRoleChange.newRole);
 
                 setUsers(prev => prev.map(u =>
-                    u.id === userId ? { ...u, role: newRole } : u
+                    u.id === pendingRoleChange.userId ? { ...u, role: pendingRoleChange.newRole } : u
                 ));
 
                 toast.success("Rol actualizado", {
-                    description: `El rol del usuario ha sido cambiado a ${newRole}`
+                    description: `El rol del usuario ha sido cambiado a ${pendingRoleChange.newRole}`
                 });
+
+                // Reset dialog state
+                setRoleChangeDialogOpen(false);
+                setPendingRoleChange(null);
+                setRoleChangeConfirmation("");
             } catch (error: any) {
                 toast.error("Error", {
                     description: error.message || "No se pudo actualizar el rol"
@@ -329,19 +378,12 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                         <TableRow key={user.id}>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    {user.image ? (
-                                                        <img
-                                                            src={user.image}
-                                                            alt={user.name || "User"}
-                                                            className="h-8 w-8 rounded-full"
-                                                        />
-                                                    ) : (
-                                                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                                                            <span className="text-xs font-medium">
-                                                                {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    <UserAvatar
+                                                        src={user.image}
+                                                        alt={user.name || "User"}
+                                                        fallbackText={user.name || user.email}
+                                                        size="sm"
+                                                    />
                                                     <div>
                                                         <div className="font-medium">{user.name || "Sin nombre"}</div>
                                                         {user.profile && (
@@ -433,6 +475,38 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                             </TableBody>
                         </Table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-4">
+                            <div className="text-sm text-muted-foreground">
+                                Mostrando {((currentPage - 1) * usersPerPage) + 1} - {Math.min(currentPage * usersPerPage, totalCount)} de {totalCount} usuarios
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1 || isLoadingPage}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Anterior
+                                </Button>
+                                <div className="text-sm">
+                                    Página {currentPage} de {totalPages}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages || isLoadingPage}
+                                >
+                                    Siguiente
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -459,6 +533,52 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Role Change Confirmation Dialog */}
+            <Dialog open={roleChangeDialogOpen} onOpenChange={(open) => {
+                setRoleChangeDialogOpen(open);
+                if (!open) {
+                    setPendingRoleChange(null);
+                    setRoleChangeConfirmation("");
+                }
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>¿Cambiar rol de usuario?</DialogTitle>
+                        <DialogDescription>
+                            Estás a punto de cambiar el rol de <strong>{pendingRoleChange?.userName}</strong> a{" "}
+                            <strong>{pendingRoleChange?.newRole === "admin" ? "Administrador" : pendingRoleChange?.newRole === "teacher" ? "Profesor" : "Estudiante"}</strong>.
+                            <br /><br />
+                            Esta acción puede afectar los permisos y accesos del usuario en el sistema.
+                            <br /><br />
+                            Escribe <strong>cambiar</strong> para confirmar.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <Input
+                            placeholder="Escribe cambiar"
+                            value={roleChangeConfirmation}
+                            onChange={(e) => setRoleChangeConfirmation(e.target.value)}
+                            disabled={isPending}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setRoleChangeDialogOpen(false)}
+                            disabled={isPending}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={confirmRoleChange}
+                            disabled={isPending || roleChangeConfirmation !== "cambiar"}
+                        >
+                            {isPending ? "Cambiando..." : "Cambiar Rol"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* User Details Sheet */}
             <Sheet open={detailsSheetOpen} onOpenChange={setDetailsSheetOpen}>
                 <SheetContent className="w-[400px] sm:w-[540px]">
@@ -471,19 +591,12 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                     {selectedUser && (
                         <div className="mt-6 space-y-6">
                             <div className="flex items-center gap-4">
-                                {selectedUser.image ? (
-                                    <img
-                                        src={selectedUser.image}
-                                        alt={selectedUser.name || "User"}
-                                        className="h-16 w-16 rounded-full"
-                                    />
-                                ) : (
-                                    <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                                        <span className="text-2xl font-medium">
-                                            {selectedUser.name?.charAt(0) || selectedUser.email.charAt(0).toUpperCase()}
-                                        </span>
-                                    </div>
-                                )}
+                                <UserAvatar
+                                    src={selectedUser.image}
+                                    alt={selectedUser.name || "User"}
+                                    fallbackText={selectedUser.name || selectedUser.email}
+                                    size="lg"
+                                />
                                 <div>
                                     <h3 className="text-lg font-semibold">{selectedUser.name || "Sin nombre"}</h3>
                                     <p className="text-sm text-muted-foreground">{selectedUser.email}</p>

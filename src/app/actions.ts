@@ -641,13 +641,15 @@ export async function scanRepositoryAction(repoUrl: string) {
     }
 
     const { githubService } = await import("@/services/githubService");
+    const { getGithubToken } = await import("@/lib/githubTokenHelper");
     const repoInfo = githubService.parseGitHubUrl(repoUrl);
 
     if (!repoInfo) {
         throw new Error("Invalid GitHub URL");
     }
 
-    return await githubService.getRepoStructure(repoInfo.owner, repoInfo.repo);
+    const token = await getGithubToken();
+    return await githubService.getRepoStructure(repoInfo.owner, repoInfo.repo, token || undefined);
 }
 
 
@@ -658,15 +660,17 @@ export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
     }
 
     const { githubService } = await import("@/services/githubService");
+    const { getGithubToken } = await import("@/lib/githubTokenHelper");
     const repoInfo = githubService.parseGitHubUrl(repoUrl);
     if (!repoInfo) throw new Error("Invalid GitHub URL");
 
+    const token = await getGithubToken();
     const paths = filePaths.split(',').map(p => p.trim());
     const validFiles = [];
     const missingFiles = [];
 
     for (const path of paths) {
-        const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path);
+        const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, token || undefined);
         if (content) {
             validFiles.push({ path, content });
         } else {

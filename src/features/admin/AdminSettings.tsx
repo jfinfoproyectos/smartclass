@@ -14,6 +14,7 @@ interface AdminSettingsProps {
     initialSettings: {
         geminiApiKeyMode: "GLOBAL" | "USER";
         hasGlobalKey: boolean;
+        hasGithubToken: boolean;
         institutionName?: string | null;
         institutionLogo?: string | null;
         institutionHeroImage?: string | null;
@@ -23,6 +24,7 @@ interface AdminSettingsProps {
 export function AdminSettings({ initialSettings }: AdminSettingsProps) {
     const [mode, setMode] = useState<"GLOBAL" | "USER">(initialSettings.geminiApiKeyMode);
     const [apiKey, setApiKey] = useState("");
+    const [githubToken, setGithubToken] = useState("");
     const [isPending, startTransition] = useTransition();
 
     const handleSave = () => {
@@ -37,7 +39,8 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
             try {
                 await updateSystemSettingsAction({
                     geminiApiKeyMode: mode,
-                    globalApiKey: apiKey || undefined
+                    globalApiKey: apiKey || undefined,
+                    githubToken: githubToken || undefined
                 });
 
                 toast.success("Configuración guardada", {
@@ -45,6 +48,7 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
                 });
 
                 if (apiKey) setApiKey("");
+                if (githubToken) setGithubToken("");
             } catch (error: any) {
                 toast.error("Error", {
                     description: error.message || "No se pudo guardar la configuración"
@@ -127,6 +131,65 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
                             </p>
                         </div>
                     )}
+
+                    <div className="flex justify-end pt-4">
+                        <Button onClick={handleSave} disabled={isPending}>
+                            <Save className="mr-2 h-4 w-4" />
+                            {isPending ? "Guardando..." : "Guardar Cambios"}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Key className="h-5 w-5" />
+                        Configuración de GitHub API
+                    </CardTitle>
+                    <CardDescription>
+                        Configura un token de acceso personal de GitHub para aumentar los límites de peticiones
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                        <h4 className="font-medium text-sm">Límites de Peticiones</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p className="text-muted-foreground">Sin token:</p>
+                                <p className="font-bold">60 peticiones/hora</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Con token:</p>
+                                <p className="font-bold text-green-600">5,000 peticiones/hora</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="githubToken">GitHub Personal Access Token (Opcional)</Label>
+                        <Input
+                            id="githubToken"
+                            type="password"
+                            placeholder={initialSettings.hasGithubToken ? "•••••••••••••••• (Token configurado)" : "Ingresa tu GitHub Personal Access Token"}
+                            value={githubToken}
+                            onChange={(e) => setGithubToken(e.target.value)}
+                            disabled={isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            El token se almacenará encriptado.
+                            {initialSettings.hasGithubToken && " Deja este campo vacío para mantener el token actual."}
+                            {" "}
+                            <a
+                                href="https://github.com/settings/tokens/new?scopes=public_repo&description=SmartClass"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                            >
+                                Crear token en GitHub →
+                            </a>
+                        </p>
+                    </div>
 
                     <div className="flex justify-end pt-4">
                         <Button onClick={handleSave} disabled={isPending}>
