@@ -75,9 +75,11 @@ export function StudentDashboard({
                                     aria-expanded={openCombobox}
                                     className="w-full sm:w-[300px] justify-between"
                                 >
-                                    {selectedCourse
-                                        ? myEnrollments.find((e) => e.course.id === selectedCourse)?.course.title
-                                        : "Seleccionar curso"}
+                                    <span className="truncate">
+                                        {selectedCourse
+                                            ? myEnrollments.find((e) => e.course.id === selectedCourse)?.course.title
+                                            : "Seleccionar curso"}
+                                    </span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>

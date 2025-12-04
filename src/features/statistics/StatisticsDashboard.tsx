@@ -98,11 +98,11 @@ export function StatisticsDashboard() {
                     {/* Course Filter */}
                     <Select value={selectedCourse || data.selectedCourseId} onValueChange={setSelectedCourse}>
                         <SelectTrigger className="w-[300px]">
-                            <SelectValue placeholder="Seleccionar curso" />
+                            <SelectValue placeholder="Seleccionar curso" className="truncate" />
                         </SelectTrigger>
                         <SelectContent>
                             {data.courses.map(course => (
-                                <SelectItem key={course.id} value={course.id}>
+                                <SelectItem key={course.id} value={course.id} className="truncate">
                                     {course.title}
                                 </SelectItem>
                             ))}
@@ -181,9 +181,9 @@ export function StatisticsDashboard() {
                             <TableBody>
                                 {data.studentMetrics.map((student) => (
                                     <TableRow key={student.id}>
-                                        <TableCell className="font-medium">
-                                            <div>{student.name}</div>
-                                            <div className="text-xs text-muted-foreground">{student.email}</div>
+                                        <TableCell className="font-medium max-w-[200px]">
+                                            <div className="truncate">{student.name}</div>
+                                            <div className="text-xs text-muted-foreground truncate">{student.email}</div>
                                         </TableCell>
                                         <TableCell className="text-center font-bold">
                                             <span className={student.averageGrade < 3.0 ? "text-destructive print:text-red-600" : "text-primary print:text-black"}>
