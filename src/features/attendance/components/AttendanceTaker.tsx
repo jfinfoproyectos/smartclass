@@ -169,21 +169,21 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                                 {currentIndex + 1} / {students.length}
                             </div>
 
-                            <div className="flex items-center gap-8 w-full">
+                            <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8 w-full">
                                 {/* Avatar and Name */}
                                 <div className="flex flex-col items-center gap-3">
-                                    <Avatar className="h-32 w-32 border-4 border-primary shadow-xl">
+                                    <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary shadow-xl">
                                         <AvatarImage src={currentStudent.image || ""} alt={currentStudent.name} />
-                                        <AvatarFallback className="text-3xl">
+                                        <AvatarFallback className="text-2xl md:text-3xl">
                                             {currentStudent.name.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
 
                                     <div className="text-center">
-                                        <h1 className="text-3xl font-bold tracking-tight">
+                                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                                             {currentStudent.profile?.nombres || currentStudent.name.split(" ")[0]}
                                         </h1>
-                                        <h2 className="text-2xl text-muted-foreground font-light">
+                                        <h2 className="text-xl md:text-2xl text-muted-foreground font-light">
                                             {currentStudent.profile?.apellido || currentStudent.name.split(" ").slice(1).join(" ")}
                                         </h2>
                                     </div>
@@ -191,29 +191,29 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
 
                                 {/* Stats */}
                                 {studentStats && (
-                                    <div className="flex-1 grid grid-cols-3 gap-4">
-                                        <div className="flex flex-col items-center p-3 rounded-xl bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-200 dark:border-yellow-800">
-                                            <span className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                                    <div className="w-full md:flex-1 grid grid-cols-3 gap-2 md:gap-4">
+                                        <div className="flex flex-col items-center p-2 md:p-3 rounded-xl bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-200 dark:border-yellow-800">
+                                            <span className="text-2xl md:text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                                                 {studentStats.late}
                                             </span>
-                                            <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mt-1 text-center">
+                                            <span className="text-[10px] md:text-xs font-medium text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mt-1 text-center leading-tight">
                                                 Llegadas Tarde
                                             </span>
                                         </div>
-                                        <div className="flex flex-col items-center p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800">
-                                            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                                        <div className="flex flex-col items-center p-2 md:p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800">
+                                            <span className="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">
                                                 {studentStats.excused}
                                             </span>
-                                            <span className="text-xs font-medium text-blue-800 dark:text-blue-300 uppercase tracking-wider mt-1 text-center">
-                                                Inasistencias Justificadas
+                                            <span className="text-[10px] md:text-xs font-medium text-blue-800 dark:text-blue-300 uppercase tracking-wider mt-1 text-center leading-tight">
+                                                Inasistencias Justif.
                                             </span>
                                         </div>
-                                        <div className="flex flex-col items-center p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border-2 border-red-200 dark:border-red-800">
-                                            <span className="text-3xl font-bold text-red-600 dark:text-red-400">
+                                        <div className="flex flex-col items-center p-2 md:p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border-2 border-red-200 dark:border-red-800">
+                                            <span className="text-2xl md:text-3xl font-bold text-red-600 dark:text-red-400">
                                                 {studentStats.absences}
                                             </span>
-                                            <span className="text-xs font-medium text-red-800 dark:text-red-300 uppercase tracking-wider mt-1 text-center">
-                                                Inasistencias Sin Soporte
+                                            <span className="text-[10px] md:text-xs font-medium text-red-800 dark:text-red-300 uppercase tracking-wider mt-1 text-center leading-tight">
+                                                Inasistencias Sin Sop.
                                             </span>
                                         </div>
                                     </div>
@@ -224,19 +224,19 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                                 <Button
                                     size="lg"
                                     variant="outline"
-                                    className="h-20 w-40 text-xl border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30"
+                                    className="h-16 md:h-20 w-32 md:w-40 text-lg md:text-xl border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30"
                                     onClick={() => handleMarkAttendance("ABSENT")}
                                 >
-                                    <X className="mr-2 h-6 w-6" />
+                                    <X className="mr-2 h-5 w-5 md:h-6 md:w-6" />
                                     Ausente
                                 </Button>
 
                                 <Button
                                     size="lg"
-                                    className="h-20 w-40 text-xl bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-green-500/20 transition-all"
+                                    className="h-16 md:h-20 w-32 md:w-40 text-lg md:text-xl bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-green-500/20 transition-all"
                                     onClick={() => handleMarkAttendance("PRESENT")}
                                 >
-                                    <Check className="mr-2 h-6 w-6" />
+                                    <Check className="mr-2 h-5 w-5 md:h-6 md:w-6" />
                                     Presente
                                 </Button>
                             </div>
