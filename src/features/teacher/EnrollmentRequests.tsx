@@ -143,7 +143,7 @@ export function EnrollmentRequests({ requests: initialRequests }: { requests: Pe
                                     </Avatar>
                                     <div>
                                         <div className="font-medium">{request.user.name}</div>
-                                        <div className="text-xs text-muted-foreground">{request.user.email}</div>
+                                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">{request.user.email}</div>
                                         <div className="text-xs font-medium text-primary mt-0.5">
                                             Curso: {request.course.title}
                                         </div>

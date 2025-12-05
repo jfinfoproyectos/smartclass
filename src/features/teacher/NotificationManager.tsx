@@ -185,7 +185,7 @@ export function NotificationManager({
                                                         checked={selectedStudents.includes(student.id)}
                                                         onCheckedChange={() => handleStudentToggle(student.id)}
                                                     />
-                                                    <Label htmlFor={student.id} className="cursor-pointer">
+                                                    <Label htmlFor={student.id} className="cursor-pointer truncate max-w-[250px]">
                                                         {student.name} ({student.email})
                                                     </Label>
                                                 </div>
@@ -205,8 +205,8 @@ export function NotificationManager({
                 </Dialog>
             </div>
 
-            <div className="rounded-md border">
-                <Table>
+            <div className="w-full overflow-x-auto rounded-md border">
+                <Table className="min-w-[700px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Título</TableHead>

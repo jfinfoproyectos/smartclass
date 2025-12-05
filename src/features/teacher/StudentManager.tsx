@@ -241,7 +241,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                                             <TableCell>
                                                                 {student.profile?.identificacion || "-"}
                                                             </TableCell>
-                                                            <TableCell>{student.email}</TableCell>
+                                                            <TableCell className="truncate max-w-[200px]">{student.email}</TableCell>
                                                             <TableCell>
                                                                 {student.profile?.telefono || "-"}
                                                             </TableCell>
@@ -410,7 +410,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                         : enrollment.user.name}
                                 </TableCell>
                                 <TableCell>{enrollment.user.profile?.identificacion || "-"}</TableCell>
-                                <TableCell>{enrollment.user.email}</TableCell>
+                                <TableCell className="truncate max-w-[200px]">{enrollment.user.email}</TableCell>
                                 <TableCell>{enrollment.user.profile?.telefono || "-"}</TableCell>
                                 <TableCell>
                                     {getStatusBadge(enrollment.status || 'APPROVED')}

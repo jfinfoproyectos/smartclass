@@ -216,14 +216,14 @@ export function UnifiedCalendar() {
                     </div>
                 </RadioGroup>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={openCombobox}
-                                className="w-[200px] justify-between"
+                                className="w-full md:w-[200px] justify-between"
                             >
                                 {selectedCourse
                                     ? courses.find((course) => course.value === selectedCourse)?.label
@@ -268,7 +268,7 @@ export function UnifiedCalendar() {
                                     variant="outline"
                                     role="combobox"
                                     aria-expanded={openStudentCombobox}
-                                    className="w-[200px] justify-between"
+                                    className="w-full md:w-[200px] justify-between"
                                 >
                                     {selectedStudent
                                         ? students.find((student) => student.id === selectedStudent)?.name
@@ -308,8 +308,8 @@ export function UnifiedCalendar() {
                     )}
 
                     {/* View Selector */}
-                    <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'day' | 'week' | 'month')} className="w-auto">
-                        <TabsList>
+                    <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'day' | 'week' | 'month')} className="w-full md:w-auto">
+                        <TabsList className="w-full md:w-auto grid grid-cols-3 md:inline-flex">
                             <TabsTrigger value="day">Día</TabsTrigger>
                             <TabsTrigger value="week">Semana</TabsTrigger>
                             <TabsTrigger value="month">Mes</TabsTrigger>
@@ -406,7 +406,7 @@ export function UnifiedCalendar() {
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <h3 className="text-lg font-semibold">
+                        <h3 className="text-lg font-semibold flex-1 text-center px-4">
                             {format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
                         </h3>
                         <Button
@@ -500,7 +500,7 @@ export function UnifiedCalendar() {
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <h3 className="text-lg font-semibold">
+                        <h3 className="text-lg font-semibold flex-1 text-center px-4">
                             {format(startOfWeek(selectedDate, { weekStartsOn: 0 }), "d MMM", { locale: es })} - {format(endOfWeek(selectedDate, { weekStartsOn: 0 }), "d MMM yyyy", { locale: es })}
                         </h3>
                         <Button
@@ -589,7 +589,7 @@ export function UnifiedCalendar() {
 
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {selectedEvent?.type === 'ACTIVITY' && (
@@ -719,7 +719,7 @@ export function UnifiedCalendar() {
             </Dialog>
 
             <Dialog open={isDayEventsDialogOpen} onOpenChange={setIsDayEventsDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <CalendarIcon className="h-5 w-5" />

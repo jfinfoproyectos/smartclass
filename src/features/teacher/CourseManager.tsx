@@ -260,15 +260,15 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
     };
 
     const CourseTable = ({ courses }: { courses: any[] }) => (
-        <div className="rounded-md border">
-            <Table>
+        <div className="w-full overflow-x-auto rounded-md border">
+            <Table className="min-w-[800px]">
                 <TableHeader>
                     <TableRow>
                         <TableHead>Título</TableHead>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead>Fechas</TableHead>
+                        <TableHead className="hidden md:table-cell">Descripción</TableHead>
+                        <TableHead className="hidden sm:table-cell">Fechas</TableHead>
                         <TableHead>Estudiantes</TableHead>
-                        <TableHead>Inscripción</TableHead>
+                        <TableHead className="hidden lg:table-cell">Inscripción</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -276,10 +276,10 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                     {courses.map((course) => (
                         <TableRow key={course.id}>
                             <TableCell className="font-medium">{course.title}</TableCell>
-                            <TableCell className="max-w-md truncate" title={course.description}>
+                            <TableCell className="hidden md:table-cell max-w-md truncate" title={course.description}>
                                 {course.description || "Sin descripción"}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell className="hidden sm:table-cell text-sm">
                                 <div className="flex flex-col gap-1">
                                     {course.startDate && (
                                         <span className="text-muted-foreground">
@@ -297,11 +297,11 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                 </div>
                             </TableCell>
                             <TableCell>{course._count.enrollments}</TableCell>
-                            <TableCell>
+                            <TableCell className="hidden lg:table-cell">
                                 <RegistrationSettingsDialog course={course} />
                             </TableCell>
                             <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-1 flex-wrap">
                                     <Link href={`/dashboard/teacher/courses/${course.id}`}>
                                         <Button variant="ghost" size="icon" title="Ver Detalles">
                                             <Eye className="h-4 w-4" />
@@ -382,7 +382,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                     <DialogTrigger asChild>
                         <Button><Plus className="mr-2 h-4 w-4" /> Crear Curso</Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-7xl! max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="w-full max-w-[95vw] sm:max-w-7xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
                         <form action={async (formData) => {
                             // Add schedules to formData
                             formData.append("schedules", JSON.stringify(schedules));
@@ -413,7 +413,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                             </DialogHeader>
                             <div className="py-4">
                                 {/* Two Column Layout */}
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                                     {/* Left Column */}
                                     <div className="space-y-4">
                                         <div className="space-y-2">
@@ -458,7 +458,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                             </p>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="startDate">
                                                     Fecha Inicio
@@ -533,7 +533,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                                 </Select>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label>Hora Inicio</Label>
                                                     <div className="flex items-center gap-2">

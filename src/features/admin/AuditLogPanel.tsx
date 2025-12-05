@@ -370,8 +370,8 @@ export function AuditLogPanel() {
                         </div>
                     ) : (
                         <>
-                            <div className="rounded-md border">
-                                <Table>
+                            <div className="w-full overflow-x-auto rounded-md border">
+                                <Table className="min-w-[900px]">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-[180px]">Fecha/Hora</TableHead>
@@ -402,8 +402,8 @@ export function AuditLogPanel() {
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="text-sm">
-                                                        <div className="font-medium">{log.userName || '-'}</div>
+                                                    <div className="text-sm max-w-[150px]">
+                                                        <div className="font-medium truncate">{log.userName || '-'}</div>
                                                         {log.userRole && (
                                                             <div className="text-xs text-muted-foreground capitalize">
                                                                 {log.userRole}

@@ -152,7 +152,7 @@ export function SystemMonitor({ initialHealth, recentActivity }: SystemMonitorPr
                                     <Activity className="h-4 w-4 text-muted-foreground mt-0.5" />
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center justify-between">
-                                            <span className="font-medium text-sm">
+                                            <span className="font-medium text-sm truncate max-w-[200px]">
                                                 {activity.user.name || activity.user.email}
                                             </span>
                                             <span className="text-xs text-muted-foreground">

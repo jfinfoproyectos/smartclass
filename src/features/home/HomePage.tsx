@@ -47,7 +47,7 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-20"></div>
                         <div className="relative z-10 max-w-4xl w-full">
                             <AlertTriangle className="w-16 h-16 mb-4 animate-pulse mx-auto" />
-                            <h3 className="text-4xl md:text-5xl font-black uppercase tracking-widest mb-4 drop-shadow-md text-center">
+                            <h3 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-widest mb-4 drop-shadow-md text-center">
                                 {announcement.title}
                             </h3>
                             <div className="prose prose-invert prose-lg max-w-4xl w-full text-red-50 font-medium">
@@ -71,7 +71,7 @@ export default function HomePage() {
                         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-20"></div>
 
                         <div className="relative z-10 max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
-                            <div className="flex-shrink-0 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 text-center min-w-[150px]">
+                            <div className="shrink-0 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 text-center min-w-[150px]">
                                 <Calendar className="w-10 h-10 mx-auto mb-2 text-purple-300" />
                                 <div className="text-4xl font-bold">{new Date(announcement.createdAt).getDate()}</div>
                                 <div className="text-xl uppercase tracking-wider text-purple-200">
@@ -79,7 +79,7 @@ export default function HomePage() {
                                 </div>
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-3xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-200 to-blue-200 text-center md:text-left">
+                                <h3 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-200 to-blue-200 text-center md:text-left">
                                     {announcement.title}
                                 </h3>
                                 <div className="prose prose-invert prose-lg max-w-none text-purple-100">
@@ -99,9 +99,9 @@ export default function HomePage() {
                     <div className={`w-full ${hasImage ? 'md:w-1/2' : ''} p-8 md:p-12 flex items-center justify-center relative`}>
                         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #000 0, #000 10px, transparent 10px, transparent 20px)' }}></div>
                         <div className="relative z-10 max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-8">
-                            <Wrench className="w-20 h-20 text-yellow-800 flex-shrink-0" />
+                            <Wrench className="w-16 h-16 sm:w-20 sm:h-20 text-yellow-800 shrink-0" />
                             <div className="flex-1">
-                                <h3 className="text-3xl md:text-4xl font-mono font-bold mb-4 uppercase border-b-4 border-yellow-800 inline-block pb-2">
+                                <h3 className="text-2xl sm:text-3xl md:text-4xl font-mono font-bold mb-4 uppercase border-b-4 border-yellow-800 inline-block pb-2">
                                     {announcement.title}
                                 </h3>
                                 <div className="prose prose-yellow prose-lg max-w-none font-mono text-yellow-900">
@@ -122,7 +122,7 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
                         <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center text-center">
                             <Trophy className="w-20 h-20 mb-6 text-yellow-300 animate-bounce" />
-                            <h3 className="text-4xl md:text-5xl font-bold mb-6 drop-shadow-lg">
+                            <h3 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 drop-shadow-lg">
                                 {announcement.title}
                             </h3>
                             <div className="prose prose-invert prose-lg max-w-4xl w-full text-green-50">
@@ -144,9 +144,9 @@ export default function HomePage() {
                     <div className={`w-full ${hasImage ? 'md:w-1/2' : ''} p-8 md:p-12 flex items-center justify-center relative`}>
                         <div className="absolute inset-0 bg-black/10"></div>
                         <div className="relative z-10 max-w-5xl mx-auto flex flex-col md:flex-row items-start gap-6">
-                            <AlertCircle className="w-16 h-16 flex-shrink-0 text-orange-100" />
+                            <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 shrink-0 text-orange-100" />
                             <div className="flex-1">
-                                <h3 className="text-3xl md:text-4xl font-bold mb-4 flex items-center gap-3">
+                                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 flex items-center gap-3">
                                     {announcement.title}
                                 </h3>
                                 <div className="prose prose-invert prose-lg max-w-none text-orange-50">
@@ -170,7 +170,7 @@ export default function HomePage() {
                         <div className="max-w-6xl mx-auto">
                             <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-slate-900 dark:border-slate-100">
                                 <Newspaper className="w-8 h-8" />
-                                <h3 className="text-3xl md:text-4xl font-serif font-bold">
+                                <h3 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold">
                                     {announcement.title}
                                 </h3>
                             </div>
@@ -199,7 +199,7 @@ export default function HomePage() {
                         </div>
                         <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center text-center">
                             <PartyPopper className="w-20 h-20 mb-6 text-yellow-200" />
-                            <h3 className="text-4xl md:text-6xl font-black mb-6 drop-shadow-2xl bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 to-pink-200">
+                            <h3 className="text-3xl sm:text-4xl md:text-6xl font-black mb-6 drop-shadow-2xl bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 to-pink-200">
                                 {announcement.title}
                             </h3>
                             <div className="prose prose-invert prose-lg max-w-4xl w-full text-pink-50">
@@ -229,7 +229,7 @@ export default function HomePage() {
                             {new Date(announcement.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                         </span>
                     </div>
-                    <h3 className="text-3xl md:text-4xl font-bold mb-6 text-foreground leading-tight">
+                    <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 text-foreground leading-tight">
                         {announcement.title}
                     </h3>
                     <div className="prose dark:prose-invert max-w-none text-lg text-muted-foreground leading-relaxed">
@@ -262,14 +262,14 @@ export default function HomePage() {
                                 className="w-40 h-40 object-contain mb-8 drop-shadow-2xl bg-white/10 backdrop-blur-sm rounded-full p-4"
                             />
                         )}
-                        <h1 className="text-5xl md:text-8xl font-extrabold text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)] tracking-tight">
+                        <h1 className="text-4xl sm:text-5xl md:text-8xl font-extrabold text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)] tracking-tight px-4">
                             {settings.institutionName}
                         </h1>
                     </div>
                 </div>
 
                 <div className="w-full py-16 space-y-0">
-                    <h2 className="text-4xl font-bold mb-12 dark:text-white text-slate-900 flex items-center gap-3 justify-center">
+                    <h2 className="text-3xl sm:text-4xl font-bold mb-12 dark:text-white text-slate-900 flex flex-wrap items-center gap-3 justify-center px-4">
                         <Bell className="w-10 h-10" /> Anuncios Recientes
                     </h2>
 

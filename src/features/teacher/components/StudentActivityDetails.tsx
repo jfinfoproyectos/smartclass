@@ -129,7 +129,7 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                                 ? `${enrollment.user.profile.nombres} ${enrollment.user.profile.apellido}`
                                 : enrollment.user.name}
                         </h2>
-                        <p className="text-sm text-muted-foreground">{enrollment.user.email}</p>
+                        <p className="text-sm text-muted-foreground truncate max-w-[300px]">{enrollment.user.email}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 pr-8">

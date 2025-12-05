@@ -188,7 +188,7 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
                     <CardDescription>Busca y filtra cursos</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -199,7 +199,7 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
                             />
                         </div>
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[200px]">
+                            <SelectTrigger className="w-full sm:w-[200px]">
                                 <SelectValue placeholder="Filtrar por estado" />
                             </SelectTrigger>
                             <SelectContent>
@@ -221,8 +221,8 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
+                    <div className="w-full overflow-x-auto rounded-md border">
+                        <Table className="min-w-[900px]">
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Curso</TableHead>
@@ -257,11 +257,11 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div>
-                                                        <div className="font-medium text-sm">
+                                                    <div className="max-w-[200px]">
+                                                        <div className="font-medium text-sm truncate">
                                                             {course.teacher.name || "Sin nombre"}
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground">
+                                                        <div className="text-xs text-muted-foreground truncate">
                                                             {course.teacher.email}
                                                         </div>
                                                     </div>

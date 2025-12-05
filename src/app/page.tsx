@@ -25,7 +25,7 @@ export default function Page() {
               <p className="text-muted-foreground mt-6 text-lg leading-relaxed">
                 Plataforma integral para la gestión académica moderna. Calificación automática de código con IA, integración con GitHub, control de asistencia y reportes detallados.
               </p>
-              <div className="mt-8 flex items-center gap-4">
+              <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
                 <Button size="lg" asChild>
                   <Link href="/signin">Entrar al panel</Link>
                 </Button>
@@ -150,7 +150,7 @@ export default function Page() {
               <p className="text-muted-foreground mt-4 text-lg">
                 Únete a la revolución educativa con SmartClass. Una plataforma diseñada para simplificar la gestión académica y potenciar el aprendizaje.
               </p>
-              <div className="mt-8 flex items-center gap-4">
+              <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
                 <Button size="lg" asChild>
                   <Link href="/signup">Crear cuenta gratis</Link>
                 </Button>

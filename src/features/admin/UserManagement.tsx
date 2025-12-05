@@ -293,14 +293,14 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h2>
                     <p className="text-muted-foreground">
                         Administra todos los usuarios del sistema
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                     <Badge variant="outline" className="text-sm">
                         <UsersIcon className="mr-2 h-3 w-3" />
                         {totalCount} usuarios totales
@@ -319,7 +319,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                     <CardDescription>Busca y filtra usuarios</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -330,7 +330,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                             />
                         </div>
                         <Select value={roleFilter} onValueChange={setRoleFilter}>
-                            <SelectTrigger className="w-[200px]">
+                            <SelectTrigger className="w-full sm:w-[200px]">
                                 <SelectValue placeholder="Filtrar por rol" />
                             </SelectTrigger>
                             <SelectContent>
@@ -353,16 +353,16 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
+                    <div className="w-full overflow-x-auto rounded-md border">
+                        <Table className="min-w-[900px]">
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Usuario</TableHead>
-                                    <TableHead>Email</TableHead>
+                                    <TableHead className="hidden md:table-cell">Email</TableHead>
                                     <TableHead>Rol</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead>Estadísticas</TableHead>
-                                    <TableHead>Fecha Registro</TableHead>
+                                    <TableHead className="hidden lg:table-cell">Estado</TableHead>
+                                    <TableHead className="hidden xl:table-cell">Estadísticas</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Fecha Registro</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -394,7 +394,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{user.email}</TableCell>
+                                            <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                                             <TableCell>
                                                 <Select
                                                     value={user.role || "student"}
@@ -413,7 +413,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="hidden lg:table-cell">
                                                 <div className="flex items-center gap-2">
                                                     <Switch
                                                         checked={!user.banned}
@@ -425,7 +425,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                     </span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="hidden xl:table-cell">
                                                 {user._count && (
                                                     <div className="text-xs space-y-1">
                                                         {user.role === "teacher" && (
@@ -440,7 +440,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                     </div>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
+                                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                                                 {format(new Date(user.createdAt), "dd/MM/yyyy")}
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -478,8 +478,8 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
 
                     {/* Pagination Controls */}
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between pt-4">
-                            <div className="text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+                            <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                                 Mostrando {((currentPage - 1) * usersPerPage) + 1} - {Math.min(currentPage * usersPerPage, totalCount)} de {totalCount} usuarios
                             </div>
                             <div className="flex items-center gap-2">
@@ -490,9 +490,9 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                     disabled={currentPage === 1 || isLoadingPage}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
-                                    Anterior
+                                    <span className="hidden sm:inline">Anterior</span>
                                 </Button>
-                                <div className="text-sm">
+                                <div className="text-xs sm:text-sm whitespace-nowrap">
                                     Página {currentPage} de {totalPages}
                                 </div>
                                 <Button
@@ -501,8 +501,8 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                     onClick={() => handlePageChange(currentPage + 1)}
                                     disabled={currentPage === totalPages || isLoadingPage}
                                 >
-                                    Siguiente
-                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                    <span className="hidden sm:inline">Siguiente</span>
+                                    <ChevronRight className="h-4 w-4 sm:ml-1" />
                                 </Button>
                             </div>
                         </div>

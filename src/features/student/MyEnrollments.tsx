@@ -74,7 +74,7 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                     Profesor: {enrollment.course.teacher.name}
                                 </p>
                             </div>
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
                                 {enrollment.course.externalUrl && (
                                     <Button
                                         variant="outline"
@@ -131,14 +131,14 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                 Actividades Pendientes y Entregas
                             </h3>
                             {enrollment.course.activities.length > 0 ? (
-                                <div className="rounded-md border">
-                                    <Table>
+                                <div className="w-full overflow-x-auto rounded-md border">
+                                    <Table className="min-w-[700px]">
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="w-[300px]">Actividad</TableHead>
                                                 <TableHead>Estado</TableHead>
-                                                <TableHead>Nota</TableHead>
-                                                <TableHead>Vencimiento</TableHead>
+                                                <TableHead className="hidden sm:table-cell">Nota</TableHead>
+                                                <TableHead className="hidden md:table-cell">Vencimiento</TableHead>
                                                 <TableHead className="text-right">Acciones</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -185,7 +185,7 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                                 </Badge>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell className="hidden sm:table-cell">
                                                             {isGraded ? (
                                                                 <span className="font-bold text-primary">
                                                                     {submission.grade.toFixed(1)}
@@ -194,7 +194,7 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                                 <span className="text-muted-foreground">-</span>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell className="hidden md:table-cell">
                                                             <div className="text-sm text-muted-foreground">
                                                                 {activity.type === "MANUAL" ? "-" : format(new Date(activity.deadline), "PP")}
                                                             </div>

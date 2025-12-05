@@ -199,8 +199,8 @@ export function ScheduleView() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h2 className="text-2xl font-bold">Horario</h2>
 
-                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
-                    <TabsList>
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="w-full md:w-auto">
+                    <TabsList className="w-full md:w-auto grid grid-cols-3 md:inline-flex">
                         <TabsTrigger value="day">Día</TabsTrigger>
                         <TabsTrigger value="week">Semana</TabsTrigger>
                         <TabsTrigger value="month">Mes</TabsTrigger>
@@ -216,16 +216,16 @@ export function ScheduleView() {
                     {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
                 </Button>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2 justify-center">
                     <Button variant="outline" size="sm" onClick={handlePrevious}>
                         <ChevronLeft className="h-4 w-4 mr-1" />
-                        Anterior
+                        <span className="hidden sm:inline">Anterior</span>
                     </Button>
-                    <span className="text-sm font-medium min-w-[200px] text-center capitalize">
+                    <span className="text-sm font-medium min-w-[180px] sm:min-w-[200px] text-center capitalize px-2">
                         {getDateLabel()}
                     </span>
                     <Button variant="outline" size="sm" onClick={handleNext}>
-                        Siguiente
+                        <span className="hidden sm:inline">Siguiente</span>
                         <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                 </div>
@@ -442,7 +442,7 @@ export function ScheduleView() {
             )}
 
             {/* Legend */}
-            <div className="flex items-center gap-6 text-sm">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 bg-blue-500 rounded"></div>
                     <span>Mañana (06:00-11:59)</span>

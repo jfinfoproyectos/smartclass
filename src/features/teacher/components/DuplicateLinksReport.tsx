@@ -122,7 +122,7 @@ export function DuplicateLinksReport({ courseId, courseName }: DuplicateLinksRep
                                                 {dup.students.map((student: any, sIdx: number) => (
                                                     <TableRow key={sIdx} className="hover:bg-transparent border-destructive/10">
                                                         <TableCell className="py-2 font-medium">{student.name}</TableCell>
-                                                        <TableCell className="py-2 text-muted-foreground">{student.email}</TableCell>
+                                                        <TableCell className="py-2 text-muted-foreground truncate max-w-[200px]">{student.email}</TableCell>
                                                         <TableCell className="py-2 text-muted-foreground">
                                                             {new Date(student.submissionDate).toLocaleString()}
                                                         </TableCell>

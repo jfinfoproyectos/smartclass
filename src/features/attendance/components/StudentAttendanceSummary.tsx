@@ -164,8 +164,8 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                 </h4>
             </div>
 
-            <div className="rounded-md border">
-                <Table>
+            <div className="w-full overflow-x-auto rounded-md border">
+                <Table className="min-w-[600px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Fecha</TableHead>

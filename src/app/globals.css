@@ -170,6 +170,24 @@
     table-layout: fixed;
   }
 
+  /* Responsive table wrapper utility */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure tables have minimum width on mobile */
+  .table-responsive table {
+    min-width: 600px;
+  }
+
+  @media (min-width: 768px) {
+    .table-responsive table {
+      min-width: 100%;
+    }
+  }
+
 
   .wmde-markdown, 
   .md-editor-preview-wrapper,
