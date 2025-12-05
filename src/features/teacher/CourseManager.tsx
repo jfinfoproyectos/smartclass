@@ -641,13 +641,20 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
             </div>
 
             <Tabs defaultValue="active" className="w-full">
-                <TabsList>
-                    <TabsTrigger value="active">Cursos Activos ({activeCourses.length})</TabsTrigger>
-                    <TabsTrigger value="archived">Cursos Archivados ({archivedCourses.length})</TabsTrigger>
-                    <TabsTrigger value="requests" className="relative">
-                        Solicitudes
+                <TabsList className="grid w-full grid-cols-3 md:inline-flex">
+                    <TabsTrigger value="active" className="text-xs sm:text-sm">
+                        <span className="hidden sm:inline">Cursos Activos ({activeCourses.length})</span>
+                        <span className="sm:hidden">Activos ({activeCourses.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="archived" className="text-xs sm:text-sm">
+                        <span className="hidden sm:inline">Cursos Archivados ({archivedCourses.length})</span>
+                        <span className="sm:hidden">Archivados ({archivedCourses.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="requests" className="relative text-xs sm:text-sm">
+                        <span className="hidden sm:inline">Solicitudes</span>
+                        <span className="sm:hidden">Solicitudes</span>
                         {pendingEnrollments.length > 0 && (
-                            <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-orange-500 hover:bg-orange-600">
+                            <Badge className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5 p-0 flex items-center justify-center rounded-full bg-orange-500 hover:bg-orange-600 text-[10px]">
                                 {pendingEnrollments.length}
                             </Badge>
                         )}

@@ -146,7 +146,7 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                     Llamar Asistencia
                 </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[100vh] p-0 flex flex-col gap-0 border-none">
+            <SheetContent side="bottom" className="h-screen p-0 flex flex-col gap-0 border-none">
                 {/* Header */}
                 <div className="p-4 border-b flex justify-between items-center bg-muted/20">
                     <div className="flex items-center gap-4">
@@ -159,78 +159,84 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 flex flex-col items-center justify-center p-8 bg-background">
+                <div className="flex-1 flex flex-col items-center justify-center p-4 bg-background overflow-y-auto">
                     {loading ? (
                         <div>Cargando estudiantes...</div>
                     ) : currentStudent ? (
-                        <div className="flex flex-col items-center gap-8 max-w-4xl w-full animate-in fade-in zoom-in duration-300">
+                        <div className="flex flex-col items-center gap-4 max-w-5xl w-full animate-in fade-in zoom-in duration-300">
 
-                            <div className="text-3xl font-bold text-primary mb-4">
+                            <div className="text-2xl font-bold text-primary">
                                 {currentIndex + 1} / {students.length}
                             </div>
 
-                            <Avatar className="h-48 w-48 border-4 border-primary shadow-xl">
-                                <AvatarImage src={currentStudent.image || ""} alt={currentStudent.name} />
-                                <AvatarFallback className="text-4xl">
-                                    {currentStudent.name.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
+                            <div className="flex items-center gap-8 w-full">
+                                {/* Avatar and Name */}
+                                <div className="flex flex-col items-center gap-3">
+                                    <Avatar className="h-32 w-32 border-4 border-primary shadow-xl">
+                                        <AvatarImage src={currentStudent.image || ""} alt={currentStudent.name} />
+                                        <AvatarFallback className="text-3xl">
+                                            {currentStudent.name.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
 
-                            <div className="text-center space-y-4">
-                                <h1 className="text-5xl font-bold tracking-tight">
-                                    {currentStudent.profile?.nombres || currentStudent.name.split(" ")[0]}
-                                </h1>
-                                <h2 className="text-4xl text-muted-foreground font-light">
-                                    {currentStudent.profile?.apellido || currentStudent.name.split(" ").slice(1).join(" ")}
-                                </h2>
-                            </div>
-
-                            {studentStats && (
-                                <div className="grid grid-cols-3 gap-8 w-full max-w-2xl">
-                                    <div className="flex flex-col items-center p-4 rounded-xl bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-200 dark:border-yellow-800">
-                                        <span className="text-4xl font-bold text-yellow-600 dark:text-yellow-400">
-                                            {studentStats.late}
-                                        </span>
-                                        <span className="text-sm font-medium text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mt-1">
-                                            Llegadas Tarde
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-center p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800">
-                                        <span className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-                                            {studentStats.excused}
-                                        </span>
-                                        <span className="text-sm font-medium text-blue-800 dark:text-blue-300 uppercase tracking-wider mt-1 text-center">
-                                            Inasistencias Justificadas
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-center p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border-2 border-red-200 dark:border-red-800">
-                                        <span className="text-4xl font-bold text-red-600 dark:text-red-400">
-                                            {studentStats.absences}
-                                        </span>
-                                        <span className="text-sm font-medium text-red-800 dark:text-red-300 uppercase tracking-wider mt-1 text-center">
-                                            Inasistencias Sin Soporte
-                                        </span>
+                                    <div className="text-center">
+                                        <h1 className="text-3xl font-bold tracking-tight">
+                                            {currentStudent.profile?.nombres || currentStudent.name.split(" ")[0]}
+                                        </h1>
+                                        <h2 className="text-2xl text-muted-foreground font-light">
+                                            {currentStudent.profile?.apellido || currentStudent.name.split(" ").slice(1).join(" ")}
+                                        </h2>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="flex gap-6 mt-12 w-full justify-center">
+                                {/* Stats */}
+                                {studentStats && (
+                                    <div className="flex-1 grid grid-cols-3 gap-4">
+                                        <div className="flex flex-col items-center p-3 rounded-xl bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-200 dark:border-yellow-800">
+                                            <span className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                                                {studentStats.late}
+                                            </span>
+                                            <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mt-1 text-center">
+                                                Llegadas Tarde
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col items-center p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800">
+                                            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                                                {studentStats.excused}
+                                            </span>
+                                            <span className="text-xs font-medium text-blue-800 dark:text-blue-300 uppercase tracking-wider mt-1 text-center">
+                                                Inasistencias Justificadas
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col items-center p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border-2 border-red-200 dark:border-red-800">
+                                            <span className="text-3xl font-bold text-red-600 dark:text-red-400">
+                                                {studentStats.absences}
+                                            </span>
+                                            <span className="text-xs font-medium text-red-800 dark:text-red-300 uppercase tracking-wider mt-1 text-center">
+                                                Inasistencias Sin Soporte
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-4 mt-6 w-full justify-center">
                                 <Button
                                     size="lg"
                                     variant="outline"
-                                    className="h-24 w-48 text-2xl border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30"
+                                    className="h-20 w-40 text-xl border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30"
                                     onClick={() => handleMarkAttendance("ABSENT")}
                                 >
-                                    <X className="mr-2 h-8 w-8" />
+                                    <X className="mr-2 h-6 w-6" />
                                     Ausente
                                 </Button>
 
                                 <Button
                                     size="lg"
-                                    className="h-24 w-48 text-2xl bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-green-500/20 transition-all"
+                                    className="h-20 w-40 text-xl bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-green-500/20 transition-all"
                                     onClick={() => handleMarkAttendance("PRESENT")}
                                 >
-                                    <Check className="mr-2 h-8 w-8" />
+                                    <Check className="mr-2 h-6 w-6" />
                                     Presente
                                 </Button>
                             </div>

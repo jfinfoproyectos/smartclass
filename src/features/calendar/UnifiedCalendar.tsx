@@ -188,7 +188,7 @@ export function UnifiedCalendar() {
     return (
         <div className="space-y-4">
             <div className="p-4 border rounded-md bg-background flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                <RadioGroup defaultValue="all" onValueChange={setFilter} className="flex flex-wrap gap-6">
+                <RadioGroup defaultValue="all" onValueChange={setFilter} className="flex flex-col md:flex-row md:flex-wrap gap-3 md:gap-6 w-full md:w-auto">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="all" id="all" />
                         <Label htmlFor="all" className="cursor-pointer">Todos</Label>

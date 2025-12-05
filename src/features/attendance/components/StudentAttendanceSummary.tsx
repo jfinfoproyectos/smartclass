@@ -71,12 +71,25 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
     const handleOpenDialog = (date: Date) => {
         setSelectedDate(date);
 
-        // Check if the selected date is today
+        // Check if the selected date is today or in the past
         const today = new Date();
-        const isToday = new Date(date).toLocaleDateString() === today.toLocaleDateString();
+        today.setHours(0, 0, 0, 0);
+        const selectedDateObj = new Date(date);
+        selectedDateObj.setHours(0, 0, 0, 0);
 
-        // Only allow LATE if it's today, otherwise default to WITH_SUPPORT
-        setJustificationType(isToday ? "LATE" : "WITH_SUPPORT");
+        const isToday = selectedDateObj.getTime() === today.getTime();
+        const isPast = selectedDateObj.getTime() < today.getTime();
+
+        // Late arrivals only for today
+        // Absences (with/without support) only for past dates
+        if (isToday) {
+            setJustificationType("LATE");
+        } else if (isPast) {
+            setJustificationType("WITH_SUPPORT");
+        } else {
+            // Future dates - shouldn't happen but default to WITH_SUPPORT
+            setJustificationType("WITH_SUPPORT");
+        }
 
         setCode("");
         setJustification("");
@@ -272,58 +285,140 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-4">
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <div className="space-y-3">
+                        {/* Information boxes based on date */}
+                        {(() => {
+                            if (!selectedDate) return null;
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const date = new Date(selectedDate);
+                            date.setHours(0, 0, 0, 0);
+                            const isToday = date.getTime() === today.getTime();
+                            const isPast = date.getTime() < today.getTime();
+
+                            if (isToday) {
+                                return (
+                                    <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-400 p-3">
+                                        <div className="flex">
+                                            <div className="shrink-0">
+                                                <Clock className="h-5 w-5 text-blue-400" aria-hidden="true" />
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                                                    Fecha de hoy
+                                                </p>
+                                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                                    Solo puedes registrar <strong>llegadas tarde</strong> para el día de hoy.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            } else if (isPast) {
+                                return (
+                                    <div className="bg-yellow-50 dark:bg-yellow-950/20 border-l-4 border-yellow-400 p-3">
+                                        <div className="flex">
+                                            <div className="shrink-0">
+                                                <AlertCircle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">
+                                                    Fecha pasada
+                                                </p>
+                                                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                                                    Solo puedes justificar <strong>inasistencias con soporte</strong> o <strong>sin soporte</strong> para fechas pasadas.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
+
+                        <div className="bg-orange-50 dark:bg-orange-950/20 border-l-4 border-orange-400 p-3">
                             <div className="flex">
                                 <div className="shrink-0">
-                                    <AlertCircle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+                                    <AlertCircle className="h-5 w-5 text-orange-400" aria-hidden="true" />
                                 </div>
                                 <div className="ml-3">
-                                    <p className="text-sm text-yellow-700">
-                                        Nota: Una vez registrada la justificación, no podrás modificarla ni eliminarla. Asegúrate de que la información sea correcta.
+                                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                                        <strong>Importante:</strong> Una vez registrada la justificación, no podrás modificarla ni eliminarla.
                                     </p>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="space-y-4 py-4">
+                        {/* Tabs for justification type */}
+                        <div className="grid gap-2" style={{
+                            gridTemplateColumns: (() => {
+                                if (!selectedDate) return '1fr 1fr';
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const date = new Date(selectedDate);
+                                date.setHours(0, 0, 0, 0);
+                                const isToday = date.getTime() === today.getTime();
+                                return isToday ? '1fr' : '1fr 1fr';
+                            })()
+                        }}>
                             {(() => {
                                 if (!selectedDate) return null;
                                 const today = new Date();
+                                today.setHours(0, 0, 0, 0);
                                 const date = new Date(selectedDate);
+                                date.setHours(0, 0, 0, 0);
+                                const isToday = date.getTime() === today.getTime();
 
-                                // Compare dates using local string representation to avoid timezone issues
-                                const isToday = date.toLocaleDateString() === today.toLocaleDateString();
+                                if (isToday) {
+                                    return (
+                                        <Button
+                                            type="button"
+                                            variant={justificationType === "LATE" ? "default" : "outline"}
+                                            onClick={() => setJustificationType("LATE")}
+                                            className="text-sm h-auto py-3"
+                                        >
+                                            <Clock className="mr-2 h-4 w-4" />
+                                            Llegada Tarde
+                                        </Button>
+                                    );
+                                }
+                                return null;
+                            })()}
+                            {(() => {
+                                if (!selectedDate) return null;
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const date = new Date(selectedDate);
+                                date.setHours(0, 0, 0, 0);
+                                const isPast = date.getTime() < today.getTime();
 
-                                if (!isToday) return null;
+                                if (!isPast) return null;
 
                                 return (
-                                    <Button
-                                        type="button"
-                                        variant={justificationType === "LATE" ? "default" : "outline"}
-                                        onClick={() => setJustificationType("LATE")}
-                                        className="text-xs h-auto py-2 px-1"
-                                    >
-                                        Llegada Tarde
-                                    </Button>
+                                    <>
+                                        <Button
+                                            type="button"
+                                            variant={justificationType === "WITH_SUPPORT" ? "default" : "outline"}
+                                            onClick={() => setJustificationType("WITH_SUPPORT")}
+                                            className="text-sm h-auto py-3"
+                                        >
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Con Soporte
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={justificationType === "WITHOUT_SUPPORT" ? "default" : "outline"}
+                                            onClick={() => setJustificationType("WITHOUT_SUPPORT")}
+                                            className="text-sm h-auto py-3"
+                                        >
+                                            <AlertCircle className="mr-2 h-4 w-4" />
+                                            Sin Soporte
+                                        </Button>
+                                    </>
                                 );
                             })()}
-                            <Button
-                                type="button"
-                                variant={justificationType === "WITH_SUPPORT" ? "default" : "outline"}
-                                onClick={() => setJustificationType("WITH_SUPPORT")}
-                                className="text-xs h-auto py-2 px-1"
-                            >
-                                Con Soporte
-                            </Button>
-                            <Button
-                                type="button"
-                                variant={justificationType === "WITHOUT_SUPPORT" ? "default" : "outline"}
-                                onClick={() => setJustificationType("WITHOUT_SUPPORT")}
-                                className="text-xs h-auto py-2 px-1"
-                            >
-                                Sin Soporte
-                            </Button>
                         </div>
 
                         {justificationType === "LATE" && (
@@ -459,6 +554,6 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }
