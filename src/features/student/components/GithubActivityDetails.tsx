@@ -56,11 +56,11 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     const mode = mounted ? (resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto") : "light";
 
     return (
-        <div className="space-y-6 w-full p-6">
-            <div className="flex items-center gap-4">
+        <div className="space-y-6 w-full p-4 sm:p-6">
+            <div className="flex flex-col gap-2">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">{activity.title}</h1>
-                    <p className="text-muted-foreground">{activity.course.title}</p>
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{activity.title}</h1>
+                    <p className="text-sm sm:text-base text-muted-foreground">{activity.course.title}</p>
                 </div>
             </div>
 
@@ -70,30 +70,32 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                         <CardTitle>Estado de la Entrega (GitHub)</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Estado:</span>
-                                {isGraded ? (
-                                    <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Calificado</Badge>
-                                ) : isSubmitted ? (
-                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Enviado</Badge>
-                                ) : (
-                                    <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100">Pendiente</Badge>
-                                )}
-                            </div>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">Estado:</span>
+                                    {isGraded ? (
+                                        <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Calificado</Badge>
+                                    ) : isSubmitted ? (
+                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Enviado</Badge>
+                                    ) : (
+                                        <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100">Pendiente</Badge>
+                                    )}
+                                </div>
 
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Intentos:</span>
-                                <span className="text-sm text-muted-foreground">{attemptCount} / {maxAttempts}</span>
-                            </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">Intentos:</span>
+                                    <span className="text-sm text-muted-foreground">{attemptCount} / {maxAttempts}</span>
+                                </div>
 
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Vencimiento:</span>
-                                <span className="text-sm text-muted-foreground">{format(new Date(activity.deadline), "PP p")}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">Vence:</span>
+                                    <span className="text-sm text-muted-foreground">{format(new Date(activity.deadline), "PP p")}</span>
+                                </div>
                             </div>
 
                             {isGraded && (
-                                <div className="flex items-center gap-4">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-medium">Nota:</span>
                                         <span className="text-2xl font-bold text-primary">{submission.grade.toFixed(1)}</span>
@@ -110,7 +112,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="gap-2"
+                                        className="gap-2 w-full sm:w-auto"
                                         onClick={() => handlePrint()}
                                     >
                                         <Download className="h-4 w-4" />
@@ -166,9 +168,9 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="instructions">Instrucciones</TabsTrigger>
-                        <TabsTrigger value="rubric">Enunciado / Rúbrica</TabsTrigger>
-                        <TabsTrigger value="feedback">Retroalimentación</TabsTrigger>
+                        <TabsTrigger value="instructions" className="text-xs sm:text-sm">Instrucciones</TabsTrigger>
+                        <TabsTrigger value="rubric" className="text-xs sm:text-sm">Rúbrica</TabsTrigger>
+                        <TabsTrigger value="feedback" className="text-xs sm:text-sm">Feedback</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="instructions" className="mt-4">
@@ -186,13 +188,16 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                         <p className="text-xs text-muted-foreground mb-3">
                                             El sistema buscará y evaluará estrictamente los siguientes archivos en tu repositorio. Asegúrate de que existan y tengan el nombre correcto.
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
+                                        <ul className="space-y-2">
                                             {activity.filePaths.split(',').map((path: string, index: number) => (
-                                                <Badge key={index} variant="outline" className="font-mono text-xs bg-background">
-                                                    {path.trim()}
-                                                </Badge>
+                                                <li key={index} className="flex items-center gap-2 text-sm">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                                                    <code className="font-mono text-xs bg-muted px-2 py-1 rounded break-all">
+                                                        {path.trim()}
+                                                    </code>
+                                                </li>
                                             ))}
-                                        </div>
+                                        </ul>
                                     </div>
                                 )}
 
@@ -336,15 +341,16 @@ function SubmissionForm({ activityId, description, filePaths, onEvaluationComple
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="url">URL del Repositorio GitHub</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                         id="url"
                         name="url"
                         placeholder="https://github.com/usuario/repositorio"
                         required
                         disabled={status === 'grading'}
+                        className="flex-1"
                     />
-                    <Button type="submit" disabled={status === 'grading'}>
+                    <Button type="submit" disabled={status === 'grading'} className="w-full sm:w-auto">
                         {status === 'grading' ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

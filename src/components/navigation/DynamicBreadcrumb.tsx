@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
     Breadcrumb,
@@ -10,7 +10,9 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import { getCourseTitle, getActivityTitle } from "@/app/actions/breadcrumb-actions";
 
 interface BreadcrumbSegment {
@@ -20,7 +22,10 @@ interface BreadcrumbSegment {
 
 export function DynamicBreadcrumb() {
     const pathname = usePathname();
+    const router = useRouter();
     const [segments, setSegments] = useState<BreadcrumbSegment[]>([]);
+    const [showBackButton, setShowBackButton] = useState(false);
+    const breadcrumbRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const generateBreadcrumbs = async () => {
@@ -99,29 +104,66 @@ export function DynamicBreadcrumb() {
         generateBreadcrumbs();
     }, [pathname]);
 
+    // Check if breadcrumb overflows
+    useEffect(() => {
+        const checkOverflow = () => {
+            if (breadcrumbRef.current) {
+                const isOverflowing = breadcrumbRef.current.scrollWidth > breadcrumbRef.current.clientWidth;
+                setShowBackButton(isOverflowing || window.innerWidth < 768);
+            }
+        };
+
+        checkOverflow();
+        window.addEventListener('resize', checkOverflow);
+
+        // Small delay to ensure content is rendered
+        const timer = setTimeout(checkOverflow, 100);
+
+        return () => {
+            window.removeEventListener('resize', checkOverflow);
+            clearTimeout(timer);
+        };
+    }, [segments]);
+
     // Don't show breadcrumbs on the main dashboard page
     if (pathname === "/dashboard") {
         return null;
     }
 
     return (
-        <Breadcrumb>
-            <BreadcrumbList>
-                {segments.map((segment, index) => (
-                    <div key={index} className="flex items-center">
-                        <BreadcrumbItem>
-                            {segment.href ? (
-                                <BreadcrumbLink asChild>
-                                    <Link href={segment.href}>{segment.label}</Link>
-                                </BreadcrumbLink>
-                            ) : (
-                                <BreadcrumbPage>{segment.label}</BreadcrumbPage>
-                            )}
-                        </BreadcrumbItem>
-                        {index < segments.length - 1 && <BreadcrumbSeparator />}
-                    </div>
-                ))}
-            </BreadcrumbList>
-        </Breadcrumb>
+        <>
+            {showBackButton ? (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-1 -ml-2"
+                    onClick={() => router.back()}
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span className="text-sm">Atrás</span>
+                </Button>
+            ) : (
+                <div ref={breadcrumbRef} className="overflow-hidden">
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            {segments.map((segment, index) => (
+                                <div key={index} className="flex items-center">
+                                    <BreadcrumbItem>
+                                        {segment.href ? (
+                                            <BreadcrumbLink asChild>
+                                                <Link href={segment.href}>{segment.label}</Link>
+                                            </BreadcrumbLink>
+                                        ) : (
+                                            <BreadcrumbPage>{segment.label}</BreadcrumbPage>
+                                        )}
+                                    </BreadcrumbItem>
+                                    {index < segments.length - 1 && <BreadcrumbSeparator />}
+                                </div>
+                            ))}
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                </div>
+            )}
+        </>
     );
 }

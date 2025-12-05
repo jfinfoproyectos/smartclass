@@ -150,8 +150,8 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center gap-4">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                <div className="relative flex-1 max-w-full sm:max-w-sm">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Filtrar estudiantes..."
@@ -162,7 +162,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                 </div>
                 <Sheet open={isOpen} onOpenChange={setIsOpen}>
                     <SheetTrigger asChild>
-                        <Button><UserPlus className="mr-2 h-4 w-4" /> Agregar Estudiante</Button>
+                        <Button className="w-full sm:w-auto"><UserPlus className="mr-2 h-4 w-4" /> Agregar Estudiante</Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
                         <SheetHeader className="px-6 py-4 border-b">
@@ -382,8 +382,8 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                 </DialogContent>
             </Dialog>
 
-            <div className="rounded-md border">
-                <Table>
+            <div className="w-full overflow-x-auto rounded-md border">
+                <Table className="min-w-[800px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[50px]"></TableHead>

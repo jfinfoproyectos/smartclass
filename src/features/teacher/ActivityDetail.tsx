@@ -141,10 +141,10 @@ export function ActivityDetail({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                        <h2 className="text-2xl font-bold tracking-tight">{activity.title}</h2>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{activity.title}</h2>
                         <Badge variant="outline">{activity.type}</Badge>
                         <Badge variant="secondary">Peso: {activity.weight.toFixed(1)}%</Badge>
                     </div>
@@ -155,18 +155,21 @@ export function ActivityDetail({
             </div>
 
             <Tabs defaultValue="results" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="instructions" className="flex items-center gap-2">
+                <TabsList className="grid w-full grid-cols-3 md:inline-flex md:w-auto">
+                    <TabsTrigger value="instructions" className="flex items-center gap-1 sm:gap-2">
                         <FileText className="h-4 w-4" />
-                        Instrucciones
+                        <span className="hidden sm:inline">Instrucciones</span>
+                        <span className="sm:hidden">Inst.</span>
                     </TabsTrigger>
-                    <TabsTrigger value="statement" className="flex items-center gap-2">
+                    <TabsTrigger value="statement" className="flex items-center gap-1 sm:gap-2">
                         <ClipboardList className="h-4 w-4" />
-                        Enunciado
+                        <span className="hidden sm:inline">Enunciado</span>
+                        <span className="sm:hidden">Enun.</span>
                     </TabsTrigger>
-                    <TabsTrigger value="results" className="flex items-center gap-2">
+                    <TabsTrigger value="results" className="flex items-center gap-1 sm:gap-2">
                         <Users className="h-4 w-4" />
-                        Resultados por Estudiantes
+                        <span className="hidden sm:inline">Resultados por Estudiantes</span>
+                        <span className="sm:hidden">Result.</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -210,15 +213,15 @@ export function ActivityDetail({
                         </div>
                     </div>
 
-                    {/* Export and Validate Buttons */}
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-col sm:flex-row justify-end gap-2">
                         <Button
                             onClick={handleValidateLinks}
                             disabled={isValidating || activity.submissions.length === 0}
                             variant="outline"
+                            className="w-full sm:w-auto"
                         >
                             <Search className="w-4 h-4 mr-2" />
-                            {isValidating ? "Validando..." : "Validar Enlaces Únicos"}
+                            {isValidating ? "Validando..." : "Validar Enlaces"}
                         </Button>
                         <ExportButton
                             data={exportData}
@@ -227,8 +230,8 @@ export function ActivityDetail({
                         />
                     </div>
 
-                    <div className="rounded-md border">
-                        <Table>
+                    <div className="w-full overflow-x-auto rounded-md border">
+                        <Table className="min-w-[700px]">
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Estudiante</TableHead>
@@ -489,7 +492,7 @@ export function ActivityDetail({
 
             {/* Validation Results Dialog */}
             <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
-                <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <AlertDialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
                             <Search className="w-5 h-5" />

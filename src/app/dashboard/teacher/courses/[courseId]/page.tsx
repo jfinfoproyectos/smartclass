@@ -36,23 +36,23 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
     const students = await courseService.getCourseStudents(courseId);
 
     return (
-        <div className="flex-1 space-y-4 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">{course.title}</h2>
-                <div className="flex items-center space-x-2">
+        <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-4 sm:pt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{course.title}</h2>
+                <div className="flex flex-wrap items-center gap-2">
                     <LateCodeGenerator courseId={courseId} />
                     <AttendanceTaker courseId={courseId} />
                 </div>
             </div>
 
             <Tabs defaultValue="activities" className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <TabsList>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
                         <TabsTrigger value="activities">Actividades</TabsTrigger>
                         <TabsTrigger value="students">Estudiantes</TabsTrigger>
                     </TabsList>
                     {course.externalUrl && (
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
                             <Link href={course.externalUrl} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 Documentación
