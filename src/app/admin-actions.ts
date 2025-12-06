@@ -326,7 +326,8 @@ export async function getSystemSettingsAction() {
         institutionLogo: settings.institutionLogo,
         institutionHeroImage: settings.institutionHeroImage,
         hasGlobalKey: !!settings.encryptedGlobalApiKey,
-        hasGithubToken: !!settings.encryptedGithubToken
+        hasGithubToken: !!settings.encryptedGithubToken,
+        footerText: settings.footerText
     };
 }
 
@@ -335,13 +336,15 @@ export async function updateSystemSettingsAction(data: {
     geminiApiKeyMode: "GLOBAL" | "USER";
     globalApiKey?: string;
     githubToken?: string;
+    footerText?: string;
 }) {
     const session = await requireAdmin();
 
     const { encrypt } = await import("@/lib/encryption");
 
     const updateData: any = {
-        geminiApiKeyMode: data.geminiApiKeyMode
+        geminiApiKeyMode: data.geminiApiKeyMode,
+        footerText: data.footerText,
     };
 
     if (data.globalApiKey) {

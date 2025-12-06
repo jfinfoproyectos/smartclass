@@ -91,13 +91,13 @@ export function StatisticsDashboard() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Estadísticas del Curso</h2>
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Estadísticas del Curso</h2>
 
-                <div className="flex gap-4 w-full md:w-auto items-center">
+                <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto items-stretch sm:items-center">
                     {/* Course Filter */}
                     <Select value={selectedCourse || data.selectedCourseId} onValueChange={setSelectedCourse}>
-                        <SelectTrigger className="w-[300px]">
+                        <SelectTrigger className="w-full md:w-[300px]">
                             <SelectValue placeholder="Seleccionar curso" className="truncate" />
                         </SelectTrigger>
                         <SelectContent>
@@ -109,9 +109,9 @@ export function StatisticsDashboard() {
                         </SelectContent>
                     </Select>
 
-                    <Button onClick={() => handlePrint()} variant="outline" className="gap-2">
+                    <Button onClick={() => handlePrint()} variant="outline" className="gap-2 w-full sm:w-auto">
                         <Printer className="h-4 w-4" />
-                        <span className="hidden sm:inline">Generar PDF</span>
+                        <span className="inline">Generar PDF</span>
                     </Button>
                 </div>
             </div>
@@ -126,7 +126,7 @@ export function StatisticsDashboard() {
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-3 print:grid-cols-3">
                     <Card className="print:border print:shadow-none">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Promedio del Curso</CardTitle>
@@ -161,8 +161,8 @@ export function StatisticsDashboard() {
                     <StatisticsCharts data={data.charts} />
                 </div>
 
-                {/* Student Performance Table */}
-                <Card className="print:border print:shadow-none print:break-before-page">
+                {/* Student Performance Table - Desktop */}
+                <Card className="hidden md:block print:block print:border print:shadow-none print:break-before-page">
                     <CardHeader>
                         <CardTitle>Detalle por Estudiante</CardTitle>
                     </CardHeader>
@@ -216,6 +216,64 @@ export function StatisticsDashboard() {
                         </Table>
                     </CardContent>
                 </Card>
+
+                {/* Student Performance Cards - Mobile */}
+                <div className="md:hidden space-y-4 print:hidden">
+                    <h3 className="text-lg font-semibold">Detalle por Estudiante</h3>
+                    {data.studentMetrics.map((student) => (
+                        <Card key={student.id}>
+                            <CardContent className="p-4 space-y-4">
+                                <div>
+                                    <div className="font-medium">{student.name}</div>
+                                    <div className="text-xs text-muted-foreground">{student.email}</div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span className="text-muted-foreground">Promedio:</span>
+                                        <div className={`font-bold text-lg ${student.averageGrade < 3.0 ? "text-destructive" : "text-primary"}`}>
+                                            {student.averageGrade.toFixed(1)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-muted-foreground">Asistencia:</span>
+                                        <div className={`font-bold text-lg ${student.attendancePercentage < 75 ? "text-destructive" : ""}`}>
+                                            {student.attendancePercentage}%
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    {student.missingActivities > 0 ? (
+                                        <Badge variant="destructive">
+                                            {student.missingActivities} Act. Faltantes
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-green-600 border-green-600">
+                                            Al día
+                                        </Badge>
+                                    )}
+
+                                    {student.remarksCount > 0 && (
+                                        <Badge variant="secondary">
+                                            {student.remarksCount} Observaciones
+                                        </Badge>
+                                    )}
+
+                                    {student.averageGrade >= 3.0 ? (
+                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                            Aprobando
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="destructive">
+                                            En Riesgo
+                                        </Badge>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </div>
         </div>
     );

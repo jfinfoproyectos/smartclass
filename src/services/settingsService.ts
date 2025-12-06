@@ -15,7 +15,7 @@ export const settingsService = {
         return settings;
     },
 
-    async updateSettings(data: { institutionName?: string | null; institutionLogo?: string | null; institutionHeroImage?: string | null }) {
+    async updateSettings(data: { institutionName?: string | null; institutionLogo?: string | null; institutionHeroImage?: string | null; footerText?: string | null }) {
         return await prisma.systemSettings.upsert({
             where: { id: "settings" },
             update: data,

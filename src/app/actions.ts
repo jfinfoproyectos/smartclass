@@ -1569,13 +1569,15 @@ export async function updateSettingsAction(formData: FormData) {
     const institutionName = (formData.get("institutionName") as string) || null;
     const institutionLogo = (formData.get("institutionLogo") as string) || null;
     const institutionHeroImage = (formData.get("institutionHeroImage") as string) || null;
+    const footerText = (formData.get("footerText") as string) || null;
 
-    console.log("updateSettingsAction processing:", { institutionName, institutionLogo, institutionHeroImage });
+    console.log("updateSettingsAction processing:", { institutionName, institutionLogo, institutionHeroImage, footerText });
 
     await settingsService.updateSettings({
         institutionName,
         institutionLogo,
-        institutionHeroImage
+        institutionHeroImage,
+        footerText
     });
 
     revalidatePath("/");

@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function NotificationManager({
     initialNotifications,
@@ -72,7 +73,7 @@ export function NotificationManager({
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
                 <h3 className="text-xl font-semibold">Gestión de Notificaciones</h3>
                 <Dialog open={isOpen} onOpenChange={(open) => {
                     setIsOpen(open);
@@ -205,7 +206,8 @@ export function NotificationManager({
                 </Dialog>
             </div>
 
-            <div className="w-full overflow-x-auto rounded-md border">
+            {/* Desktop Table */}
+            <div className="hidden md:block w-full overflow-x-auto rounded-md border">
                 <Table className="min-w-[700px]">
                     <TableHeader>
                         <TableRow>
@@ -264,6 +266,59 @@ export function NotificationManager({
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4">
+                {initialNotifications.length === 0 ? (
+                    <Card>
+                        <CardContent className="p-6 text-center text-muted-foreground">
+                            No hay notificaciones creadas.
+                        </CardContent>
+                    </Card>
+                ) : (
+                    initialNotifications.map((notification) => (
+                        <Card key={notification.id}>
+                            <CardHeader className="pb-2">
+                                <div className="flex justify-between items-start">
+                                    <CardTitle className="text-lg">{notification.title}</CardTitle>
+                                    {getTargetDisplay(notification)}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {new Date(notification.createdAt).toLocaleDateString('es-ES')}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm line-clamp-3">{notification.message}</p>
+                                <div className="flex justify-end gap-2 pt-2 border-t">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setEditNotification(notification);
+                                            setTarget(notification.target);
+                                            setSelectedCourse(notification.courseId || "");
+                                            setSelectedStudents(notification.studentIds || []);
+                                            setIsOpen(true);
+                                        }}
+                                    >
+                                        <Pencil className="h-4 w-4 mr-2" /> Editar
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => {
+                                            setNotificationToDelete(notification);
+                                            setDeleteDialogOpen(true);
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
             </div>
 
             {/* Delete Confirmation Dialog */}

@@ -18,6 +18,7 @@ interface AdminSettingsProps {
         institutionName?: string | null;
         institutionLogo?: string | null;
         institutionHeroImage?: string | null;
+        footerText?: string | null;
     };
 }
 
@@ -239,6 +240,16 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
                                 placeholder="https://..."
                             />
                             <p className="text-xs text-muted-foreground">URL de la imagen de fondo para la página de inicio.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="footerText">Texto del Footer</Label>
+                            <Input
+                                id="footerText"
+                                name="footerText"
+                                defaultValue={initialSettings.footerText || ""}
+                                placeholder="Ej: © 2025 EIA - Todos los derechos reservados"
+                            />
+                            <p className="text-xs text-muted-foreground">Texto pequeño que aparecerá al final de todas las páginas (HTML permitido).</p>
                         </div>
                         <div className="flex justify-end">
                             <Button type="submit">Guardar Personalización</Button>

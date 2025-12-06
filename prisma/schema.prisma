@@ -321,6 +321,7 @@ model SystemSettings {
   geminiApiKeyMode      GeminiApiKeyMode @default(GLOBAL)
   encryptedGlobalApiKey String?
   encryptedGithubToken  String?
+  footerText            String?
   updatedAt             DateTime         @updatedAt
 
   @@map("system_settings")

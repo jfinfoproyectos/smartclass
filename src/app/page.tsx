@@ -11,21 +11,21 @@ export default function Page() {
           <div className="bg-primary/10 blur-3xl absolute -top-40 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full" />
           <div className="bg-accent/10 blur-2xl absolute bottom-0 right-0 h-64 w-64 rounded-full" />
         </div>
-        <div className="mx-auto max-w-7xl px-6 py-20 md:py-28">
-          <div className="grid items-center gap-10 md:grid-cols-2">
+        <div className="mx-auto max-w-7xl px-6 py-12 md:py-20">
+          <div className="grid items-center gap-8 md:grid-cols-2">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium bg-primary/10 text-primary border-primary/20">
                 <BrainCircuit className="size-4" />
                 Potenciado con IA
               </div>
-              <h1 className="mt-6 text-foreground text-4xl font-bold tracking-tight md:text-6xl">
+              <h1 className="mt-4 text-foreground text-4xl font-bold tracking-tight md:text-6xl">
                 SmartClass
                 <span className="block text-primary mt-2">Educación Inteligente</span>
               </h1>
-              <p className="text-muted-foreground mt-6 text-lg leading-relaxed">
+              <p className="text-muted-foreground mt-4 text-lg leading-relaxed">
                 Plataforma integral para la gestión académica moderna. Calificación automática de código con IA, integración con GitHub, control de asistencia y reportes detallados.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
+              <div className="mt-6 flex flex-col sm:flex-row items-center gap-4">
                 <Button size="lg" asChild>
                   <Link href="/signin">Entrar al panel</Link>
                 </Button>

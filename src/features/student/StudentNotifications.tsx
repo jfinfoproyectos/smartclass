@@ -36,7 +36,7 @@ export function StudentNotifications({ notifications }: { notifications: any[] }
     return (
         <div className="space-y-4">
             {unreadCount > 0 && (
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
                     <p className="text-sm text-muted-foreground">
                         {unreadCount} notificación{unreadCount !== 1 ? 'es' : ''} sin leer
                     </p>
@@ -60,9 +60,9 @@ export function StudentNotifications({ notifications }: { notifications: any[] }
                 notifications.map((notification) => (
                     <Card
                         key={notification.id}
-                        className={`transition-all cursor-pointer hover:shadow-md ${!notification.isRead
-                                ? "border-l-4 border-l-primary bg-primary/5"
-                                : ""
+                        className={`transition-all cursor-pointer hover:shadow-md mb-2 sm:mb-0 ${!notification.isRead
+                            ? "border-l-4 border-l-primary bg-primary/5"
+                            : ""
                             }`}
                         onClick={() => handleMarkAsRead(notification.id, notification.isRead)}
                     >
