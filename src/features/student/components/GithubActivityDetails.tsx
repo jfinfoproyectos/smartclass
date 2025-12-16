@@ -133,7 +133,17 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
 
                         <Separator />
 
-                        {isSubmitted ? (
+                        {activity.deadline && new Date(activity.deadline) < new Date() ? (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 rounded-md flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="font-medium text-sm">Actividad Cerrada</p>
+                                    <p className="text-xs opacity-90">
+                                        La fecha límite para esta actividad ha pasado. Ya no se aceptan nuevas entregas.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : isSubmitted ? (
                             <div className="space-y-4">
                                 <div>
                                     <Label className="text-xs text-muted-foreground">Tu entrega más reciente:</Label>

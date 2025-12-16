@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ExternalLink, Link as LinkIcon } from "lucide-react";
+import { ExternalLink, Link as LinkIcon, AlertCircle } from "lucide-react";
 import { FeedbackViewer } from "../FeedbackViewer";
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
@@ -113,36 +113,48 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                             </div>
                         )}
 
-                        {/* Submission form - only show if not graded AND allowLinkSubmission is enabled */}
+                        {/* Submission form - only show if not graded AND allowLinkSubmission is enabled AND deadline not passed */}
                         {!isGraded && activity.allowLinkSubmission && (
-                            <div className="rounded-lg border p-4 bg-card">
-                                <h4 className="font-semibold mb-3">
-                                    {submission ? "Actualizar Enlace de Entrega" : "Enviar Enlace de Entrega"}
-                                </h4>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    Envía un enlace a tu trabajo (Google Drive, OneDrive, sitio web, etc.) para que el profesor lo revise manualmente.
-                                </p>
-                                <form action={formAction} className="space-y-4">
-                                    <input type="hidden" name="activityId" value={activity.id} />
-                                    <div className="space-y-2">
-                                        <Label htmlFor="url">Enlace de Entrega</Label>
-                                        <Input
-                                            id="url"
-                                            name="url"
-                                            type="url"
-                                            placeholder="https://drive.google.com/..."
-                                            defaultValue={submission?.url || ""}
-                                            required
-                                        />
-                                        <p className="text-xs text-muted-foreground">
-                                            Asegúrate de que el enlace sea accesible para el profesor.
+                            activity.deadline && new Date(activity.deadline) < new Date() ? (
+                                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 rounded-md flex items-start gap-2">
+                                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                    <div className="space-y-1">
+                                        <p className="font-medium text-sm">Actividad Cerrada</p>
+                                        <p className="text-xs opacity-90">
+                                            La fecha límite para esta actividad ha pasado. Ya no se aceptan entregas por enlace.
                                         </p>
                                     </div>
-                                    <Button type="submit" className="w-full">
-                                        {submission ? "Actualizar Entrega" : "Enviar Entrega"}
-                                    </Button>
-                                </form>
-                            </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border p-4 bg-card">
+                                    <h4 className="font-semibold mb-3">
+                                        {submission ? "Actualizar Enlace de Entrega" : "Enviar Enlace de Entrega"}
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Envía un enlace a tu trabajo (Google Drive, OneDrive, sitio web, etc.) para que el profesor lo revise manualmente.
+                                    </p>
+                                    <form action={formAction} className="space-y-4">
+                                        <input type="hidden" name="activityId" value={activity.id} />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="url">Enlace de Entrega</Label>
+                                            <Input
+                                                id="url"
+                                                name="url"
+                                                type="url"
+                                                placeholder="https://drive.google.com/..."
+                                                defaultValue={submission?.url || ""}
+                                                required
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Asegúrate de que el enlace sea accesible para el profesor.
+                                            </p>
+                                        </div>
+                                        <Button type="submit" className="w-full">
+                                            {submission ? "Actualizar Entrega" : "Enviar Entrega"}
+                                        </Button>
+                                    </form>
+                                </div>
+                            )
                         )}
 
                         {/* Message when link submission is disabled */}
