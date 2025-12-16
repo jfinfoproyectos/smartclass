@@ -24,6 +24,8 @@ import { MessageSquareWarning, Award, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ExportButton } from "@/components/ui/export-button";
+import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
 
 interface StudentActivityDetailsProps {
     enrollment: any;
@@ -133,6 +135,24 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                     </div>
                 </div>
                 <div className="flex items-center gap-2 pr-8">
+                    <ExportButton
+                        data={enrollment.course.activities.map((activity: any, index: number) => {
+                            const submission = activity.submissions[0];
+                            const isSubmitted = !!submission;
+                            const isGraded = submission && submission.grade !== null;
+
+                            return {
+                                '#': index + 1,
+                                'Actividad': activity.title,
+                                'Peso': `${activity.weight.toFixed(1)}%`,
+                                'Estado': isGraded ? 'Calificado' : isSubmitted ? 'Enviado' : 'Pendiente',
+                                'Nota': isGraded ? formatGradeForExport(submission.grade) : (!submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? '0.0' : '-',
+                                'Entregado': submission ? formatDateForExport(submission.createdAt) : '-'
+                            };
+                        })}
+                        filename={`Calificaciones_${enrollment.user.name.replace(/\s+/g, '_')}_${enrollment.course.title.replace(/\s+/g, '_')}`}
+                        sheetName="Calificaciones"
+                    />
                     <Button variant="outline" size="sm" onClick={onPrintClick}>
                         <Printer className="mr-2 h-4 w-4" />
                         Generar Reporte
@@ -202,6 +222,8 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                                                 <span className="font-bold text-primary">
                                                     {submission.grade.toFixed(1)}
                                                 </span>
+                                            ) : !submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? (
+                                                <span className="font-bold text-red-500">0.0</span>
                                             ) : (
                                                 <span className="text-muted-foreground">-</span>
                                             )}

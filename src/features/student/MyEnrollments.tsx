@@ -98,7 +98,7 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                 ? (submission?.grade !== null ? 'Calificado' : submission ? 'Enviado' : 'Pendiente')
                                                 : 'Bloqueado',
                                             'Fecha de Entrega': submission ? formatDateForExport(submission.lastSubmittedAt || submission.createdAt) : '-',
-                                            'Calificación': formatGradeForExport(submission?.grade),
+                                            'Calificación': submission?.grade !== null && submission?.grade !== undefined ? formatGradeForExport(submission.grade) : (!activity.openDate || new Date() >= new Date(activity.openDate)) && !submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? '0.0' : '-',
                                             'Vencimiento': activity.type !== 'MANUAL' ? formatDateForExport(activity.deadline) : '-'
                                         };
                                     })}
@@ -190,6 +190,8 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                                 <span className="font-bold text-primary">
                                                                     {submission.grade.toFixed(1)}
                                                                 </span>
+                                                            ) : !isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? (
+                                                                <span className="font-bold text-red-500">0.0</span>
                                                             ) : (
                                                                 <span className="text-muted-foreground">-</span>
                                                             )}

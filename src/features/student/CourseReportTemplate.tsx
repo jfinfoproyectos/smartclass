@@ -135,7 +135,7 @@ export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseRepor
                                             )}
                                         </td>
                                         <td className="py-3 px-2 text-right font-bold text-gray-900">
-                                            {isGraded ? submission.grade.toFixed(1) : "-"}
+                                            {isGraded ? submission.grade.toFixed(1) : (!isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? "0.0" : "-"}
                                         </td>
                                     </tr>
                                 );

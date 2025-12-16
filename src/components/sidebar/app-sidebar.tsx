@@ -142,39 +142,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             isActive: false,
           },
         ]
-        : [
-          {
-            title: "Inicio",
-            url: "/dashboard",
-            icon: Home,
-            isActive: false,
-          },
-          {
-            title: "Cursos",
-            url: "/dashboard/student",
-            icon: BookOpen,
-            isActive: true,
-          },
-          {
-            title: "Notificaciones",
-            url: "/dashboard/student/notifications",
-            icon: Bell,
-            isActive: false,
-            badge: unreadCount,
-          },
-          {
-            title: "Calendario",
-            url: "/dashboard/calendar",
-            icon: Calendar,
-            isActive: false,
-          },
-          {
-            title: "Horario",
-            url: "/dashboard/student/schedule",
-            icon: CalendarClock,
-            isActive: false,
-          },
-        ]
+        : role === "student"
+          ? [
+            {
+              title: "Inicio",
+              url: "/dashboard",
+              icon: Home,
+              isActive: false,
+            },
+            {
+              title: "Cursos",
+              url: "/dashboard/student",
+              icon: BookOpen,
+              isActive: true,
+            },
+            {
+              title: "Notificaciones",
+              url: "/dashboard/student/notifications",
+              icon: Bell,
+              isActive: false,
+              badge: unreadCount,
+            },
+            {
+              title: "Calendario",
+              url: "/dashboard/calendar",
+              icon: Calendar,
+              isActive: false,
+            },
+            {
+              title: "Horario",
+              url: "/dashboard/student/schedule",
+              icon: CalendarClock,
+              isActive: false,
+            },
+          ]
+          : []
 
   const user = {
     name: (session?.user as { name?: string } | null | undefined)?.name || "Usuario",

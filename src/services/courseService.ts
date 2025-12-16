@@ -311,6 +311,8 @@ export const courseService = {
             },
         });
 
+        const now = new Date(); // Capture time once
+
         // Calculate weighted average grade for each course and fetch remarks/attendance
         // We do this manually or via separate queries because nested filtering on the same level (user -> remarks) 
         // within an enrollment query can be tricky or less efficient if not careful. 
@@ -329,6 +331,22 @@ export const courseService = {
                 const submission = activity.submissions[0];
                 if (submission && submission.grade !== null) {
                     totalWeightedGrade += submission.grade * activity.weight;
+                    totalWeight += activity.weight;
+                } else if (!submission && activity.deadline && activity.deadline < now && activity.type !== 'MANUAL') {
+                    // Missed deadline (and not manual without submission, assuming manual requires submission to be graded or marked?
+                    // actually for MANUAL if teacher hasn't graded it might just be pending.
+                    // But requirement says "actividades no entregadas".
+                    // If it's manual and the teacher hasn't graded it, it might not be "submitted" in the system if it's purely offline.
+                    // But usually "no entregadas" refers to things the student HAD to do.
+                    // Safest bet for "no entregadas" implies the system knows it was expected.
+                    // For GITHUB/COLAB/FILE it requires a submission record.
+                    // For MANUAL with allowLinkSubmission=false, maybe the teacher grades directly.
+                    // The prompt says "actividades no entregadas".
+                    // Let's stick to: if no submission record AND deadline passed -> 0.0.
+                    // This covers online submissions. For manual activities without online submission, it depends if the teacher creates a submission record or not.
+                    // If the teacher just enters a grade, a submission record is created/upserted.
+                    // So if no submission record exists and deadline passed, it counts as 0.
+                    totalWeightedGrade += 0.0; // 0 * weight
                     totalWeight += activity.weight;
                 }
             });
@@ -602,11 +620,16 @@ export const courseService = {
         const activities = enrollment.course.activities;
         let totalWeightedGrade = 0;
         let totalWeight = 0;
+        const now = new Date();
 
         activities.forEach(activity => {
             const submission = activity.submissions[0];
             if (submission && submission.grade !== null) {
                 totalWeightedGrade += submission.grade * activity.weight;
+                totalWeight += activity.weight;
+            } else if (!submission && activity.deadline && activity.deadline < now && activity.type !== 'MANUAL') {
+                // Missed deadline => 0.0
+                totalWeightedGrade += 0.0;
                 totalWeight += activity.weight;
             }
         });
@@ -846,4 +869,98 @@ export const courseService = {
 
         return enrollments.map(e => e.user);
     },
+
+    async getCourseGradesReport(courseId: string) {
+        // 1. Fetch Course and Activities
+        const course = await prisma.course.findUnique({
+            where: { id: courseId },
+            include: {
+                activities: {
+                    orderBy: { order: "asc" }
+                }
+            }
+        });
+
+        if (!course) throw new Error("Course not found");
+
+        // 2. Fetch Enrolled Students
+        const enrollments = await prisma.enrollment.findMany({
+            where: {
+                courseId: courseId,
+                status: 'APPROVED' // Only active students
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        profile: {
+                            select: {
+                                identificacion: true,
+                                nombres: true,
+                                apellido: true,
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                user: { name: 'asc' }
+            }
+        });
+
+        // 3. Fetch All Submissions for this course
+        const activityIds = course.activities.map(a => a.id);
+        const submissions = await prisma.submission.findMany({
+            where: {
+                activityId: { in: activityIds }
+            }
+        });
+
+        // 4. Process Data
+        const reportData = enrollments.map(enrollment => {
+            const student = enrollment.user;
+            const row: any = {
+                'ID': student.profile?.identificacion || student.id.substring(0, 8),
+                'Estudiante': student.profile?.nombres && student.profile?.apellido
+                    ? `${student.profile.nombres} ${student.profile.apellido}`
+                    : student.name,
+                'Correo': student.email
+            };
+
+            let totalWeightedGrade = 0;
+            let totalWeight = 0;
+            const now = new Date();
+
+            course.activities.forEach(activity => {
+                const submission = submissions.find(s => s.activityId === activity.id && s.userId === student.id);
+
+                let grade = 0;
+                let displayGrade = '-';
+
+                if (submission && submission.grade !== null) {
+                    grade = submission.grade;
+                    displayGrade = grade.toFixed(1);
+                    totalWeightedGrade += grade * activity.weight;
+                    totalWeight += activity.weight;
+                } else if (!submission && activity.deadline && activity.deadline < now && activity.type !== 'MANUAL') {
+                    // Missed deadline => 0.0
+                    grade = 0.0;
+                    displayGrade = '0.0';
+                    totalWeightedGrade += 0.0;
+                    totalWeight += activity.weight;
+                }
+
+                row[activity.title] = displayGrade;
+            });
+
+            const average = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+            row['Nota Final'] = average.toFixed(1);
+
+            return row;
+        });
+
+        return reportData;
+    }
 };

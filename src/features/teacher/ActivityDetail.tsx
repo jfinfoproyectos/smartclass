@@ -134,7 +134,7 @@ export function ActivityDetail({
             'Estado': status === 'pending' ? 'Pendiente' : status === 'submitted' ? 'Entregado' : 'Calificado',
             'Fecha de Entrega': submission ? formatDateForExport(submission.lastSubmittedAt || submission.createdAt) : '-',
             'Intentos': submission ? `${submission.attemptCount} / ${activity.maxAttempts}` : '-',
-            'Calificación': formatGradeForExport(submission?.grade),
+            'Calificación': submission?.grade !== null && submission?.grade !== undefined ? formatGradeForExport(submission.grade) : (!submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? '0.0' : '-',
             'URL de Entrega': submission?.url || '-'
         }));
     }, [studentStatus, activity.maxAttempts]);
@@ -277,6 +277,8 @@ export function ActivityDetail({
                                         <TableCell>
                                             {submission?.grade !== null && submission?.grade !== undefined ? (
                                                 <span className="font-bold">{submission.grade.toFixed(1)} / 5.0</span>
+                                            ) : (!submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? (
+                                                <span className="font-bold text-red-500">0.0 / 5.0</span>
                                             ) : "-"}
                                         </TableCell>
                                         <TableCell className="text-right">

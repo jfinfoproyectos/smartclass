@@ -28,7 +28,7 @@ export function AppIdentity() {
       case "student":
         return BookOpen
       default:
-        return BookOpen
+        return BookOpen // Or a neutral icon like 'Layout' or 'Command'
     }
   }
 
@@ -60,8 +60,19 @@ export function AppIdentity() {
           )}
         >
           <div className={cn("flex items-center gap-2", isCollapsed && "justify-center")}>
-            <RoleIcon className={cn("text-primary transition-all", isCollapsed ? "h-6 w-6" : "h-6 w-6")} />
-            {!isCollapsed && <span className="text-lg font-bold whitespace-nowrap">{getRoleLabel()}</span>}
+            {isMounted && !isPending ? (
+              <RoleIcon className={cn("text-primary transition-all", isCollapsed ? "h-6 w-6" : "h-6 w-6")} />
+            ) : (
+              <BookOpen className={cn("text-primary transition-all", isCollapsed ? "h-6 w-6" : "h-6 w-6")} />
+            )}
+
+            {!isCollapsed && (
+              isMounted && !isPending ? (
+                <span className="text-lg font-bold whitespace-nowrap">{getRoleLabel()}</span>
+              ) : (
+                <span className="h-6 w-24 animate-pulse rounded bg-sidebar-accent" />
+              )
+            )}
           </div>
           {!isCollapsed && (
             isMounted && !isPending ? (

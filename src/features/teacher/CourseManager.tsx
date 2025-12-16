@@ -37,6 +37,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+import { getMultiCourseGradesReportAction } from "@/app/actions";
+import { exportMultiSheetExcel } from "@/lib/export-utils";
+import { FileSpreadsheet } from "lucide-react";
 
 // Helper function to format date consistently on server and client
 function formatDateTime(date: Date | string): string {
@@ -225,8 +230,43 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
     const [newStartTime, setNewStartTime] = useState("");
     const [newEndTime, setNewEndTime] = useState("");
 
+    // Multi-course export state
+    const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+    const [isExporting, setIsExporting] = useState(false);
+
     const activeCourses = initialCourses.filter(course => !course.endDate || new Date(course.endDate) >= new Date());
     const archivedCourses = initialCourses.filter(course => course.endDate && new Date(course.endDate) < new Date());
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedCourses(activeCourses.map(c => c.id));
+        } else {
+            setSelectedCourses([]);
+        }
+    };
+
+    const handleSelectCourse = (courseId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedCourses(prev => [...prev, courseId]);
+        } else {
+            setSelectedCourses(prev => prev.filter(id => id !== courseId));
+        }
+    };
+
+    const handleExportMulti = async () => {
+        if (selectedCourses.length === 0) return;
+        setIsExporting(true);
+        try {
+            const reports = await getMultiCourseGradesReportAction(selectedCourses);
+            await exportMultiSheetExcel(reports, `Reporte_General_${new Date().toISOString().split('T')[0]}`);
+            toast.success("Reporte generado exitosamente");
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al generar el reporte");
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Schedule helper functions
     const addSchedule = () => {
@@ -264,6 +304,12 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
             <Table className="min-w-[800px]">
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[50px]">
+                            <Checkbox
+                                checked={selectedCourses.length === activeCourses.length && activeCourses.length > 0}
+                                onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                            />
+                        </TableHead>
                         <TableHead>Título</TableHead>
                         <TableHead className="hidden md:table-cell">Descripción</TableHead>
                         <TableHead className="hidden sm:table-cell">Fechas</TableHead>
@@ -275,6 +321,12 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                 <TableBody>
                     {courses.map((course) => (
                         <TableRow key={course.id}>
+                            <TableCell>
+                                <Checkbox
+                                    checked={selectedCourses.includes(course.id)}
+                                    onCheckedChange={(checked) => handleSelectCourse(course.id, checked as boolean)}
+                                />
+                            </TableCell>
                             <TableCell className="font-medium">{course.title}</TableCell>
                             <TableCell className="hidden md:table-cell max-w-md truncate" title={course.description}>
                                 {course.description || "Sin descripción"}
@@ -366,8 +418,26 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">Gestión de Cursos</h3>
+            <div className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-semibold">Gestión de Cursos</h3>
+                    {selectedCourses.length > 0 && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportMulti}
+                            disabled={isExporting}
+                            className="ml-4"
+                        >
+                            {isExporting ? "Generando..." : (
+                                <>
+                                    <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
+                                    Reporte de Calificaciones ({selectedCourses.length})
+                                </>
+                            )}
+                        </Button>
+                    )}
+                </div>
                 <Dialog open={isOpen} onOpenChange={(open) => {
                     setIsOpen(open);
                     if (!open) {

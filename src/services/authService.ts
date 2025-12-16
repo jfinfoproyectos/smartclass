@@ -2,10 +2,11 @@ import { authClient } from "@/lib/auth-client";
 
 type Role = "admin" | "teacher" | "student";
 
-export function getRoleFromUser(user: unknown): Role {
+export function getRoleFromUser(user: unknown): Role | null {
   const u = user as { role?: string; roles?: string[] } | null | undefined;
+  if (!u) return null;
   const r = Array.isArray(u?.roles) ? u?.roles[0] : u?.role;
-  if (r === "admin" || r === "teacher" || r === "student") return r;
+  if (r === "admin" || r === "teacher" || r === "student") return r as Role;
   return "student";
 }
 
@@ -29,7 +30,7 @@ export async function signInSocial(provider: "google" | "github"): Promise<void>
 export async function signUpEmail(payload: {
   email: string;
   password: string;
-  name?: string; 
+  name?: string;
   confirmPassword?: string;
 }): Promise<void> {
   if (payload.confirmPassword !== undefined && payload.password !== payload.confirmPassword) {
@@ -37,8 +38,8 @@ export async function signUpEmail(payload: {
   }
   if (payload.password.length < 8) {
     throw new Error("La contraseña debe tener al menos 8 caracteres");
-  }  
-  await authClient.signUp.email({ email: payload.email, password: payload.password, name: ""});
+  }
+  await authClient.signUp.email({ email: payload.email, password: payload.password, name: "" });
 }
 
 export async function signOut(): Promise<void> {
