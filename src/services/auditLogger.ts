@@ -372,4 +372,11 @@ export const auditLogger = {
             recentErrors,
         };
     },
+
+    /**
+     * Clear all audit logs
+     */
+    async clearAllLogs() {
+        return await prisma.auditLog.deleteMany({});
+    },
 };

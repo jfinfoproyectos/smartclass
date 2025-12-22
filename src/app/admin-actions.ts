@@ -31,11 +31,17 @@ export async function getRecentActivityAction(limit?: number) {
 export async function getAllUsersAction(filters?: {
     role?: "teacher" | "student" | "admin";
     search?: string;
+    courseId?: string;
     limit?: number;
     offset?: number;
 }) {
     await requireAdmin();
     return await adminService.getAllUsers(filters);
+}
+
+export async function getAllCoursesForFilterAction() {
+    await requireAdmin();
+    return await adminService.getAllCoursesSimple();
 }
 
 export async function createUserAction(data: {
@@ -456,4 +462,49 @@ export async function getAuditStatsAction(startDate?: string, endDate?: string) 
         startDate ? new Date(startDate) : undefined,
         endDate ? new Date(endDate) : undefined
     );
+}
+
+export async function clearAuditLogsAction() {
+    const session = await requireAdmin();
+    const { auditLogger } = await import("@/services/auditLogger");
+
+    const result = await auditLogger.clearAllLogs();
+
+    // Log the action itself (this will be the first new log!)
+    await auditLogger.log({
+        action: "DELETE",
+        entity: "SYSTEM",
+        userId: session.user.id,
+        userName: session.user.name || "Admin",
+        userRole: "admin",
+        description: `Historial de auditoría eliminado por ${session.user.name || "Admin"}`,
+        metadata: { deletedCount: result.count },
+        success: true,
+    });
+
+    revalidatePath("/dashboard/admin/settings");
+    return result;
+}
+
+export async function deleteCourseAction(courseId: string) {
+    const session = await requireAdmin();
+    const { courseService } = await import("@/services/courseService");
+    const { auditLogger } = await import("@/services/auditLogger");
+
+    // Get course info first for logging
+    const course = await courseService.getCourseById(courseId);
+
+    // Delete course
+    await courseService.deleteCourse(courseId);
+
+    // Log deletion
+    await auditLogger.logCourseDelete(
+        courseId,
+        course?.title || "Curso desconocido",
+        session.user.id,
+        session.user.name || "Admin"
+    );
+
+    revalidatePath("/dashboard/admin/courses");
+    return { success: true };
 }

@@ -9,30 +9,39 @@ export const adminService = {
     async getAllUsers(filters?: {
         role?: "teacher" | "student" | "admin";
         search?: string;
+        courseId?: string;
         limit?: number;
         offset?: number;
     }) {
         const where: any = {};
+        const andConditions: any[] = [];
 
         if (filters?.role) {
             where.role = filters.role;
         }
 
-        if (filters?.search) {
-            const searchConditions = [
-                { name: { contains: filters.search, mode: 'insensitive' as const } },
-                { email: { contains: filters.search, mode: 'insensitive' as const } }
-            ];
+        if (filters?.courseId && filters.courseId !== 'all') {
+            andConditions.push({
+                OR: [
+                    // Student enrolled in course
+                    { enrollments: { some: { courseId: filters.courseId } } },
+                    // Teacher who created the course
+                    { coursesCreated: { some: { id: filters.courseId } } }
+                ]
+            });
+        }
 
-            if (filters.role) {
-                where.AND = [
-                    { role: filters.role },
-                    { OR: searchConditions }
-                ];
-                delete where.role;
-            } else {
-                where.OR = searchConditions;
-            }
+        if (filters?.search) {
+            andConditions.push({
+                OR: [
+                    { name: { contains: filters.search, mode: 'insensitive' as const } },
+                    { email: { contains: filters.search, mode: 'insensitive' as const } }
+                ]
+            });
+        }
+
+        if (andConditions.length > 0) {
+            where.AND = andConditions;
         }
 
         const [users, total] = await Promise.all([
@@ -95,6 +104,18 @@ export const adminService = {
                         teacher: true
                     },
                     orderBy: { createdAt: 'desc' }
+                },
+                attendances: {
+                    include: {
+                        user: true,
+                        course: {
+                            select: {
+                                id: true,
+                                title: true
+                            }
+                        }
+                    },
+                    orderBy: { date: 'desc' }
                 }
             }
         });
@@ -219,8 +240,15 @@ export const adminService = {
                 },
                 attendances: {
                     include: {
-                        user: true
-                    }
+                        user: true,
+                        course: {
+                            select: {
+                                id: true,
+                                title: true
+                            }
+                        }
+                    },
+                    orderBy: { date: 'desc' }
                 }
             }
         });
@@ -234,6 +262,20 @@ export const adminService = {
     },
 
 
+
+    async getAllCoursesSimple() {
+        return await prisma.course.findMany({
+            // Fetch all courses for filtering, regardless of date
+            where: {},
+            select: {
+                id: true,
+                title: true
+            },
+            orderBy: {
+                title: 'asc'
+            }
+        });
+    },
 
     // ============ NOTIFICATION MANAGEMENT ============
 

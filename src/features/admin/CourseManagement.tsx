@@ -30,9 +30,10 @@ import {
 } from "@/components/ui/dialog";
 import { Search, BookOpen, Users, FileText, Calendar, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { reassignCourseTeacherAction } from "@/app/admin-actions";
+import { reassignCourseTeacherAction, deleteCourseAction } from "@/app/admin-actions";
 import { format } from "date-fns";
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 
 interface Course {
     id: string;
@@ -69,9 +70,13 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [newTeacherId, setNewTeacherId] = useState<string>("");
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
     const [isPending, startTransition] = useTransition();
+
+    const canDelete = deleteConfirmation === "ELIMINAR";
 
     const now = new Date();
     const filteredCourses = courses.filter(course => {
@@ -116,6 +121,30 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
             } catch (error: any) {
                 toast.error("Error", {
                     description: error.message || "No se pudo reasignar el profesor"
+                });
+            }
+        });
+    };
+
+    const handleDeleteCourse = async () => {
+        if (!selectedCourse) return;
+
+        startTransition(async () => {
+            try {
+                await deleteCourseAction(selectedCourse.id);
+
+                setCourses(prev => prev.filter(c => c.id !== selectedCourse.id));
+
+                toast.success("Curso eliminado", {
+                    description: `El curso "${selectedCourse.title}" ha sido eliminado exitosamente`
+                });
+
+                setDeleteDialogOpen(false);
+                setSelectedCourse(null);
+                setDeleteConfirmation("");
+            } catch (error: any) {
+                toast.error("Error", {
+                    description: error.message || "No se pudo eliminar el curso"
                 });
             }
         });
@@ -303,6 +332,18 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
                                                     >
                                                         Reasignar
                                                     </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => {
+                                                            setSelectedCourse(course);
+                                                            setDeleteConfirmation("");
+                                                            setDeleteDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -364,6 +405,47 @@ export function CourseManagement({ initialCourses, teachers, totalCount }: Cours
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+
+            {/* Delete Course Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Eliminar Curso</DialogTitle>
+                        <DialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente el curso
+                            <span className="font-bold"> {selectedCourse?.title} </span>
+                            y todos sus datos asociados.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <label className="text-sm font-medium mb-2 block">
+                            Para confirmar, escribe <span className="font-mono font-bold select-all">ELIMINAR</span> abajo:
+                        </label>
+                        <Input
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder="Escribe ELIMINAR para confirmar"
+                            className="w-full"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteDialogOpen(false)}
+                            disabled={isPending}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteCourse}
+                            disabled={!canDelete || isPending}
+                        >
+                            {isPending ? "Eliminando..." : "Eliminar Curso"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 }
