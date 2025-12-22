@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,8 +30,15 @@ import {
     SheetTrigger,
     SheetFooter,
 } from "@/components/ui/sheet";
-import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet } from "lucide-react";
-import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction } from "@/app/actions";
+import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction, getStudentMissingActivitiesAction } from "@/app/actions";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StudentActivityDetails } from "./components/StudentActivityDetails";
@@ -451,90 +458,110 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                     {getStatusBadge(enrollment.status || 'APPROVED')}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleOpenAbsenceDialog(enrollment.user)}
-                                            title="Registrar Inasistencia"
-                                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                        >
-                                            <Calendar className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleViewActivities(enrollment.user.id)}
-                                            title="Ver Detalles"
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
+                                    <TooltipProvider>
+                                        <div className="flex justify-end gap-2">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleOpenAbsenceDialog(enrollment.user)}
+                                                        className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                                    >
+                                                        <Calendar className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Registrar Inasistencia</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleViewActivities(enrollment.user.id)}
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Ver Detalles</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <MissingActivitiesDialog
+                                                courseId={courseId}
+                                                userId={enrollment.user.id}
+                                                studentName={enrollment.user.name}
+                                            />
 
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                {enrollment.status === 'REJECTED' ? (
-                                                    <DropdownMenuItem onClick={() => handleStatusChange(enrollment.id, 'APPROVED')}>
-                                                        <ShieldCheck className="mr-2 h-4 w-4" /> Activar
-                                                    </DropdownMenuItem>
-                                                ) : (
-                                                    <DropdownMenuItem onClick={() => handleStatusChange(enrollment.id, 'REJECTED')}>
-                                                        <ShieldAlert className="mr-2 h-4 w-4" /> Suspender
-                                                    </DropdownMenuItem>
-                                                )}
-                                                <DropdownMenuSeparator />
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                            <DropdownMenu>
+
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    {enrollment.status === 'REJECTED' ? (
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(enrollment.id, 'APPROVED')}>
+                                                            <ShieldCheck className="mr-2 h-4 w-4" /> Activar
                                                         </DropdownMenuItem>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>Eliminar Estudiante</DialogTitle>
-                                                            <DialogDescription>
-                                                                Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{enrollment.user.name}</strong> del curso y todos sus registros de asistencia y calificaciones.
-                                                                <br /><br />
-                                                                Escribe <strong>eliminar</strong> para confirmar.
-                                                            </DialogDescription>
-                                                        </DialogHeader>
-                                                        <div className="py-2">
-                                                            <Input
-                                                                placeholder="Escribe eliminar"
-                                                                onChange={(e) => {
-                                                                    const btn = document.getElementById(`delete-btn-${enrollment.user.id}`) as HTMLButtonElement;
-                                                                    if (btn) btn.disabled = e.target.value !== "eliminar";
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <DialogFooter>
-                                                            <form action={async () => {
-                                                                const formData = new FormData();
-                                                                formData.append("userId", enrollment.user.id);
-                                                                formData.append("courseId", courseId);
-                                                                await removeStudentFromCourseAction(formData);
-                                                            }}>
-                                                                <Button
-                                                                    id={`delete-btn-${enrollment.user.id}`}
-                                                                    type="submit"
-                                                                    variant="destructive"
-                                                                    disabled
-                                                                >
-                                                                    Eliminar
-                                                                </Button>
-                                                            </form>
-                                                        </DialogFooter>
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                                                    ) : (
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(enrollment.id, 'REJECTED')}>
+                                                            <ShieldAlert className="mr-2 h-4 w-4" /> Suspender
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuSeparator />
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                                            </DropdownMenuItem>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Eliminar Estudiante</DialogTitle>
+                                                                <DialogDescription>
+                                                                    Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{enrollment.user.name}</strong> del curso y todos sus registros de asistencia y calificaciones.
+                                                                    <br /><br />
+                                                                    Escribe <strong>eliminar</strong> para confirmar.
+                                                                </DialogDescription>
+                                                            </DialogHeader>
+                                                            <div className="py-2">
+                                                                <Input
+                                                                    placeholder="Escribe eliminar"
+                                                                    onChange={(e) => {
+                                                                        const btn = document.getElementById(`delete-btn-${enrollment.user.id}`) as HTMLButtonElement;
+                                                                        if (btn) btn.disabled = e.target.value !== "eliminar";
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <DialogFooter>
+                                                                <form action={async () => {
+                                                                    const formData = new FormData();
+                                                                    formData.append("userId", enrollment.user.id);
+                                                                    formData.append("courseId", courseId);
+                                                                    await removeStudentFromCourseAction(formData);
+                                                                }}>
+                                                                    <Button
+                                                                        id={`delete-btn-${enrollment.user.id}`}
+                                                                        type="submit"
+                                                                        variant="destructive"
+                                                                        disabled
+                                                                    >
+                                                                        Eliminar
+                                                                    </Button>
+                                                                </form>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </TooltipProvider>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -549,5 +576,78 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                 </Table>
             </div>
         </div>
+    );
+}
+
+function MissingActivitiesDialog({ courseId, userId, studentName }: { courseId: string, userId: string, studentName: string }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [activities, setActivities] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setLoading(true);
+            getStudentMissingActivitiesAction(courseId, userId)
+                .then(setActivities)
+                .catch(console.error)
+                .finally(() => setLoading(false));
+        }
+    }, [isOpen, courseId, userId]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <ClipboardX className="h-4 w-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Ver actividades faltantes</p>
+                    </TooltipContent>
+                </Tooltip>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Actividades Pendientes</DialogTitle>
+                    <DialogDescription>
+                        Actividades que <strong>{studentName}</strong> aún no ha entregado.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="max-h-[300px] overflow-y-auto pr-2">
+                    {loading ? (
+                        <div className="flex justify-center p-4">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                        </div>
+                    ) : activities.length > 0 ? (
+                        <div className="space-y-3">
+                            {activities.map((activity) => (
+                                <div key={activity.id} className="p-3 border rounded-md hover:bg-muted/50">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <p className="font-medium text-sm">{activity.title}</p>
+                                        <Badge variant="outline" className="text-[10px]">{activity.type}</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Vence: {new Date(activity.deadline).toLocaleString()}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <p>¡Este estudiante está al día con todas las entregas!</p>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>
+                        Cerrar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

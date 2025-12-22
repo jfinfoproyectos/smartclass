@@ -22,8 +22,14 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { createCourseAction, deleteCourseAction, updateRegistrationSettingsAction, cloneCourseAction } from "@/app/actions";
-import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning } from "lucide-react";
+import { createCourseAction, deleteCourseAction, updateRegistrationSettingsAction, cloneCourseAction, getCourseCompleteDataAction } from "@/app/actions";
+import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning, Download } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -162,14 +168,20 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    title="Eliminar"
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Eliminar</p>
+                    </TooltipContent>
+                </Tooltip>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -268,6 +280,24 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
         }
     };
 
+    const handleExportComplete = async (courseId: string, courseTitle: string) => {
+        try {
+            toast.info("Generando reporte completo...");
+            const data = await getCourseCompleteDataAction(courseId);
+            const sheets = [
+                { name: 'Calificaciones', data: data.grades },
+                { name: 'Asistencias', data: data.attendance },
+                { name: 'Observaciones', data: data.remarks },
+                { name: 'Estadísticas', data: data.statistics }
+            ];
+            await exportMultiSheetExcel(sheets, `${courseTitle}_Completo_${new Date().toISOString().split('T')[0]}`);
+            toast.success("Datos exportados exitosamente");
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al exportar datos");
+        }
+    };
+
     // Schedule helper functions
     const addSchedule = () => {
         if (newDayOfWeek && newStartTime && newEndTime) {
@@ -353,54 +383,96 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                 <RegistrationSettingsDialog course={course} />
                             </TableCell>
                             <TableCell className="text-right">
-                                <div className="flex justify-end gap-1 flex-wrap">
-                                    <Link href={`/dashboard/teacher/courses/${course.id}`}>
-                                        <Button variant="ghost" size="icon" title="Ver Detalles">
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        title="Editar"
-                                        onClick={() => {
-                                            setEditCourse(course);
-                                            // Load course schedules if available
-                                            setSchedules(course.schedules || []);
-                                            setIsOpen(true);
-                                        }}
-                                    >
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        title="Clonar Curso"
-                                        onClick={() => {
-                                            setEditCourse({
-                                                ...course,
-                                                title: `Copia de ${course.title}`,
-                                                id: course.id // Keep ID for reference but flag as cloning
-                                            });
-                                            setIsCloning(true);
-                                            setSchedules(course.schedules || []);
-                                            setIsOpen(true);
-                                        }}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                    <Link href={`/dashboard/teacher/courses/${course.id}/duplicates`}>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            title="Reporte de Duplicados"
-                                            className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
-                                        >
-                                            <FileWarning className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                    <DeleteCourseDialog courseId={course.id} courseTitle={course.title} />
-                                </div>
+                                <TooltipProvider>
+                                    <div className="flex justify-end gap-1 flex-wrap">
+                                        <Link href={`/dashboard/teacher/courses/${course.id}`}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Ver Detalles</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </Link>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        setEditCourse(course);
+                                                        // Load course schedules if available
+                                                        setSchedules(course.schedules || []);
+                                                        setIsOpen(true);
+                                                    }}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Editar</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        setEditCourse({
+                                                            ...course,
+                                                            title: `Copia de ${course.title}`,
+                                                            id: course.id // Keep ID for reference but flag as cloning
+                                                        });
+                                                        setIsCloning(true);
+                                                        setSchedules(course.schedules || []);
+                                                        setIsOpen(true);
+                                                    }}
+                                                >
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Clonar Curso</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <Link href={`/dashboard/teacher/courses/${course.id}/duplicates`}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                                    >
+                                                        <FileWarning className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Reporte de Duplicados</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </Link>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                    onClick={() => handleExportComplete(course.id, course.title)}
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Exportar Datos Completos</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <DeleteCourseDialog courseId={course.id} courseTitle={course.title} />
+                                    </div>
+                                </TooltipProvider>
                             </TableCell>
                         </TableRow>
                     ))}

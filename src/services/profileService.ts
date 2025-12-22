@@ -13,6 +13,8 @@ export const profileService = {
         nombres: string;
         apellido: string;
         telefono?: string;
+        dataProcessingConsent?: boolean;
+        dataProcessingConsentDate?: Date;
     }) {
         return await prisma.profile.upsert({
             where: { userId },

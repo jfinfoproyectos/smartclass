@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
 import { getStudentNotificationsAction } from "@/app/actions";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function NotificationBell() {
     const router = useRouter();
@@ -41,22 +46,28 @@ export function NotificationBell() {
     };
 
     return (
-        <Button
-            variant="ghost"
-            size="icon"
-            className="relative"
-            onClick={handleClick}
-            title="Notificaciones"
-        >
-            <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-                <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    onClick={handleClick}
                 >
-                    {notificationCount > 9 ? "9+" : notificationCount}
-                </Badge>
-            )}
-        </Button>
+                    <Bell className="h-5 w-5" />
+                    {notificationCount > 0 && (
+                        <Badge
+                            variant="destructive"
+                            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                        >
+                            {notificationCount > 9 ? "9+" : notificationCount}
+                        </Badge>
+                    )}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Notificaciones</p>
+            </TooltipContent>
+        </Tooltip>
     );
 }

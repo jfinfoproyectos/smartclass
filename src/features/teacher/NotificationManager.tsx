@@ -24,6 +24,12 @@ import {
 } from "@/components/ui/table";
 import { createNotificationAction, deleteNotificationAction, updateNotificationAction } from "@/app/actions";
 import { Plus, Trash2, Pencil } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
     Select,
@@ -226,34 +232,48 @@ export function NotificationManager({
                                 <TableCell>{getTargetDisplay(notification)}</TableCell>
                                 <TableCell>{new Date(notification.createdAt).toLocaleDateString('es-ES')}</TableCell>
                                 <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            title="Editar"
-                                            onClick={() => {
-                                                setEditNotification(notification);
-                                                setTarget(notification.target);
-                                                setSelectedCourse(notification.courseId || "");
-                                                setSelectedStudents(notification.studentIds || []);
-                                                setIsOpen(true);
-                                            }}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            title="Eliminar"
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                            onClick={() => {
-                                                setNotificationToDelete(notification);
-                                                setDeleteDialogOpen(true);
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    <TooltipProvider>
+                                        <div className="flex justify-end gap-2">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => {
+                                                            setEditNotification(notification);
+                                                            setTarget(notification.target);
+                                                            setSelectedCourse(notification.courseId || "");
+                                                            setSelectedStudents(notification.studentIds || []);
+                                                            setIsOpen(true);
+                                                        }}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Editar</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => {
+                                                            setNotificationToDelete(notification);
+                                                            setDeleteDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Eliminar</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                    </TooltipProvider>
                                 </TableCell>
                             </TableRow>
                         ))}

@@ -22,8 +22,14 @@ import { getUnreadNotificationCountAction } from "@/app/actions"
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session, isPending } = authClient.useSession()
   const [unreadCount, setUnreadCount] = React.useState(0)
+  const [mounted, setMounted] = React.useState(false)
 
   const role = getRoleFromUser(session?.user)
+
+  // Prevent hydration mismatch
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Fetch unread count for students
   React.useEffect(() => {
@@ -35,6 +41,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       })
     }
   }, [role])
+
+  // Prevent hydration mismatch by not rendering on server
+  if (!mounted) {
+    return null
+  }
 
   if (isPending) {
     return (

@@ -10,16 +10,28 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Info } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function CreditsModal() {
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="icon" title="Créditos">
-                    <Info className="h-[1.2rem] w-[1.2rem]" />
-                    <span className="sr-only">Créditos</span>
-                </Button>
-            </DialogTrigger>
+            <Tooltip>
+                <DialogTrigger asChild>
+                    <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Info className="h-[1.2rem] w-[1.2rem]" />
+                            <span className="sr-only">Créditos</span>
+                        </Button>
+                    </TooltipTrigger>
+                </DialogTrigger>
+                <TooltipContent>
+                    <p>Créditos</p>
+                </TooltipContent>
+            </Tooltip>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Créditos de la Aplicación</DialogTitle>

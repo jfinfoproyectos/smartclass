@@ -316,14 +316,20 @@ export function UnifiedCalendar() {
                         </TabsList>
                     </Tabs>
 
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setIsCompact(!isCompact)}
-                        title={isCompact ? "Tamaño normal" : "Disminuir tamaño"}
-                    >
-                        {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setIsCompact(!isCompact)}
+                            >
+                                {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{isCompact ? "Tamaño normal" : "Disminuir tamaño"}</p>
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
 

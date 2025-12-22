@@ -878,6 +878,8 @@ export async function updateProfileAction(formData: FormData) {
     const apellido = formData.get("apellido") as string;
     const telefono = formData.get("telefono") as string | null;
     const geminiApiKey = formData.get("geminiApiKey") as string | null;
+    const dataProcessingConsent = formData.get("dataProcessingConsent") === "true";
+
 
     if (geminiApiKey) {
         const { encrypt } = await import("@/lib/encryption");
@@ -896,10 +898,13 @@ export async function updateProfileAction(formData: FormData) {
         nombres,
         apellido,
         telefono: telefono || undefined,
+        dataProcessingConsent,
+        dataProcessingConsentDate: dataProcessingConsent ? new Date() : undefined
     });
 
     revalidatePath("/");
 }
+
 
 export async function getGeminiApiKeyModeAction() {
     const session = await getSession();
@@ -1689,4 +1694,270 @@ export async function getMultiCourseGradesReportAction(courseIds: string[]) {
         }
     }
     return reports;
+}
+
+export async function getMissingSubmissionsAction(activityId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    // 1. Get the activity to find the courseId
+    const activity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        select: { courseId: true }
+    });
+
+    if (!activity) {
+        throw new Error("Activity not found");
+    }
+
+    // 2. Get all APPROVED enrollments for the course
+    const enrollments = await prisma.enrollment.findMany({
+        where: {
+            courseId: activity.courseId,
+            status: "APPROVED"
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true
+                }
+            }
+        }
+    });
+
+    // 3. Get all submissions for the activity
+    const submissions = await prisma.submission.findMany({
+        where: { activityId },
+        select: { userId: true }
+    });
+
+    const submittedUserIds = new Set(submissions.map(s => s.userId));
+
+    // 4. Filter students who haven't submitted
+    const missingStudents = enrollments
+        .filter(enrollment => !submittedUserIds.has(enrollment.userId))
+        .map(enrollment => enrollment.user);
+
+    return missingStudents;
+}
+
+export async function getStudentMissingActivitiesAction(courseId: string, userId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    // 1. Get all activities for the course
+    const activities = await prisma.activity.findMany({
+        where: { courseId },
+        select: {
+            id: true,
+            title: true,
+            type: true,
+            deadline: true,
+            allowLinkSubmission: true
+        },
+        orderBy: { order: 'asc' }
+    });
+
+    // 2. Get all submissions for the student in this course
+    const submissions = await prisma.submission.findMany({
+        where: {
+            userId,
+            activity: { courseId }
+        },
+        select: { activityId: true }
+    });
+
+    const submittedActivityIds = new Set(submissions.map(s => s.activityId));
+
+    // 3. Filter activities that haven't been submitted and require submission
+    const missingActivities = activities.filter(activity => {
+        // Skip if student already submitted
+        if (submittedActivityIds.has(activity.id)) return false;
+
+        // Check if activity requires submission
+        // GITHUB and GOOGLE_COLAB always require submission
+        // MANUAL only requires submission if allowLinkSubmission is true
+        if (activity.type === 'MANUAL' && !activity.allowLinkSubmission) {
+            return false;
+        }
+
+        return true;
+    });
+
+    return missingActivities;
+}
+
+
+export async function getCourseCompleteDataAction(courseId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    // Get course info
+    const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        include: {
+            enrollments: {
+                where: { status: "APPROVED" },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                },
+                orderBy: {
+                    user: { name: 'asc' }
+                }
+            },
+            activities: {
+                orderBy: { order: 'asc' },
+                include: {
+                    submissions: {
+                        select: {
+                            userId: true,
+                            grade: true,
+                            feedback: true
+                        }
+                    }
+                }
+            },
+            attendances: {
+                orderBy: { date: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            },
+            remarks: {
+                orderBy: { date: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!course) {
+        throw new Error("Course not found");
+    }
+
+    // 1. GRADES DATA
+    const gradesData = course.enrollments.map(enrollment => {
+        const student = enrollment.user;
+        const row: any = {
+            "Estudiante": student.name || "Sin nombre",
+            "Email": student.email
+        };
+
+        let totalWeightedGrade = 0;
+        let totalWeight = 0;
+
+        course.activities.forEach(activity => {
+            const submission = activity.submissions.find(s => s.userId === student.id);
+            const grade = submission?.grade ?? null;
+            row[activity.title] = grade !== null ? grade.toFixed(1) : "-";
+
+            if (grade !== null) {
+                totalWeightedGrade += grade * activity.weight;
+                totalWeight += activity.weight;
+            }
+        });
+
+        const finalGrade = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+        row["Nota Final"] = finalGrade.toFixed(1);
+
+        return row;
+    });
+
+    // 2. ATTENDANCE DATA
+    const attendanceData = course.attendances.map(attendance => ({
+        "Estudiante": attendance.user.name || "Sin nombre",
+        "Email": attendance.user.email,
+        "Fecha": new Date(attendance.date).toLocaleDateString('es-ES'),
+        "Estado": attendance.status === 'PRESENT' ? 'Presente' :
+            attendance.status === 'ABSENT' ? 'Ausente' :
+                attendance.status === 'LATE' ? 'Tarde' : 'Excusado',
+        "Hora Llegada": attendance.arrivalTime ? new Date(attendance.arrivalTime).toLocaleTimeString('es-ES') : "-",
+        "Justificación": attendance.justification || "-"
+    }));
+
+    // 3. REMARKS DATA
+    const remarksData = course.remarks.map(remark => ({
+        "Estudiante": remark.user.name || "Sin nombre",
+        "Email": remark.user.email,
+        "Fecha": new Date(remark.date).toLocaleDateString('es-ES'),
+        "Tipo": remark.type === 'COMMENDATION' ? 'Felicitación' : 'Llamado de Atención',
+        "Título": remark.title,
+        "Descripción": remark.description
+    }));
+
+    // 4. STATISTICS DATA
+    const totalStudents = course.enrollments.length;
+    const totalActivities = course.activities.length;
+
+    // Calculate average grade
+    let sumGrades = 0;
+    let countGrades = 0;
+    course.enrollments.forEach(enrollment => {
+        let totalWeightedGrade = 0;
+        let totalWeight = 0;
+        course.activities.forEach(activity => {
+            const submission = activity.submissions.find(s => s.userId === enrollment.userId);
+            if (submission?.grade !== null && submission?.grade !== undefined) {
+                totalWeightedGrade += submission.grade * activity.weight;
+                totalWeight += activity.weight;
+            }
+        });
+        if (totalWeight > 0) {
+            sumGrades += totalWeightedGrade / totalWeight;
+            countGrades++;
+        }
+    });
+    const averageGrade = countGrades > 0 ? sumGrades / countGrades : 0;
+
+    // Calculate attendance rate
+    const totalAttendanceRecords = course.attendances.length;
+    const presentRecords = course.attendances.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length;
+    const attendanceRate = totalAttendanceRecords > 0 ? (presentRecords / totalAttendanceRecords) * 100 : 0;
+
+    // Count remarks
+    const positiveRemarks = course.remarks.filter(r => r.type === 'COMMENDATION').length;
+    const negativeRemarks = course.remarks.filter(r => r.type === 'ATTENTION').length;
+
+    const statisticsData = [
+        { "Métrica": "Total Estudiantes", "Valor": totalStudents.toString() },
+        { "Métrica": "Actividades Totales", "Valor": totalActivities.toString() },
+        { "Métrica": "Promedio General", "Valor": averageGrade.toFixed(1) },
+        { "Métrica": "Tasa de Asistencia", "Valor": `${attendanceRate.toFixed(1)}%` },
+        { "Métrica": "Observaciones Positivas", "Valor": positiveRemarks.toString() },
+        { "Métrica": "Observaciones Negativas", "Valor": negativeRemarks.toString() },
+        { "Métrica": "Total Registros de Asistencia", "Valor": totalAttendanceRecords.toString() }
+    ];
+
+    return {
+        grades: gradesData,
+        attendance: attendanceData,
+        remarks: remarksData,
+        statistics: statisticsData
+    };
 }

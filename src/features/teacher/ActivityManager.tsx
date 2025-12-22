@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,13 +32,14 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { createActivityAction, updateActivityAction, deleteActivityAction } from "@/app/actions";
-import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle } from "lucide-react";
+import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle, Sparkles } from "lucide-react";
 
 
-import { scanRepositoryAction } from "@/app/actions";
+import { scanRepositoryAction, getMissingSubmissionsAction } from "@/app/actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, UserX } from "lucide-react";
+
 
 function FilePathInput({ name, defaultValue = "", placeholder }: { name: string, defaultValue?: string, placeholder?: string }) {
     const [paths, setPaths] = useState<string[]>(defaultValue ? defaultValue.split(",").map(p => p.trim()).filter(Boolean) : []);
@@ -202,6 +203,8 @@ import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useTheme } from "next-themes";
+import { AIGenerateDialog } from "./components/AIGenerateDialog";
+import { ActivityFieldHelpDialog } from "./components/ActivityFieldHelpDialog";
 
 export function ActivityManager({ courseId, activities }: { courseId: string; activities: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -211,6 +214,8 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
     const { resolvedTheme } = useTheme();
     const mode = resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto";
     const [isReordering, setIsReordering] = useState(false);
+    const [showDescriptionAI, setShowDescriptionAI] = useState(false);
+    const [showStatementAI, setShowStatementAI] = useState(false);
 
     const handleReorder = async (direction: 'up' | 'down', index: number) => {
         if (isReordering) return;
@@ -358,7 +363,22 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                     <div className="lg:col-span-8 flex flex-col h-full min-h-[500px] gap-4">
                                         {selectedType !== "MANUAL" && (
                                             <div className="flex-1 flex flex-col min-h-[300px]">
-                                                <Label className="mb-2">Instrucciones (Informativas)</Label>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Label>Instrucciones (Informativas)</Label>
+                                                        <ActivityFieldHelpDialog type="instructions" />
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setShowDescriptionAI(true)}
+                                                        className="h-8"
+                                                    >
+                                                        <Sparkles className="mr-2 h-4 w-4" />
+                                                        Generar con IA
+                                                    </Button>
+                                                </div>
                                                 <div className="flex-1 border rounded-md overflow-hidden" data-color-mode={mode}>
                                                     <MDEditor
                                                         value={description}
@@ -371,7 +391,22 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                             </div>
                                         )}
                                         <div className="flex-1 flex flex-col min-h-[300px]">
-                                            <Label className="mb-2">Enunciado / Rúbrica de Evaluación</Label>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Label>Enunciado / Rúbrica de Evaluación</Label>
+                                                    <ActivityFieldHelpDialog type="statement" />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setShowStatementAI(true)}
+                                                    className="h-8"
+                                                >
+                                                    <Sparkles className="mr-2 h-4 w-4" />
+                                                    Generar con IA
+                                                </Button>
+                                            </div>
                                             <div className="flex-1 border rounded-md overflow-hidden" data-color-mode={mode}>
                                                 <MDEditor
                                                     value={statement}
@@ -392,6 +427,22 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                         </form>
                     </SheetContent>
                 </Sheet>
+
+                <AIGenerateDialog
+                    isOpen={showDescriptionAI}
+                    onClose={() => setShowDescriptionAI(false)}
+                    onUseContent={(content) => setDescription(content)}
+                    type="description"
+                    activityType={selectedType}
+                />
+
+                <AIGenerateDialog
+                    isOpen={showStatementAI}
+                    onClose={() => setShowStatementAI(false)}
+                    onUseContent={(content) => setStatement(content)}
+                    type="statement"
+                    activityType={selectedType}
+                />
             </div>
 
             <div className="w-full overflow-x-auto rounded-md border">
@@ -466,7 +517,12 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                             </Button>
                                         </Link>
 
+                                        {activity.type !== "MANUAL" && (
+                                            <MissingSubmissionsDialog activityId={activity.id} activityTitle={activity.title} />
+                                        )}
+
                                         <EditActivityDialog activity={activity} courseId={courseId} mode={mode} />
+
 
                                         <Dialog>
                                             <DialogTrigger asChild>
@@ -639,7 +695,10 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                             <div className="lg:col-span-8 flex flex-col h-full min-h-[500px] gap-4">
                                 {selectedType !== "MANUAL" && (
                                     <div className="flex-1 flex flex-col min-h-[300px]">
-                                        <Label className="mb-2">Instrucciones (Informativas)</Label>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Label>Instrucciones (Informativas)</Label>
+                                            <ActivityFieldHelpDialog type="instructions" />
+                                        </div>
                                         <div className="flex-1 border rounded-md overflow-hidden" data-color-mode={mode}>
                                             <MDEditor
                                                 value={description}
@@ -652,7 +711,10 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                     </div>
                                 )}
                                 <div className="flex-1 flex flex-col min-h-[300px]">
-                                    <Label className="mb-2">Enunciado / Rúbrica de Evaluación</Label>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Label>Enunciado / Rúbrica de Evaluación</Label>
+                                        <ActivityFieldHelpDialog type="statement" />
+                                    </div>
                                     <div className="flex-1 border rounded-md overflow-hidden" data-color-mode={mode}>
                                         <MDEditor
                                             value={statement}
@@ -675,3 +737,78 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
         </Sheet>
     );
 }
+
+function MissingSubmissionsDialog({ activityId, activityTitle }: { activityId: string, activityTitle: string }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [students, setStudents] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setLoading(true);
+            getMissingSubmissionsAction(activityId)
+                .then(setStudents)
+                .catch(console.error)
+                .finally(() => setLoading(false));
+        }
+    }, [isOpen, activityId]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" title="Ver Faltantes" className="text-orange-500 hover:text-orange-600 hover:bg-orange-50">
+                    <UserX className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Estudiantes sin entregar</DialogTitle>
+                    <DialogDescription>
+                        Listado de estudiantes que no han realizado ninguna entrega para <strong>{activityTitle}</strong>.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="max-h-[300px] overflow-y-auto pr-2">
+                    {loading ? (
+                        <div className="flex justify-center p-4">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : students.length > 0 ? (
+                        <div className="space-y-3">
+                            {students.map((student) => (
+                                <div key={student.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-xs">
+                                        {student.image ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={student.image} alt={student.name} className="h-full w-full rounded-full object-cover" />
+                                        ) : (
+                                            student.name?.substring(0, 2).toUpperCase() || "??"
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{student.name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <p>¡Todos los estudiantes han entregado!</p>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter className="sm:justify-between items-center">
+                    <div className="text-xs text-muted-foreground">
+                        Total: {students.length} estudiantes
+                    </div>
+                    <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>
+                        Cerrar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+

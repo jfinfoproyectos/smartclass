@@ -12,8 +12,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function HomePage() {
     const [settings, setSettings] = useState<{ institutionName?: string | null; institutionLogo?: string | null; institutionHeroImage?: string | null }>({});
     const [announcements, setAnnouncements] = useState<any[]>([]);
+    const [mounted, setMounted] = useState(false);
     const { data: session } = authClient.useSession();
     const role = getRoleFromUser(session?.user);
+
+    // Prevent hydration mismatch
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -28,6 +34,11 @@ export default function HomePage() {
     }, []);
 
     const getNavigationItems = () => {
+        // Only return items if mounted to prevent hydration mismatch
+        if (!mounted) {
+            return [];
+        }
+
         if (role === "admin") {
             return [
                 { title: "Usuarios", url: "/dashboard/admin/users", icon: Users, color: "text-blue-500" },
@@ -312,7 +323,7 @@ export default function HomePage() {
                         <div className={`mt-6 space-y-2 ${settings.institutionHeroImage ? 'text-white/90' : 'text-muted-foreground'}`}>
 
                             <h2 className="text-xl md:text-2xl font-medium drop-shadow-md">
-                                ¡Hola, {session?.user?.name?.split(' ')[0] || 'Usuario'}!
+                                ¡Hola, {mounted ? (session?.user?.name?.split(' ')[0] || 'Usuario') : 'Usuario'}!
                             </h2>
                             <p className="text-sm md:text-base opacity-90 capitalize drop-shadow-md">
                                 {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

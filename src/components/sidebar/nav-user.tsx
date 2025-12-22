@@ -250,7 +250,7 @@ export function NavUser({
           <div className="flex flex-col gap-4 mt-4">
             <div>
               <Label htmlFor="identificacion">Identificación</Label>
-              <Input className="mt-2.5" id="identificacion" value={identificacion} onChange={(e) => setIdentificacion(e.target.value)} placeholder="Cédula o DNI" />
+              <Input className="mt-2.5" id="identificacion" value={identificacion} onChange={(e) => setIdentificacion(e.target.value)} placeholder="Cédula" />
             </div>
             <div>
               <Label htmlFor="first-name">Nombres</Label>

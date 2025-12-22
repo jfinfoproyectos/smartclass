@@ -12,6 +12,11 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isSameDay, startOfMonth, endOfMonth, getDaysInMonth, getDay, startOfWeek, endOfWeek, addDays as addDaysFn, addMonths, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Helper to get day index from DayOfWeek enum
 const getDayIndex = (dayOfWeek: string): number => {
@@ -207,14 +212,20 @@ export function ScheduleView() {
                     </TabsList>
                 </Tabs>
 
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsCompact(!isCompact)}
-                    title={isCompact ? "Tamaño normal" : "Disminuir tamaño"}
-                >
-                    {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setIsCompact(!isCompact)}
+                        >
+                            {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{isCompact ? "Tamaño normal" : "Disminuir tamaño"}</p>
+                    </TooltipContent>
+                </Tooltip>
 
                 <div className="flex flex-wrap items-center gap-2 justify-center">
                     <Button variant="outline" size="sm" onClick={handlePrevious}>

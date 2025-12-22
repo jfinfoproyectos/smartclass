@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Paintbrush } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type Palette = {
   name: string
@@ -178,14 +183,20 @@ export function ThemeSwatches() {
   if (!mounted) return null
 
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={cycleTheme}
-      title={`Tema actual: ${selected}`}
-    >
-      <Paintbrush className="h-[1.2rem] w-[1.2rem] transition-all" style={{ color: "var(--primary)" }} />
-      <span className="sr-only">Cambiar tema</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={cycleTheme}
+        >
+          <Paintbrush className="h-[1.2rem] w-[1.2rem] transition-all" style={{ color: "var(--primary)" }} />
+          <span className="sr-only">Cambiar tema</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Tema actual: {selected}</p>
+      </TooltipContent>
+    </Tooltip>
   )
 }
