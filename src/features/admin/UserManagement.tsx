@@ -917,6 +917,9 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                                                 {course.title}
                                                                             </TableCell>
                                                                             <TableCell>
+                                                                                {course.teacher?.name || course.teacher?.email || "Sin asignar"}
+                                                                            </TableCell>
+                                                                            <TableCell>
                                                                                 <Badge variant="secondary">
                                                                                     {course._count?.enrollments || 0}
                                                                                 </Badge>
@@ -960,6 +963,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                                     <TableHeader>
                                                                         <TableRow>
                                                                             <TableHead>Curso</TableHead>
+                                                                            <TableHead>Profesor</TableHead>
                                                                             <TableHead>Fecha Inscripción</TableHead>
                                                                             <TableHead>Estado</TableHead>
                                                                         </TableRow>
@@ -969,6 +973,9 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                                             <TableRow key={enrollment.id}>
                                                                                 <TableCell className="font-medium">
                                                                                     {enrollment.course.title}
+                                                                                </TableCell>
+                                                                                <TableCell>
+                                                                                    {enrollment.course.teacher?.name || enrollment.course.teacher?.email || "Sin asignar"}
                                                                                 </TableCell>
                                                                                 <TableCell>
                                                                                     {format(new Date(enrollment.createdAt), "PPP")}

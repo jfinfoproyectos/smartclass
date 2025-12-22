@@ -84,7 +84,16 @@ export const adminService = {
                 },
                 enrollments: {
                     include: {
-                        course: true
+                        course: {
+                            include: {
+                                teacher: {
+                                    select: {
+                                        name: true,
+                                        email: true
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 submissions: {
