@@ -66,6 +66,7 @@ interface User {
         nombres: string | null;
         apellido: string | null;
         telefono: string | null;
+        dataProcessingConsent?: boolean | null;
     } | null;
     _count?: {
         coursesCreated: number;
@@ -634,6 +635,14 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                 <span className="font-medium">{selectedUser.profile.telefono}</span>
                                             </div>
                                         )}
+                                        <div className="flex justify-between items-center pt-2">
+                                            <span className="text-muted-foreground">Habeas Data:</span>
+                                            {selectedUser.profile.dataProcessingConsent ? (
+                                                <Badge className="bg-green-500 hover:bg-green-600">Aceptado</Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="text-orange-500 border-orange-500">Pendiente</Badge>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}

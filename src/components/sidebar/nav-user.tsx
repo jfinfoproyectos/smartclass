@@ -90,6 +90,7 @@ export function NavUser({
   const [lastName, setLastName] = useState(initialLast)
   const [identificacion, setIdentificacion] = useState("")
   const [telefono, setTelefono] = useState("")
+  const [dataProcessingConsent, setDataProcessingConsent] = useState(false)
   const [apiKey, setApiKey] = useState("")
   const [apiKeyMode, setApiKeyMode] = useState<"GLOBAL" | "USER">("GLOBAL")
   const [hasUserKey, setHasUserKey] = useState(false)
@@ -112,6 +113,7 @@ export function NavUser({
         setFirstName(profile.nombres || "")
         setLastName(profile.apellido || "")
         setTelefono(profile.telefono || "")
+        setDataProcessingConsent(profile.dataProcessingConsent || false)
       }
 
       if (modeData) {
@@ -263,6 +265,23 @@ export function NavUser({
             <div>
               <Label htmlFor="telefono">Teléfono</Label>
               <Input className="mt-2.5" id="telefono" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Número de teléfono" />
+            </div>
+
+            <div className="flex items-center space-x-2 border p-3 rounded-md bg-muted/50">
+              <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${dataProcessingConsent ? 'bg-green-500 border-green-500' : 'bg-transparent border-gray-400'}`}>
+                {dataProcessingConsent && <div className="h-2 w-2 bg-white rounded-full" />}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="habeas-data" className="text-sm font-medium leading-none cursor-default">
+                  Aceptación de tratamiento de datos (Habeas Data)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {dataProcessingConsent
+                    ? "Has aceptado el tratamiento de tus datos personales."
+                    : "No has aceptado el tratamiento de tus datos personales."
+                  }
+                </p>
+              </div>
             </div>
 
             {apiKeyMode === "USER" && (

@@ -132,6 +132,13 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                                 : enrollment.user.name}
                         </h2>
                         <p className="text-sm text-muted-foreground truncate max-w-[300px]">{enrollment.user.email}</p>
+                        <div className="mt-1">
+                            {enrollment.user.profile?.dataProcessingConsent ? (
+                                <Badge className="bg-green-500 hover:bg-green-600 text-[10px] h-5">Habeas Data: Aceptado</Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-orange-500 border-orange-500 text-[10px] h-5">Habeas Data: Pendiente</Badge>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 pr-8">

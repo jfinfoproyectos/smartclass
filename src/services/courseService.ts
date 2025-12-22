@@ -487,6 +487,7 @@ export const courseService = {
                                 nombres: true,
                                 apellido: true,
                                 telefono: true,
+                                dataProcessingConsent: true,
                             },
                         },
                     },
@@ -530,6 +531,7 @@ export const courseService = {
                         nombres: true,
                         apellido: true,
                         telefono: true,
+                        dataProcessingConsent: true,
                     },
                 },
             },
@@ -606,7 +608,8 @@ export const courseService = {
                             select: {
                                 identificacion: true,
                                 nombres: true,
-                                apellido: true
+                                apellido: true,
+                                dataProcessingConsent: true,
                             }
                         }
                     }

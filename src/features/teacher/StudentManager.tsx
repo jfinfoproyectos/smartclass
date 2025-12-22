@@ -257,6 +257,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                                             <TableHead className="w-[50px]"></TableHead>
                                                             <TableHead>Nombre Completo</TableHead>
                                                             <TableHead>Identificación</TableHead>
+                                                            <TableHead>Habeas Data</TableHead>
                                                             <TableHead>Correo</TableHead>
                                                             <TableHead>Teléfono</TableHead>
                                                             <TableHead className="text-right">Acción</TableHead>
@@ -281,6 +282,13 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                                                 </TableCell>
                                                                 <TableCell>
                                                                     {student.profile?.identificacion || "-"}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {student.profile?.dataProcessingConsent ? (
+                                                                        <Badge className="bg-green-500 hover:bg-green-600">Aceptado</Badge>
+                                                                    ) : (
+                                                                        <Badge variant="outline" className="text-orange-500 border-orange-500">Pendiente</Badge>
+                                                                    )}
                                                                 </TableCell>
                                                                 <TableCell className="truncate max-w-[200px]">{student.email}</TableCell>
                                                                 <TableCell>
@@ -338,6 +346,13 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                                         ID: {selectedStudent.profile.identificacion}
                                                     </p>
                                                 )}
+                                                <div className="mt-1">
+                                                    {selectedStudent.profile?.dataProcessingConsent ? (
+                                                        <Badge className="bg-green-500 hover:bg-green-600 text-[10px] h-5">Habeas Data: Aceptado</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-orange-500 border-orange-500 text-[10px] h-5">Habeas Data: Pendiente</Badge>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -575,7 +590,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                     </TableBody>
                 </Table>
             </div>
-        </div>
+        </div >
     );
 }
 
