@@ -102,10 +102,10 @@ export function ProfileCompletionCheck() {
             return;
         }
 
-        if (keyMissing && !geminiApiKey.trim()) {
-            toast.error("Por favor ingresa tu API Key de Gemini.");
-            return;
-        }
+        // if (keyMissing && !geminiApiKey.trim()) {
+        //     toast.error("Por favor ingresa tu API Key de Gemini.");
+        //     return;
+        // }
 
         if (!consent) {
             toast.error("Debes aceptar la autorización de tratamiento de datos para continuar.");
@@ -148,7 +148,7 @@ export function ProfileCompletionCheck() {
 
     return (
         <Dialog open={isOpen} onOpenChange={() => { }}>
-            <DialogContent className="sm:max-w-[500px] [&>button]:hidden text-left" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+            <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[85vh] overflow-y-auto [&>button]:hidden text-left" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>Información Requerida</DialogTitle>
                     <DialogDescription>
@@ -194,8 +194,8 @@ export function ProfileCompletionCheck() {
                             <h3 className="font-medium border-b pb-2">Configuración de IA</h3>
                             <div className="space-y-2 pt-2">
                                 <div className="flex items-center gap-2">
-                                    <Label htmlFor="geminiApiKey" className="text-primary font-bold">Gemini API Key *</Label>
-                                    <Badge variant="outline" className="text-[10px] border-primary text-primary">Requerido</Badge>
+                                    <Label htmlFor="geminiApiKey" className="text-primary font-bold">Gemini API Key</Label>
+                                    <Badge variant="outline" className="text-[10px] border-muted-foreground text-muted-foreground">Opcional</Badge>
                                 </div>
                                 <Input
                                     id="geminiApiKey"
@@ -205,7 +205,7 @@ export function ProfileCompletionCheck() {
                                     type="password"
                                 />
                                 <p className="text-[10px] text-muted-foreground">
-                                    Se requiere tu propia API Key para usar las funciones de IA.
+                                    Puedes agregar tu API Key ahora o más tarde en la configuración.
                                     <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="ml-1 underline text-primary">
                                         Obtener Key
                                     </a>
