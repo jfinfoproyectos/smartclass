@@ -81,7 +81,7 @@ export function ProfileCompletionCheck() {
                 isComplete = false;
             }
 
-            if (isProfileIncomplete || isKeyMissing || !profile?.dataProcessingConsent) {
+            if (isProfileIncomplete || !profile?.dataProcessingConsent) {
                 setProfileIncomplete(isProfileIncomplete);
                 setKeyMissing(isKeyMissing);
                 setIsOpen(true);
