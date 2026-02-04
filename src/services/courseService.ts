@@ -965,5 +965,88 @@ export const courseService = {
         });
 
         return reportData;
-    }
+    },
+    async getCourseAttendanceReport(courseId: string) {
+        // 1. Fetch Course to ensure it exists
+        const course = await prisma.course.findUnique({
+            where: { id: courseId },
+        });
+
+        if (!course) throw new Error("Course not found");
+
+        // 2. Fetch Enrolled Students
+        const enrollments = await prisma.enrollment.findMany({
+            where: {
+                courseId: courseId,
+                status: 'APPROVED' // Only active students
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        profile: {
+                            select: {
+                                identificacion: true,
+                                nombres: true,
+                                apellido: true,
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                user: { name: 'asc' }
+            }
+        });
+
+        // 3. Fetch All Attendance Records for this course
+        const attendances = await prisma.attendance.findMany({
+            where: {
+                courseId: courseId
+            },
+            orderBy: {
+                date: 'asc'
+            }
+        });
+
+        // 4. Get all unique dates
+        const uniqueDates = Array.from(new Set(attendances.map(a => a.date.toISOString().split('T')[0]))).sort();
+
+        // 5. Process Data
+        const reportData = enrollments.map(enrollment => {
+            const student = enrollment.user;
+            const row: any = {
+                'ID': student.profile?.identificacion || student.id.substring(0, 8),
+                'Estudiante': student.profile?.nombres && student.profile?.apellido
+                    ? `${student.profile.nombres} ${student.profile.apellido}`
+                    : student.name,
+                'Correo': student.email
+            };
+
+            uniqueDates.forEach(dateStr => {
+                const attendance = attendances.find(a =>
+                    a.userId === student.id &&
+                    a.date.toISOString().split('T')[0] === dateStr
+                );
+
+                let status = '-';
+                if (attendance) {
+                    switch (attendance.status) {
+                        case 'PRESENT': status = 'P'; break;
+                        case 'ABSENT': status = 'A'; break;
+                        case 'EXCUSED': status = 'E'; break;
+                        case 'LATE': status = 'L'; break;
+                    }
+                }
+
+                row[dateStr] = status;
+            });
+
+            return row;
+        });
+
+        return reportData;
+    },
 };

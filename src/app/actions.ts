@@ -1674,6 +1674,12 @@ export async function getCourseGradesReportAction(courseId: string) {
     return await courseService.getCourseGradesReport(courseId);
 }
 
+export async function getCourseAttendanceReportAction(courseId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+    return await courseService.getCourseAttendanceReport(courseId);
+}
+
 export async function getMultiCourseGradesReportAction(courseIds: string[]) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");

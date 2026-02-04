@@ -37,6 +37,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction, getStudentMissingActivitiesAction } from "@/app/actions";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,11 +64,13 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
     const [filterQuery, setFilterQuery] = useState("");
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportingAttendance, setIsExportingAttendance] = useState(false);
 
     // Absence Dialog State
     const [isAbsenceDialogOpen, setIsAbsenceDialogOpen] = useState(false);
     const [studentForAbsence, setStudentForAbsence] = useState<any | null>(null);
     const [absenceDate, setAbsenceDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [attendanceStatus, setAttendanceStatus] = useState<"PRESENT" | "ABSENT">("ABSENT");
 
     const handleExportReport = async () => {
         setIsExporting(true);
@@ -83,6 +86,23 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
             toast.error("Error al generar el reporte");
         } finally {
             setIsExporting(false);
+        }
+    };
+
+    const handleExportAttendanceReport = async () => {
+        setIsExportingAttendance(true);
+        try {
+            const { getCourseAttendanceReportAction } = await import("@/app/actions");
+            const { exportToExcel } = await import("@/lib/export-utils");
+
+            const data = await getCourseAttendanceReportAction(courseId);
+            exportToExcel(data, `Reporte_Asistencias_${new Date().toISOString().split('T')[0]}`, "Asistencias");
+            toast.success("Reporte generado exitosamente");
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al generar el reporte");
+        } finally {
+            setIsExportingAttendance(false);
         }
     };
 
@@ -122,6 +142,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
     const handleOpenAbsenceDialog = (student: any) => {
         setStudentForAbsence(student);
         setAbsenceDate(new Date().toISOString().split('T')[0]);
+        setAttendanceStatus("ABSENT");
         setIsAbsenceDialogOpen(true);
     };
 
@@ -133,8 +154,8 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
             const dateParts = absenceDate.split('-');
             const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 12, 0, 0);
 
-            await recordAttendanceAction(courseId, studentForAbsence.id, date, "ABSENT");
-            toast.success(`Inasistencia registrada para ${studentForAbsence.name}`);
+            await recordAttendanceAction(courseId, studentForAbsence.id, date, attendanceStatus);
+            toast.success(`Asistencia registrada para ${studentForAbsence.name}`);
             setIsAbsenceDialogOpen(false);
             setStudentForAbsence(null);
         } catch (error) {
@@ -198,6 +219,21 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                             <>
                                 <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
                                 Reporte de Calificaciones
+                            </>
+                        )}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={handleExportAttendanceReport}
+                        disabled={isExportingAttendance}
+                        className="w-full sm:w-auto"
+                    >
+                        {isExportingAttendance ? (
+                            <>Generando...</>
+                        ) : (
+                            <>
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Reporte de Inasistencias
                             </>
                         )}
                     </Button>
@@ -417,24 +453,38 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
             <Dialog open={isAbsenceDialogOpen} onOpenChange={setIsAbsenceDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Registrar Inasistencia</DialogTitle>
+                        <DialogTitle>Registrar Asistencia</DialogTitle>
                         <DialogDescription>
-                            Selecciona la fecha para registrar una inasistencia a <strong>{studentForAbsence?.name}</strong>.
+                            Registra el estado de asistencia de <strong>{studentForAbsence?.name}</strong>.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="absence-date">Fecha</Label>
-                        <Input
-                            id="absence-date"
-                            type="date"
-                            value={absenceDate}
-                            onChange={(e) => setAbsenceDate(e.target.value)}
-                            className="mt-2"
-                        />
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="absence-date">Fecha</Label>
+                            <Input
+                                id="absence-date"
+                                type="date"
+                                value={absenceDate}
+                                onChange={(e) => setAbsenceDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Estado</Label>
+                            <RadioGroup value={attendanceStatus} onValueChange={(val: any) => setAttendanceStatus(val)} className="flex flex-col space-y-1">
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="ABSENT" id="st-absent" />
+                                    <Label htmlFor="st-absent" className="font-normal cursor-pointer">Ausente</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="PRESENT" id="st-present" />
+                                    <Label htmlFor="st-present" className="font-normal cursor-pointer">Presente</Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAbsenceDialogOpen(false)}>Cancelar</Button>
-                        <Button variant="destructive" onClick={handleRecordAbsence}>Registrar Inasistencia</Button>
+                        <Button onClick={handleRecordAbsence}>Guardar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -487,7 +537,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>Registrar Inasistencia</p>
+                                                    <p>Registrar Asistencia</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                             <Tooltip>
