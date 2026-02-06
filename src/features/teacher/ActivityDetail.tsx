@@ -149,7 +149,7 @@ export function ActivityDetail({
                         <Badge variant="secondary">Peso: {activity.weight.toFixed(1)}%</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                        {activity.type !== "MANUAL" && `Vence: ${format(new Date(activity.deadline), "PP p")}`}
+                        {`Vence: ${format(new Date(activity.deadline), "PP p")}`}
                     </div>
                 </div>
             </div>
@@ -174,7 +174,7 @@ export function ActivityDetail({
                 </TabsList>
 
                 <TabsContent value="instructions" className="space-y-4 mt-6">
-                    <div data-color-mode={mode} className="rounded-md border p-6 bg-card">
+                    <div data-color-mode={mode} className="rounded-md border p-6 bg-card w-full max-w-full overflow-hidden [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
                         <h3 className="text-lg font-semibold mb-4">Instrucciones de la Actividad</h3>
                         <MDEditor.Markdown
                             source={activity.description || "**No hay instrucciones disponibles.**"}
@@ -184,7 +184,7 @@ export function ActivityDetail({
                 </TabsContent>
 
                 <TabsContent value="statement" className="space-y-4 mt-6">
-                    <div data-color-mode={mode} className="rounded-md border p-6 bg-card">
+                    <div data-color-mode={mode} className="rounded-md border p-6 bg-card w-full max-w-full overflow-hidden [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
                         <h3 className="text-lg font-semibold mb-4">Enunciado / Rúbrica de Evaluación</h3>
                         <MDEditor.Markdown
                             source={activity.statement || "**No hay enunciado/rúbrica disponible.**"}

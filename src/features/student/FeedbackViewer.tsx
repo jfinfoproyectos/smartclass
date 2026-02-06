@@ -21,7 +21,7 @@ export function FeedbackViewer({ feedback }: FeedbackViewerProps) {
     const mode = mounted ? (resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto") : "light";
 
     return (
-        <div data-color-mode={mode} className="overflow-x-auto">
+        <div data-color-mode={mode} className="w-full max-w-full overflow-hidden [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
             <MDEditor.Markdown source={feedback} style={{ background: 'transparent' }} />
             <style jsx global>{`
                 /* Tables - responsive handling */

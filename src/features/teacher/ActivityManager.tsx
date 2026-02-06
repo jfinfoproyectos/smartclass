@@ -350,12 +350,10 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                                 <Label htmlFor="openDate">Fecha de Apertura</Label>
                                                 <Input id="openDate" name="openDate" type="datetime-local" />
                                             </div>
-                                            {selectedType !== "MANUAL" && (
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="deadline">Fecha Límite</Label>
-                                                    <Input id="deadline" name="deadline" type="datetime-local" required />
-                                                </div>
-                                            )}
+                                            <div className="space-y-2">
+                                                <Label htmlFor="deadline">Fecha Límite</Label>
+                                                <Input id="deadline" name="deadline" type="datetime-local" required />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -503,7 +501,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                 <TableCell>
                                     <div className="flex items-center text-sm text-muted-foreground">
                                         <Calendar className="mr-2 h-3 w-3" />
-                                        {activity.type === "MANUAL" ? "-" : format(new Date(activity.deadline), "PP p")}
+                                        {format(new Date(activity.deadline), "PP p")}
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -682,12 +680,10 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                             defaultValue={activity.openDate ? new Date(activity.openDate).toISOString().slice(0, 16) : ""}
                                         />
                                     </div>
-                                    {selectedType !== "MANUAL" && (
-                                        <div className="space-y-2">
-                                            <Label htmlFor={`deadline-${activity.id}`}>Fecha Límite</Label>
-                                            <Input id={`deadline-${activity.id}`} name="deadline" type="datetime-local" defaultValue={new Date(activity.deadline).toISOString().slice(0, 16)} required />
-                                        </div>
-                                    )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor={`deadline-${activity.id}`}>Fecha Límite</Label>
+                                        <Input id={`deadline-${activity.id}`} name="deadline" type="datetime-local" defaultValue={new Date(activity.deadline).toISOString().slice(0, 16)} required />
+                                    </div>
                                 </div>
                             </div>
 
