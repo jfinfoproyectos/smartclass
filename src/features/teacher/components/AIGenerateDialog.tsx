@@ -92,7 +92,7 @@ export function AIGenerateDialog({
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             placeholder={placeholder}
-                            className="min-h-[120px]"
+                            className="min-h-[120px] max-h-[300px] overflow-y-auto"
                             disabled={isGenerating}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && e.ctrlKey && !isGenerating && prompt.trim()) {

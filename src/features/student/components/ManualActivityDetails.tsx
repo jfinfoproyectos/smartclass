@@ -190,7 +190,7 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                 <CardTitle>Enunciado / Rúbrica</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div data-color-mode={mode} className="w-full max-w-full overflow-hidden [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
+                                <div data-color-mode={mode} className="w-full max-w-full overflow-hidden [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word! select-none">
                                     <MDEditor.Markdown source={activity.statement || "**No hay enunciado disponible.**"} style={{ background: 'transparent' }} />
                                 </div>
                             </CardContent>
