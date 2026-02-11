@@ -126,7 +126,9 @@ export function StudentDashboard({
                     <CourseCatalog
                         courses={availableCourses.filter(course =>
                             !myEnrollments.some(enrollment => enrollment.courseId === course.id) &&
-                            (!course.endDate || new Date(course.endDate) >= new Date())
+                            (!course.endDate || new Date(course.endDate) >= new Date()) &&
+                            course.registrationOpen &&
+                            (!course.registrationDeadline || new Date(course.registrationDeadline) >= new Date())
                         )}
                         pendingEnrollments={pendingEnrollments}
                     />
