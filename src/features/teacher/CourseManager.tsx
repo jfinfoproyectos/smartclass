@@ -61,10 +61,54 @@ function formatDateTime(date: Date | string): string {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
-function RegistrationSettingsDialog({ course }: { course: any }) {
+interface Schedule {
+    id: string;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+}
+
+interface Course {
+    id: string;
+    title: string;
+    description: string | null;
+    startDate: Date | string | null;
+    endDate: Date | string | null;
+    externalUrl: string | null;
+    registrationOpen: boolean;
+    registrationDeadline: Date | string | null;
+    schedules: Schedule[];
+    _count: {
+        enrollments: number;
+    };
+}
+
+interface PendingEnrollment {
+    id: string;
+    course: {
+        id: string;
+        title: string;
+    };
+    user: {
+        id: string;
+        name: string;
+        email: string;
+        image: string | null;
+    };
+    createdAt: Date;
+}
+
+
+function RegistrationSettingsDialog({ course }: { course: Course }) {
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<"permanent" | "date">(course.registrationDeadline ? "date" : "permanent");
     const [deadline, setDeadline] = useState(course.registrationDeadline ? new Date(course.registrationDeadline).toISOString().slice(0, 16) : "");
+    // ... rest of the function (no change needed in body if types match)
+
+    // I need to be careful with replace_file_content, I cannot assume body content.
+    // I will use multi_replace.
+
+
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -167,9 +211,9 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Tooltip>
-                    <TooltipTrigger asChild>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
                         <Button
                             variant="ghost"
                             size="icon"
@@ -177,12 +221,12 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Eliminar</p>
-                    </TooltipContent>
-                </Tooltip>
-            </DialogTrigger>
+                    </DialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Eliminar</p>
+                </TooltipContent>
+            </Tooltip>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Eliminar Curso</DialogTitle>
@@ -191,8 +235,14 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
                     </DialogDescription>
                 </DialogHeader>
                 <form action={async (formData) => {
-                    await deleteCourseAction(formData);
-                    setIsOpen(false);
+                    try {
+                        await deleteCourseAction(formData);
+                        setIsOpen(false);
+                        toast.success("Curso eliminado correctamente");
+                    } catch (error) {
+                        console.error("Error deleting course:", error);
+                        toast.error("Error al eliminar el curso");
+                    }
                 }} className="space-y-4">
                     <input type="hidden" name="courseId" value={courseId} />
                     <div className="space-y-2">
@@ -227,9 +277,9 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { Badge } from "@/components/ui/badge";
 
-export function CourseManager({ initialCourses, pendingEnrollments = [] }: { initialCourses: any[], pendingEnrollments?: any[] }) {
+export function CourseManager({ initialCourses, pendingEnrollments = [] }: { initialCourses: Course[], pendingEnrollments?: PendingEnrollment[] }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [editCourse, setEditCourse] = useState<any>(null);
+    const [editCourse, setEditCourse] = useState<Course | null>(null);
     const [isCloning, setIsCloning] = useState(false);
 
     // Schedule state
@@ -329,7 +379,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
         return labels[day] || day;
     };
 
-    const CourseTable = ({ courses }: { courses: any[] }) => (
+    const CourseTable = ({ courses }: { courses: Course[] }) => (
         <div className="w-full overflow-x-auto rounded-md border">
             <Table className="min-w-[800px]">
                 <TableHeader>
@@ -358,7 +408,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                 />
                             </TableCell>
                             <TableCell className="font-medium">{course.title}</TableCell>
-                            <TableCell className="hidden md:table-cell max-w-md truncate" title={course.description}>
+                            <TableCell className="hidden md:table-cell max-w-md truncate" title={course.description || ""}>
                                 {course.description || "Sin descripción"}
                             </TableCell>
                             <TableCell className="hidden sm:table-cell text-sm">
@@ -529,7 +579,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                             // Add schedules to formData
                             formData.append("schedules", JSON.stringify(schedules));
 
-                            if (isCloning) {
+                            if (isCloning && editCourse) {
                                 formData.append("sourceCourseId", editCourse.id);
                                 await cloneCourseAction(formData);
                             } else if (editCourse) {
@@ -578,7 +628,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                             <Textarea
                                                 id="description"
                                                 name="description"
-                                                defaultValue={editCourse?.description}
+                                                defaultValue={editCourse?.description || ""}
                                                 placeholder="Descripción del curso"
                                                 rows={5}
                                             />
@@ -592,7 +642,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                                 id="externalUrl"
                                                 name="externalUrl"
                                                 type="url"
-                                                defaultValue={editCourse?.externalUrl}
+                                                defaultValue={editCourse?.externalUrl || ""}
                                                 placeholder="https://classroom.google.com/..."
                                             />
                                             <p className="text-xs text-muted-foreground">
