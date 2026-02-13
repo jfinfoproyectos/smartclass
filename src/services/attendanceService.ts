@@ -1,18 +1,20 @@
-
 import { AttendanceStatus } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { toUTCStartOfDay } from "@/lib/dateUtils";
 
 
 export const attendanceService = {
     async recordAttendance(
         courseId: string,
         userId: string,
-        date: Date,
+        date: Date | string,
         status: AttendanceStatus
     ) {
-        // Normalize date to start of day to avoid duplicate entries for the same day with different times
-        const normalizedDate = new Date(date);
-        normalizedDate.setHours(0, 0, 0, 0);
+        // Normalize date to start of day in UTC to avoid timezone shifts
+        // We use the utility to create a Date that represents O0:00 UTC of the given date
+        const normalizedDate = typeof date === 'string'
+            ? new Date(date)
+            : toUTCStartOfDay(date);
 
         return await prisma.attendance.upsert({
             where: {
@@ -75,43 +77,32 @@ export const attendanceService = {
             throw new Error("El código ha expirado.");
         }
 
-        // Find existing attendance record close to now (to handle timezone differences)
-        // We look for a record within +/- 24 hours
+        // Find existing attendance record for "today" (UTC range)
+        // We define "today" as the current UTC date
         const now = new Date();
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const todayUTC = toUTCStartOfDay(now);
 
-        const existingRecord = await prisma.attendance.findFirst({
+        // We look for a record with exactly this date, or create one if it doesn't exist (though late usually implies there was a session)
+        // Adjusting logic: Late arrival means they missed the roll call earlier TODAY.
+
+        const existingRecord = await prisma.attendance.findUnique({
             where: {
-                courseId,
-                userId,
-                date: {
-                    gte: yesterday,
-                    lte: tomorrow
+                courseId_userId_date: {
+                    courseId,
+                    userId,
+                    date: todayUTC
                 }
-            },
-            orderBy: {
-                createdAt: 'desc'
             }
         });
 
-        // If we found a record, use its date to ensure we update it instead of creating a new one
-        // If not, use the current server date normalized
-        let targetDate = new Date();
-        targetDate.setHours(0, 0, 0, 0);
-
-        if (existingRecord) {
-            targetDate = existingRecord.date;
-        }
+        // If no record exists for today, we create a new one with LATE status
 
         return await prisma.attendance.upsert({
             where: {
                 courseId_userId_date: {
                     courseId,
                     userId,
-                    date: targetDate,
+                    date: todayUTC,
                 },
             },
             update: {
@@ -122,7 +113,7 @@ export const attendanceService = {
             create: {
                 courseId,
                 userId,
-                date: targetDate,
+                date: todayUTC,
                 status: "LATE",
                 arrivalTime: new Date(),
                 justification,
@@ -130,7 +121,7 @@ export const attendanceService = {
         });
     },
 
-    async registerAbsenceJustification(courseId: string, userId: string, date: Date, url: string | undefined | null, reason: string) {
+    async registerAbsenceJustification(courseId: string, userId: string, date: Date | string, url: string | undefined | null, reason: string) {
         // Validate Google Drive URL if provided
         if (url) {
             const googleDriveRegex = /^https:\/\/(drive|docs)\.google\.com\/.+/;
@@ -149,8 +140,7 @@ export const attendanceService = {
             }
         }
 
-        const normalizedDate = new Date(date);
-        normalizedDate.setHours(0, 0, 0, 0);
+        const normalizedDate = typeof date === 'string' ? new Date(date) : toUTCStartOfDay(date);
 
         return await prisma.attendance.upsert({
             where: {

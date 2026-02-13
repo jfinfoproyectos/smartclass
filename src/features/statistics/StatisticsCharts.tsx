@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Label, Bar, BarChart } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Label, Bar, BarChart, ResponsiveContainer, Tooltip } from "recharts";
+import { formatCalendarDate } from "@/lib/dateUtils";
 
 interface StatisticsChartsProps {
     data: {
@@ -95,7 +96,7 @@ export function StatisticsCharts({ data }: StatisticsChartsProps) {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                                    tickFormatter={(value) => formatCalendarDate(value, "dd MMM")}
                                 />
                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={[0, 100]} />
                                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -131,7 +132,7 @@ export function StatisticsCharts({ data }: StatisticsChartsProps) {
                                     strokeWidth={5}
                                 >
                                     {data.distribution?.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        <Cell key={`cell - ${index} `} fill={entry.fill} />
                                     ))}
                                     <Label
                                         content={({ viewBox }) => {

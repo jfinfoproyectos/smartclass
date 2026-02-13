@@ -11,7 +11,6 @@ import {
     CalendarDatePagination,
     CalendarDatePicker,
     CalendarHeader,
-    CalendarItem,
     CalendarMonthPicker,
     CalendarProvider,
     CalendarYearPicker,
@@ -24,25 +23,27 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Calendar as CalendarIcon,
-    Clock,
-    AlertCircle,
-    CheckCircle,
-    MessageSquareWarning,
-    Award,
-    Github,
-    FileText,
-    XCircle,
-    AlertTriangle,
     Check,
-    ChevronsUpDown,
-    FileCheck,
     ChevronLeft,
     ChevronRight,
+    ChevronsUpDown,
+    Clock,
+    Filter,
+    GraduationCap,
+    Users,
+    X,
+    Github,
+    FileText,
+    FileCheck,
+    XCircle,
+    Award,
+    AlertTriangle,
     Maximize2,
     Minimize2
 } from "lucide-react";
 import { es } from "date-fns/locale";
-import { startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, format, isSameDay, startOfDay } from "date-fns";
+import { startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, format, isSameDay } from "date-fns";
+import { formatCalendarDate, fromUTC, toUTCStartOfDay } from "@/lib/dateUtils";
 import {
     Command,
     CommandEmpty,
@@ -93,9 +94,13 @@ export function UnifiedCalendar() {
     const [selectedDay, setSelectedDay] = useState<number>(0);
 
     // View mode (day, week, month)
+    // View mode (day, week, month)
     const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [isCompact, setIsCompact] = useState(false);
+
+    // Filter state
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -675,7 +680,7 @@ export function UnifiedCalendar() {
                                 {selectedEvent.details.justification && (
                                     <div className="space-y-1">
                                         <Label className="text-xs text-muted-foreground">Justificación</Label>
-                                        <div className="text-sm italic">"{selectedEvent.details.justification}"</div>
+                                        <div className="text-sm italic">&quot;{selectedEvent.details.justification}&quot;</div>
                                     </div>
                                 )}
                                 {selectedEvent.details.justificationUrl && (

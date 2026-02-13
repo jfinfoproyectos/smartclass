@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, X, UserCheck, Calendar } from "lucide-react";
 import { getCourseStudentsAction, recordAttendanceAction, getStudentAttendanceStatsAction } from "@/app/actions";
 import { toast } from "sonner";
+import { formatCalendarDate } from "@/lib/dateUtils";
 
 interface AttendanceTakerProps {
     courseId: string;
@@ -29,7 +30,8 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
     const [students, setStudents] = useState<Student[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [attendanceDate, setAttendanceDate] = useState(new Date());
+    const [attendanceDate, setAttendanceDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
     const [studentStats, setStudentStats] = useState<{ late: number; excused: number; absences: number } | null>(null);
 
     useEffect(() => {
@@ -153,7 +155,7 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                         <SheetTitle className="text-xl font-bold">Llamado de Asistencia</SheetTitle>
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Calendar className="h-4 w-4" />
-                            <span>{attendanceDate.toLocaleDateString()}</span>
+                            <span>{formatCalendarDate(attendanceDate)}</span>
                         </div>
                     </div>
                 </div>

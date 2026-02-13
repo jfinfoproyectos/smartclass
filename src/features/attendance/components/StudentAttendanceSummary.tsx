@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getStudentAttendanceStatsAction, registerLateArrivalAction, registerAbsenceJustificationAction, deleteAttendanceRecordAction } from "@/app/actions";
-import { AlertCircle, Clock, CheckCircle, ExternalLink, Trash2, Eye } from "lucide-react";
+import { AlertCircle, Clock, CheckCircle, ExternalLink, Trash2, Eye, Calendar as CalendarIcon } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { formatCalendarDate, fromUTC, toUTCStartOfDay } from "@/lib/dateUtils";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,15 @@ interface StudentAttendanceSummaryProps {
     courseId: string;
     userId: string;
     readonly?: boolean;
+}
+
+interface AttendanceRecord {
+    id: string;
+    date: string | Date;
+    status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+    justification?: string | null;
+    justificationUrl?: string | null;
+    arrivalTime?: string | Date | null;
 }
 
 export function StudentAttendanceSummary({ courseId, userId, readonly = false }: StudentAttendanceSummaryProps) {
@@ -68,26 +78,24 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
         fetchStats();
     }, [courseId, userId]);
 
-    const handleOpenDialog = (date: Date) => {
-        setSelectedDate(date);
+    const handleOpenDialog = (record: AttendanceRecord) => {
+        setSelectedRecord(record);
+        setSelectedDate(fromUTC(record.date));
 
-        // Check if the selected date is today or in the past
+        const recordDate = fromUTC(record.date);
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const selectedDateObj = new Date(date);
-        selectedDateObj.setHours(0, 0, 0, 0);
 
-        const isToday = selectedDateObj.getTime() === today.getTime();
-        const isPast = selectedDateObj.getTime() < today.getTime();
+        const isToday = recordDate.getDate() === today.getDate() &&
+            recordDate.getMonth() === today.getMonth() &&
+            recordDate.getFullYear() === today.getFullYear();
 
-        // Late arrivals only for today
-        // Absences (with/without support) only for past dates
+        const isPast = recordDate < toUTCStartOfDay(today);
+
         if (isToday) {
             setJustificationType("LATE");
         } else if (isPast) {
             setJustificationType("WITH_SUPPORT");
         } else {
-            // Future dates - shouldn't happen but default to WITH_SUPPORT
             setJustificationType("WITH_SUPPORT");
         }
 
@@ -126,13 +134,13 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                 await registerLateArrivalAction(courseId, code, justification);
                 toast.success("Llegada tarde registrada exitosamente");
             } else {
-                if (!selectedDate) return;
-                await registerAbsenceJustificationAction(courseId, selectedDate, documentUrl || null, justification);
+                if (!selectedRecord) return;
+                await registerAbsenceJustificationAction(courseId, selectedRecord.date, documentUrl || null, justification);
                 toast.success("Inasistencia justificada exitosamente");
             }
 
             setIsDialogOpen(false);
-            fetchStats(); // Refresh stats
+            fetchStats();
         } catch (error: any) {
             toast.error(error.message || "Error al registrar justificación");
         } finally {
@@ -159,11 +167,6 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
             setRecordToDelete(null);
         }
     };
-
-    if (loading) {
-        return <div className="text-sm text-muted-foreground">Cargando asistencia...</div>;
-    }
-
     if (!stats) {
         return null;
     }
@@ -191,9 +194,14 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                         {stats.records.filter((r: any) => r.status === "ABSENT" || r.status === "LATE" || r.status === "EXCUSED").length > 0 ? (
                             stats.records
                                 .filter((r: any) => r.status === "ABSENT" || r.status === "LATE" || r.status === "EXCUSED")
-                                .map((record: any) => (
+                                .map((record: AttendanceRecord) => (
                                     <TableRow key={record.id}>
-                                        <TableCell className="text-sm">{new Date(record.date).toLocaleDateString()}</TableCell>
+                                        <TableCell className="text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                                <span>{formatCalendarDate(record.date)}</span>
+                                            </div>
+                                        </TableCell>
                                         <TableCell>
                                             {record.status === "ABSENT" ? (
                                                 <Badge variant="destructive" className="gap-1">
@@ -223,7 +231,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={() => handleOpenDialog(new Date(record.date))}
+                                                    onClick={() => handleOpenDialog(record)}
                                                 >
                                                     Justificar
                                                 </Button>
@@ -528,7 +536,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                         <div className="space-y-2">
                             <Label>Justificación del Estudiante</Label>
                             <div className="p-3 bg-muted rounded-md italic">
-                                "{selectedRecord?.justification || "Sin justificación"}"
+                                &quot;{selectedRecord?.justification || "Sin justificación"}&quot;
                             </div>
                         </div>
                     </div>

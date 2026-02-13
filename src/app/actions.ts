@@ -6,6 +6,7 @@ import { courseService } from "@/services/courseService";
 import { activityService } from "@/services/activityService";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
+import { parseISOAsUTC, toUTCStartOfDay } from "@/lib/dateUtils";
 
 async function getSession() {
     return await auth.api.getSession({ headers: await headers() });
@@ -39,8 +40,8 @@ export async function createCourseAction(formData: FormData) {
         description,
         externalUrl: externalUrl || undefined,
         teacherId: session.user.id,
-        startDate: startDateStr ? new Date(startDateStr) : undefined,
-        endDate: endDateStr ? new Date(endDateStr) : undefined,
+        startDate: startDateStr ? parseISOAsUTC(startDateStr) : undefined,
+        endDate: endDateStr ? parseISOAsUTC(endDateStr) : undefined,
         schedules,
     });
 
@@ -85,8 +86,8 @@ export async function cloneCourseAction(formData: FormData) {
         description,
         externalUrl: externalUrl || undefined,
         teacherId: session.user.id,
-        startDate: startDateStr ? new Date(startDateStr) : undefined,
-        endDate: endDateStr ? new Date(endDateStr) : undefined,
+        startDate: startDateStr ? parseISOAsUTC(startDateStr) : undefined,
+        endDate: endDateStr ? parseISOAsUTC(endDateStr) : undefined,
         schedules,
     });
 
@@ -130,8 +131,8 @@ export async function updateCourseAction(formData: FormData) {
         title,
         description,
         externalUrl: externalUrl || undefined,
-        startDate: startDateStr ? new Date(startDateStr) : undefined,
-        endDate: endDateStr ? new Date(endDateStr) : undefined,
+        startDate: startDateStr ? parseISOAsUTC(startDateStr) : undefined,
+        endDate: endDateStr ? parseISOAsUTC(endDateStr) : undefined,
         schedules,
     });
 
@@ -416,7 +417,7 @@ export async function updateRegistrationSettingsAction(formData: FormData) {
     await courseService.updateCourseRegistration(
         courseId,
         isOpen,
-        deadlineStr ? new Date(deadlineStr) : undefined
+        deadlineStr ? parseISOAsUTC(deadlineStr) : undefined
     );
 
     revalidatePath("/dashboard/teacher");
