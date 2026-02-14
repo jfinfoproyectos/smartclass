@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { format } from "date-fns";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -96,7 +97,9 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
         if (!student) return;
 
         try {
-            await recordAttendanceAction(courseId, student.id, attendanceDate, status);
+            // Format date as YYYY-MM-DD using local time (date-fns format uses local by default)
+            const dateStr = format(attendanceDate, "yyyy-MM-dd");
+            await recordAttendanceAction(courseId, student.id, dateStr, status);
             toast.success(`Marcado como ${status === "PRESENT" ? "Presente" : status === "ABSENT" ? "Ausente" : "Excusado"}`);
 
             // Auto advance if not the last student

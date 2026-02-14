@@ -931,7 +931,7 @@ export async function getGeminiApiKeyModeAction() {
 export async function recordAttendanceAction(
     courseId: string,
     userId: string,
-    date: Date,
+    date: Date | string,
     status: "PRESENT" | "ABSENT" | "EXCUSED"
 ) {
     const session = await getSession();
@@ -1013,7 +1013,7 @@ export async function registerLateArrivalAction(courseId: string, code: string, 
     return await attendanceService.registerLateArrival(courseId, session.user.id, code, justification);
 }
 
-export async function registerAbsenceJustificationAction(courseId: string, date: Date, url: string | undefined | null, reason: string) {
+export async function registerAbsenceJustificationAction(courseId: string, date: Date | string, url: string | undefined | null, reason: string) {
     const session = await getSession();
     if (!session?.user) {
         throw new Error("Unauthorized");

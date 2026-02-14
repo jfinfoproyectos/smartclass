@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,7 +70,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
     // Absence Dialog State
     const [isAbsenceDialogOpen, setIsAbsenceDialogOpen] = useState(false);
     const [studentForAbsence, setStudentForAbsence] = useState<any | null>(null);
-    const [absenceDate, setAbsenceDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [absenceDate, setAbsenceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [attendanceStatus, setAttendanceStatus] = useState<"PRESENT" | "ABSENT">("ABSENT");
 
     const handleExportReport = async () => {
@@ -141,7 +142,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
 
     const handleOpenAbsenceDialog = (student: any) => {
         setStudentForAbsence(student);
-        setAbsenceDate(new Date().toISOString().split('T')[0]);
+        setAbsenceDate(format(new Date(), 'yyyy-MM-dd'));
         setAttendanceStatus("ABSENT");
         setIsAbsenceDialogOpen(true);
     };
@@ -150,11 +151,8 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
         if (!studentForAbsence || !absenceDate) return;
 
         try {
-            // Create date from string input (YYYY-MM-DD) and set to noon to avoid timezone issues
-            const dateParts = absenceDate.split('-');
-            const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 12, 0, 0);
-
-            await recordAttendanceAction(courseId, studentForAbsence.id, date, attendanceStatus);
+            // Pass the YYYY-MM-DD string directly to avoid timezone conversion issues
+            await recordAttendanceAction(courseId, studentForAbsence.id, absenceDate, attendanceStatus);
             toast.success(`Asistencia registrada para ${studentForAbsence.name}`);
             setIsAbsenceDialogOpen(false);
             setStudentForAbsence(null);
