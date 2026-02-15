@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { es } from "date-fns/locale";
 import { startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, format, isSameDay } from "date-fns";
-import { formatCalendarDate, fromUTC, toUTCStartOfDay } from "@/lib/dateUtils";
+
 import {
     Command,
     CommandEmpty,

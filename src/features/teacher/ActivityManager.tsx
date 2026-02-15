@@ -278,6 +278,10 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                             <input type="hidden" name="courseId" value={courseId} />
                             <input type="hidden" name="description" value={description} />
                             <input type="hidden" name="statement" value={statement} />
+                            {/* Hidden inputs to send UTC dates */}
+                            <input type="hidden" name="openDate" id="openDate-utc" />
+                            <input type="hidden" name="deadline" id="deadline-utc" />
+
                             <SheetHeader className="px-6 py-4 border-b">
                                 <SheetTitle>Crear Nueva Actividad</SheetTitle>
                                 <SheetDescription>
@@ -347,12 +351,37 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
 
                                         <div className="grid grid-cols-1 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="openDate">Fecha de Apertura</Label>
-                                                <Input id="openDate" name="openDate" type="datetime-local" />
+                                                <Label htmlFor="openDateLocal">Fecha de Apertura</Label>
+                                                <Input
+                                                    id="openDateLocal"
+                                                    name="openDateLocal"
+                                                    type="datetime-local"
+                                                    onChange={(e) => {
+                                                        const utcInput = document.getElementById('openDate-utc') as HTMLInputElement;
+                                                        if (e.target.value) {
+                                                            utcInput.value = new Date(e.target.value).toISOString();
+                                                        } else {
+                                                            utcInput.value = '';
+                                                        }
+                                                    }}
+                                                />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="deadline">Fecha Límite</Label>
-                                                <Input id="deadline" name="deadline" type="datetime-local" required />
+                                                <Label htmlFor="deadlineLocal">Fecha Límite</Label>
+                                                <Input
+                                                    id="deadlineLocal"
+                                                    name="deadlineLocal"
+                                                    type="datetime-local"
+                                                    required
+                                                    onChange={(e) => {
+                                                        const utcInput = document.getElementById('deadline-utc') as HTMLInputElement;
+                                                        if (e.target.value) {
+                                                            utcInput.value = new Date(e.target.value).toISOString();
+                                                        } else {
+                                                            utcInput.value = '';
+                                                        }
+                                                    }}
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -592,6 +621,10 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                     <input type="hidden" name="activityId" value={activity.id} />
                     <input type="hidden" name="description" value={description} />
                     <input type="hidden" name="statement" value={statement} />
+                    {/* Hidden inputs to send UTC dates */}
+                    <input type="hidden" name="openDate" id={`openDate-utc-${activity.id}`} defaultValue={activity.openDate ? new Date(activity.openDate).toISOString() : ""} />
+                    <input type="hidden" name="deadline" id={`deadline-utc-${activity.id}`} defaultValue={new Date(activity.deadline).toISOString()} />
+
                     <SheetHeader className="px-6 py-4 border-b">
                         <SheetTitle>Editar Actividad</SheetTitle>
                         <SheetDescription>Actualiza los detalles y el contenido.</SheetDescription>
@@ -675,14 +708,36 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                         <Label htmlFor={`openDate-${activity.id}`}>Fecha de Apertura</Label>
                                         <Input
                                             id={`openDate-${activity.id}`}
-                                            name="openDate"
+                                            name="openDateLocal"
                                             type="datetime-local"
                                             defaultValue={activity.openDate ? new Date(activity.openDate).toISOString().slice(0, 16) : ""}
+                                            onChange={(e) => {
+                                                const utcInput = document.getElementById(`openDate-utc-${activity.id}`) as HTMLInputElement;
+                                                if (e.target.value) {
+                                                    utcInput.value = new Date(e.target.value).toISOString();
+                                                } else {
+                                                    utcInput.value = '';
+                                                }
+                                            }}
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor={`deadline-${activity.id}`}>Fecha Límite</Label>
-                                        <Input id={`deadline-${activity.id}`} name="deadline" type="datetime-local" defaultValue={new Date(activity.deadline).toISOString().slice(0, 16)} required />
+                                        <Input
+                                            id={`deadline-${activity.id}`}
+                                            name="deadlineLocal"
+                                            type="datetime-local"
+                                            defaultValue={new Date(activity.deadline).toISOString().slice(0, 16)}
+                                            required
+                                            onChange={(e) => {
+                                                const utcInput = document.getElementById(`deadline-utc-${activity.id}`) as HTMLInputElement;
+                                                if (e.target.value) {
+                                                    utcInput.value = new Date(e.target.value).toISOString();
+                                                } else {
+                                                    utcInput.value = '';
+                                                }
+                                            }}
+                                        />
                                     </div>
                                 </div>
                             </div>

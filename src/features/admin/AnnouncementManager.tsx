@@ -122,8 +122,8 @@ export function AnnouncementManager() {
                             formData.append("type", type);
                             formData.append("showImage", showImage.toString());
                             formData.append("imagePosition", imagePosition);
-                            if (startDate) formData.append("startDate", startDate);
-                            if (endDate) formData.append("endDate", endDate);
+                            if (startDate) formData.append("startDate", new Date(startDate).toISOString());
+                            if (endDate) formData.append("endDate", new Date(endDate).toISOString());
 
                             if (editingAnnouncement) {
                                 formData.append("id", editingAnnouncement.id);

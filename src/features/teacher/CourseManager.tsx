@@ -146,6 +146,9 @@ function RegistrationSettingsDialog({ course }: { course: Course }) {
                     </DialogDescription>
                 </DialogHeader>
                 <form action={async (formData) => {
+                    if (deadline) {
+                        formData.set("deadline", new Date(deadline).toISOString());
+                    }
                     await updateRegistrationSettingsAction(formData);
                     setIsOpen(false);
                 }} className="space-y-4">
@@ -277,7 +280,7 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { Badge } from "@/components/ui/badge";
 
-export function CourseManager({ initialCourses, pendingEnrollments = [] }: { initialCourses: Course[], pendingEnrollments?: PendingEnrollment[] }) {
+export function CourseManager({ initialCourses, pendingEnrollments = [], currentDate }: { initialCourses: Course[], pendingEnrollments?: PendingEnrollment[], currentDate?: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [editCourse, setEditCourse] = useState<Course | null>(null);
     const [isCloning, setIsCloning] = useState(false);
@@ -296,8 +299,10 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
     const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
     const [isExporting, setIsExporting] = useState(false);
 
-    const activeCourses = initialCourses.filter(course => !course.endDate || new Date(course.endDate) >= new Date());
-    const archivedCourses = initialCourses.filter(course => course.endDate && new Date(course.endDate) < new Date());
+    const now = currentDate ? new Date(currentDate) : new Date();
+
+    const activeCourses = initialCourses.filter(course => !course.endDate || new Date(course.endDate) >= now);
+    const archivedCourses = initialCourses.filter(course => course.endDate && new Date(course.endDate) < now);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -419,7 +424,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [] }: { ini
                                         </span>
                                     )}
                                     {course.endDate && (
-                                        <span className={new Date(course.endDate) < new Date() ? "text-destructive" : "text-muted-foreground"}>
+                                        <span className={new Date(course.endDate) < now ? "text-destructive" : "text-muted-foreground"}>
                                             Fin: {new Date(course.endDate).toLocaleDateString()}
                                         </span>
                                     )}
