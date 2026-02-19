@@ -7,8 +7,13 @@ import { activityService } from "@/services/activityService";
 import { courseService } from "@/services/courseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Dices, Users, Timer, List, QrCode } from "lucide-react";
 import Link from "next/link";
+import { Roulette } from "@/features/teacher/Roulette";
+import { GroupGenerator } from "@/features/teacher/GroupGenerator";
+import { VisualTimer } from "@/features/teacher/VisualTimer";
+import { VisualSchedule } from "@/features/teacher/VisualSchedule";
+import { QuickShare } from "@/features/teacher/QuickShare";
 
 import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
 import { LateCodeGenerator } from "@/features/attendance/components/LateCodeGenerator";
@@ -47,9 +52,29 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
 
             <Tabs defaultValue="activities" className="space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                    <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex">
                         <TabsTrigger value="activities">Actividades</TabsTrigger>
                         <TabsTrigger value="students">Estudiantes</TabsTrigger>
+                        <TabsTrigger value="roulette" className="gap-2">
+                            <Dices className="h-4 w-4" />
+                            Ruleta
+                        </TabsTrigger>
+                        <TabsTrigger value="groups" className="gap-2">
+                            <Users className="h-4 w-4" />
+                            Grupos
+                        </TabsTrigger>
+                        <TabsTrigger value="timer" className="gap-2">
+                            <Timer className="h-4 w-4" />
+                            Temporizador
+                        </TabsTrigger>
+                        <TabsTrigger value="schedule" className="gap-2">
+                            <List className="h-4 w-4" />
+                            Agenda
+                        </TabsTrigger>
+                        <TabsTrigger value="share" className="gap-2">
+                            <QrCode className="h-4 w-4" />
+                            Compartir
+                        </TabsTrigger>
                     </TabsList>
                     {course.externalUrl && (
                         <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
@@ -65,6 +90,21 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                 </TabsContent>
                 <TabsContent value="students" className="space-y-4">
                     <StudentManager courseId={courseId} initialStudents={students} />
+                </TabsContent>
+                <TabsContent value="roulette" className="space-y-4">
+                    <Roulette students={students} courseId={courseId} />
+                </TabsContent>
+                <TabsContent value="groups" className="space-y-4">
+                    <GroupGenerator students={students} />
+                </TabsContent>
+                <TabsContent value="timer" className="space-y-4">
+                    <VisualTimer />
+                </TabsContent>
+                <TabsContent value="schedule" className="space-y-4">
+                    <VisualSchedule />
+                </TabsContent>
+                <TabsContent value="share" className="space-y-4">
+                    <QuickShare />
                 </TabsContent>
             </Tabs>
         </div>
