@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { decrypt } from "@/lib/encryption";
 import prisma from "@/lib/prisma";
 
-export const MODEL_NAME = "gemini-2.5-flash";
+export const MODEL_NAME = "gemini-2.5-pro";
 
 /**
  * Get a configured GoogleGenAI instance

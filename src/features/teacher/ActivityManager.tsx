@@ -83,7 +83,7 @@ function SortablePathItem({ id, path, index, onRemove }: { id: string, path: str
         <div
             ref={setNodeRef}
             style={style}
-            className="inline-flex items-center rounded-full border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 font-mono text-xs gap-1 pr-1 pl-1 flex cursor-default relative"
+            className="inline-flex items-center rounded-full border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 font-mono text-xs gap-1 pr-1 pl-1 cursor-default relative"
         >
             <div
                 {...attributes}
@@ -604,7 +604,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                 </TableCell >
                                 <TableCell className="font-medium">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                                        <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
                                             {index + 1}
                                         </div>
                                         <div className="flex items-center">
