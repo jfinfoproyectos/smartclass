@@ -190,6 +190,7 @@ model Submission {
   url             String
   grade           Float?
   feedback        String?
+  apiRequestsCount Int?     @default(0)
   attemptCount    Int      @default(1)
   lastSubmittedAt DateTime @default(now())
   activityId      String

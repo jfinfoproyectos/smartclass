@@ -158,7 +158,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                         <h4 className="text-sm font-medium mb-4">Nueva Entrega (Intento {attemptCount + 1})</h4>
                                         <SubmissionForm
                                             activityId={activity.id}
-                                            description={activity.description}
+                                            statement={activity.statement || ""}
                                             filePaths={activity.filePaths || ""}
                                             onEvaluationComplete={() => setActiveTab("feedback")}
                                         />
@@ -168,7 +168,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                         ) : (
                             <SubmissionForm
                                 activityId={activity.id}
-                                description={activity.description}
+                                statement={activity.statement || ""}
                                 filePaths={activity.filePaths || ""}
                                 onEvaluationComplete={() => setActiveTab("feedback")}
                             />
@@ -254,10 +254,11 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     );
 }
 
-function SubmissionForm({ activityId, description, filePaths, onEvaluationComplete }: { activityId: string, description: string, filePaths: string, onEvaluationComplete?: () => void }) {
+function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete }: { activityId: string, statement: string, filePaths: string, onEvaluationComplete?: () => void }) {
     const [status, setStatus] = useState<'idle' | 'grading' | 'success' | 'error'>('idle');
     const [progress, setProgress] = useState<string>("");
     const [logs, setLogs] = useState<string[]>([]);
+    const [apiRequests, setApiRequests] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
@@ -273,6 +274,7 @@ function SubmissionForm({ activityId, description, filePaths, onEvaluationComple
         setStatus('grading');
         setError(null);
         setLogs([]);
+        setApiRequests(null);
         setProgress("Iniciando evaluación...");
 
         try {
@@ -293,7 +295,7 @@ function SubmissionForm({ activityId, description, filePaths, onEvaluationComple
                 setProgress(`Analizando ${file.path}...`);
 
                 try {
-                    const analysis = await analyzeFileAction(file.path, file.content, description, url);
+                    const analysis = await analyzeFileAction(file.path, file.content, statement, url);
                     analyses.push(analysis);
 
                     if (analysis.scoreContribution > 3) {
@@ -310,6 +312,12 @@ function SubmissionForm({ activityId, description, filePaths, onEvaluationComple
                     }
                 } catch (fileError: any) {
                     addLog(`❌ Error al analizar ${file.path}: ${fileError.message}`);
+
+                    // Detener todo si es un error de cuota de Gemini
+                    if (fileError.message && (fileError.message.includes("429") || fileError.message.toLowerCase().includes("cuota"))) {
+                        throw fileError;
+                    }
+
                     // Continue with other files even if one fails
                     analyses.push({
                         filename: file.path,
@@ -326,7 +334,11 @@ function SubmissionForm({ activityId, description, filePaths, onEvaluationComple
             // 3. Finalize
             addLog("🏁 Calculando nota final...");
             setProgress("Finalizando evaluación...");
-            await finalizeSubmissionAction(activityId, url, analyses, description, missingFiles);
+            const finalResult = await finalizeSubmissionAction(activityId, url, analyses, statement, missingFiles);
+
+            if (finalResult?.apiRequestsCount) {
+                setApiRequests(finalResult.apiRequestsCount);
+            }
 
             setStatus('success');
             addLog("🎉 Evaluación completada exitosamente.");
@@ -401,9 +413,16 @@ function SubmissionForm({ activityId, description, filePaths, onEvaluationComple
             )}
 
             {status === 'success' && (
-                <div className="p-4 bg-green-50 text-green-600 rounded-lg flex items-center gap-2 text-sm">
-                    <CheckCircle className="h-5 w-5" />
-                    <p className="font-medium">¡Entrega evaluada correctamente!</p>
+                <div className="p-4 bg-green-50 text-green-600 rounded-lg flex flex-col gap-1 text-sm border border-green-200">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5" />
+                        <p className="font-medium">¡Entrega evaluada correctamente!</p>
+                    </div>
+                    {apiRequests !== null && (
+                        <p className="text-xs text-green-700 ml-7">
+                            Peticiones a la API de Gemini: {apiRequests}
+                        </p>
+                    )}
                 </div>
             )}
         </form>

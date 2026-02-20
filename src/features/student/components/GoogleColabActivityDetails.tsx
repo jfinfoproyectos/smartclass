@@ -140,7 +140,7 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
                                         <h4 className="text-sm font-medium mb-4">Nueva Entrega (Intento {attemptCount + 1})</h4>
                                         <SubmissionForm
                                             activityId={activity.id}
-                                            description={activity.description}
+                                            statement={activity.statement || ""}
                                         />
                                     </div>
                                 )}
@@ -148,7 +148,7 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
                         ) : (
                             <SubmissionForm
                                 activityId={activity.id}
-                                description={activity.description}
+                                statement={activity.statement || ""}
                             />
                         )}
                     </CardContent>
@@ -210,9 +210,10 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
     );
 }
 
-function SubmissionForm({ activityId, description }: { activityId: string, description: string }) {
+function SubmissionForm({ activityId, statement }: { activityId: string, statement: string }) {
     const [status, setStatus] = useState<'idle' | 'grading' | 'success' | 'error'>('idle');
     const [progress, setProgress] = useState<string>("");
+    const [apiRequests, setApiRequests] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
@@ -225,11 +226,16 @@ function SubmissionForm({ activityId, description }: { activityId: string, descr
 
         setStatus('grading');
         setError(null);
+        setApiRequests(null);
         setProgress("Iniciando evaluación de Google Colab...");
 
         try {
             // Call the server action to grade the Colab notebook
-            await gradeGoogleColabAction(activityId, url, description);
+            const result = await gradeGoogleColabAction(activityId, url, statement);
+
+            if (result?.apiRequestsCount) {
+                setApiRequests(result.apiRequestsCount);
+            }
 
             setStatus('success');
             router.refresh();
@@ -291,9 +297,16 @@ function SubmissionForm({ activityId, description }: { activityId: string, descr
             )}
 
             {status === 'success' && (
-                <div className="p-4 bg-green-50 text-green-600 rounded-lg flex items-center gap-2 text-sm">
-                    <CheckCircle className="h-5 w-5" />
-                    <p className="font-medium">¡Entrega evaluada correctamente!</p>
+                <div className="p-4 bg-green-50 text-green-600 rounded-lg flex flex-col gap-1 text-sm border border-green-200">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5" />
+                        <p className="font-medium">¡Entrega evaluada correctamente!</p>
+                    </div>
+                    {apiRequests !== null && (
+                        <p className="text-xs text-green-700 ml-7">
+                            Peticiones a la API de Gemini: {apiRequests}
+                        </p>
+                    )}
                 </div>
             )}
         </form>

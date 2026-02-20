@@ -147,12 +147,16 @@ export const activityService = {
         if (activity.type === "GITHUB" && data.grade === undefined) {
             try {
                 const gradingResult = await gradeSubmission(
-                    activity.statement || activity.description || activity.title,
+                    activity.statement || "",
                     data.url,
                     activity.filePaths || undefined
                 );
                 grade = gradingResult.grade;
                 feedback = gradingResult.feedback;
+
+                if (gradingResult.apiRequestsCount) {
+                    feedback += `\n\n*(Peticiones a la API de Gemini: ${gradingResult.apiRequestsCount})*`;
+                }
             } catch (error: any) {
                 console.error("Error grading submission:", error);
                 // If grading fails, we throw an error so the submission is NOT created/updated
@@ -221,16 +225,21 @@ export const activityService = {
 
         try {
             const gradingResult = await gradeSubmission(
-                submission.activity.statement || submission.activity.description || submission.activity.title,
+                submission.activity.statement || "",
                 submission.url,
                 submission.activity.filePaths || undefined
             );
+
+            let newFeedback = gradingResult.feedback;
+            if (gradingResult.apiRequestsCount) {
+                newFeedback += `\n\n*(Peticiones a la API de Gemini: ${gradingResult.apiRequestsCount})*`;
+            }
 
             return await prisma.submission.update({
                 where: { id: submissionId },
                 data: {
                     grade: gradingResult.grade,
-                    feedback: gradingResult.feedback
+                    feedback: newFeedback
                 }
             });
         } catch (error) {

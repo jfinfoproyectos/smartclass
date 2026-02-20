@@ -18,24 +18,42 @@ export async function analyzeFile(
     content: string,
     description: string,
     repoUrl: string,
-    userId?: string
+    userId?: string,
+    previousContextText?: string
 ): Promise<FileAnalysis> {
     try {
         const ai = await getGeminiClient(userId);
+
+        let contextSection = "";
+        if (previousContextText) {
+            contextSection = `
+            **Contexto de dependencias (archivos evaluados previamente)**:
+            El siguiente resumen de archivos ya evaluados sirve para darte contexto sobre dependencias o implementaciones que el archivo actual podría estar utilizando. 
+            No evalúes ni des puntos por este código, utilízalo únicamente para comprender mejor el archivo actual y NO penalizar al estudiante por implementaciones o referencias que ya existen en estos archivos de contexto:
+            ${previousContextText}
+            ---
+            `;
+        }
+
         const prompt = `
         Actúa como un tutor experto y evaluador de código senior.
         Analiza el siguiente archivo de código individualmente con respecto a la rúbrica proporcionada.
         
-        **Rúbrica/Enunciado**: "${description}"
+        **REGLAS ESTRICTAS**: 
+        1. Evalúa **EXCLUSIVAMENTE** lo que se solicita en la "Rúbrica/Enunciado". NO supongas que faltan características, manejo de errores, o funcionalidades adicionales si no fueron explícitamente solicitadas en la rúbrica.
+        2. Al evaluar ejercicios de Java o lenguajes orientados a objetos, **NO penalices** por problemas de dependencias, falta de imports, o clases no definidas en el archivo. Asume que están en el contexto del proyecto.
+        3. No evalúes estrictamente inconsistencias menores de indentación o formato. Evalúa solo la calidad de la lógica construida.
         
-        **Archivo**: ${filename}
+        **Rúbrica/Enunciado**: "${description}"
+        ${contextSection}
+        **Archivo a evaluar**: ${filename}
         **Contenido**:
         ${content}
         
         **TAREA**:
-        1. Identifica qué requisitos de la rúbrica se cumplen en este archivo.
-        2. Evalúa la calidad del código (limpieza, lógica, eficiencia).
-        3. Detecta errores específicos CON EL NÚMERO DE LÍNEA EXACTO.
+        1. Identifica qué requisitos de la rúbrica se cumplen en este archivo evaluado.
+        2. Evalúa la calidad del código (limpieza, lógica, eficiencia) PERO solo en el contexto de lo solicitado.
+        3. Detecta errores específicos CON EL NÚMERO DE LÍNEA EXACTO, pero solo penaliza errores reales o cosas que incumplan la rúbrica (no penalices por "falta de extras").
         
         **SALIDA REQUERIDA (JSON)**:
         {
@@ -75,6 +93,19 @@ export async function analyzeFile(
         return analysis;
     } catch (error: any) {
         console.error(`Error analyzing file ${filename}:`, error);
+
+        const errorString = typeof error === 'string' ? error : (error.message || JSON.stringify(error) || "");
+
+        if (
+            errorString.includes("429") ||
+            errorString.toLowerCase().includes("quota") ||
+            errorString.toLowerCase().includes("exhausted") ||
+            errorString.includes("RESOURCE_EXHAUSTED")
+        ) {
+            const errorMessage = "Has excedido la cuota gratuita de peticiones a la IA de Gemini.";
+            throw new Error(errorMessage);
+        }
+
         return {
             filename,
             repoUrl,

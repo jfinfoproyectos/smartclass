@@ -41,6 +41,74 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search, UserX } from "lucide-react";
 
 
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    horizontalListSortingStrategy,
+    useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+
+// Sortable item wrapper component
+function SortablePathItem({ id, path, index, onRemove }: { id: string, path: string, index: number, onRemove: (index: number) => void }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 10 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="inline-flex items-center rounded-full border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 font-mono text-xs gap-1 pr-1 pl-1 flex cursor-default relative"
+        >
+            <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing hover:bg-muted p-0.5 rounded mr-1 opacity-70 hover:opacity-100 touch-none flex items-center"
+            >
+                <GripVertical className="h-3 w-3" />
+            </div>
+            {path}
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 hover:bg-transparent hover:text-destructive rounded-full"
+                onClick={(e) => {
+                    e.stopPropagation(); // Prevent drag interference
+                    onRemove(index);
+                }}
+            >
+                <X className="h-3 w-3" />
+            </Button>
+        </div>
+    );
+}
+
 function FilePathInput({ name, defaultValue = "", placeholder }: { name: string, defaultValue?: string, placeholder?: string }) {
     const [paths, setPaths] = useState<string[]>(defaultValue ? defaultValue.split(",").map(p => p.trim()).filter(Boolean) : []);
     const [currentPath, setCurrentPath] = useState("");
@@ -48,6 +116,11 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
     const [isScanning, setIsScanning] = useState(false);
     const [scannedFiles, setScannedFiles] = useState<string[]>([]);
     const [showScanner, setShowScanner] = useState(false);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     const addPath = () => {
         if (currentPath.trim() && !paths.includes(currentPath.trim())) {
@@ -75,7 +148,6 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
             setScannedFiles(files);
         } catch (error) {
             console.error("Error scanning repo:", error);
-            // You might want to show a toast here
         } finally {
             setIsScanning(false);
         }
@@ -86,6 +158,17 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
             setPaths(paths.filter(p => p !== file));
         } else {
             setPaths([...paths, file]);
+        }
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setPaths((items) => {
+                const oldIndex = items.indexOf(active.id as string);
+                const newIndex = items.indexOf(over.id as string);
+                return arrayMove(items, oldIndex, newIndex);
+            });
         }
     };
 
@@ -163,21 +246,29 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
                             {paths.length} {paths.length === 1 ? 'archivo' : 'archivos'}
                         </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        {paths.map((path, index) => (
-                            <Badge key={index} variant="secondary" className="font-mono text-xs flex items-center gap-1 pr-1">
-                                {path}
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-4 w-4 hover:bg-transparent hover:text-destructive rounded-full"
-                                    onClick={() => removePath(index)}
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            </Badge>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={paths}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <div className="flex flex-wrap gap-2">
+                                    {paths.map((path, index) => (
+                                        <SortablePathItem
+                                            key={path}
+                                            id={path}
+                                            path={path}
+                                            index={index}
+                                            onRemove={removePath}
+                                        />
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
                     </div>
                 </div>
             )}
@@ -319,7 +410,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                             {selectedType !== "MANUAL" && (
                                                 <div className="col-span-3 space-y-2">
                                                     <Label htmlFor="maxAttempts">Intentos</Label>
-                                                    <Input id="maxAttempts" name="maxAttempts" type="number" min="1" max="3" defaultValue="1" required />
+                                                    <Input id="maxAttempts" name="maxAttempts" type="number" min="1" max="10" defaultValue="1" required />
                                                 </div>
                                             )}
                                         </div>
@@ -328,7 +419,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                             <div className="space-y-2">
                                                 <Label>Archivos a evaluar (GitHub)</Label>
                                                 <FilePathInput name="filePaths" placeholder="src/index.ts" />
-                                                <p className="text-xs text-muted-foreground">Agrega las rutas de los archivos individualmente. Sin límite de archivos.</p>
+                                                <p className="text-xs text-muted-foreground">Agrega las rutas en orden de dependencia. Los archivos evaluados primero servirán como contexto para la IA y ayudarán a comprender los siguientes.</p>
                                             </div>
                                         )}
 
@@ -661,7 +752,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                     {selectedType !== "MANUAL" && (
                                         <div className="col-span-3 space-y-2">
                                             <Label htmlFor={`maxAttempts-${activity.id}`}>Intentos</Label>
-                                            <Input id={`maxAttempts-${activity.id}`} name="maxAttempts" type="number" min="1" max="3" defaultValue={activity.maxAttempts || 1} required />
+                                            <Input id={`maxAttempts-${activity.id}`} name="maxAttempts" type="number" min="1" max="10" defaultValue={activity.maxAttempts || 1} required />
                                         </div>
                                     )}
                                 </div>
@@ -675,7 +766,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                     {selectedType === "GITHUB" && (
                                         <>
                                             <FilePathInput name="filePaths" defaultValue={activity.filePaths || ""} placeholder="src/index.ts" />
-                                            <p className="text-xs text-muted-foreground">Agrega las rutas de los archivos individualmente. Sin límite de archivos.</p>
+                                            <p className="text-xs text-muted-foreground">Agrega las rutas en orden de dependencia. Los archivos evaluados primero servirán como contexto para la IA y ayudarán a comprender los siguientes.</p>
                                         </>
                                     )}
 

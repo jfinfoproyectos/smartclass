@@ -706,6 +706,7 @@ export async function finalizeSubmissionAction(
 
     const { finalizeSubmission } = await import("@/services/gemini/gradingService");
     const result = await finalizeSubmission(analyses, description, missingFiles, session.user.id);
+    const apiRequestsCount = analyses.length + 1;
 
     // Save the submission
     await activityService.submitActivity({
@@ -713,11 +714,11 @@ export async function finalizeSubmissionAction(
         activityId,
         userId: session.user.id,
         grade: result.grade,
-        feedback: result.feedback
+        feedback: result.feedback + `\n\n*(Peticiones a la API de Gemini: ${apiRequestsCount})*`
     });
 
     revalidatePath("/dashboard/student");
-    return result;
+    return { ...result, apiRequestsCount };
 }
 
 export async function gradeManualActivityAction(formData: FormData) {
@@ -1438,14 +1439,14 @@ export async function getUnreadNotificationCountAction() {
     return await notificationService.getUnreadNotificationCount(session.user.id);
 }
 
-export async function gradeGoogleColabAction(activityId: string, colabUrl: string, description: string) {
+export async function gradeGoogleColabAction(activityId: string, colabUrl: string, statement: string) {
     const session = await getSession();
     if (!session || session.user.role !== "student") {
         throw new Error("Unauthorized");
     }
 
     const { gradeGoogleColabSubmission } = await import("@/services/gemini/gradingService");
-    const result = await gradeGoogleColabSubmission(description, colabUrl, session.user.id);
+    const result = await gradeGoogleColabSubmission(statement, colabUrl, session.user.id);
 
     // Save the submission
     await activityService.submitActivity({
@@ -1453,7 +1454,7 @@ export async function gradeGoogleColabAction(activityId: string, colabUrl: strin
         activityId,
         userId: session.user.id,
         grade: result.grade,
-        feedback: result.feedback
+        feedback: result.feedback + (result.apiRequestsCount ? `\n\n*(Peticiones a la API de Gemini: ${result.apiRequestsCount})*` : "")
     });
 
     revalidatePath("/dashboard/student");
