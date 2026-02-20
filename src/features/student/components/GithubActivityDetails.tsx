@@ -11,6 +11,7 @@ import { FeedbackViewer } from "../FeedbackViewer";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
 import { fetchRepoFilesAction, analyzeFileAction, finalizeSubmissionAction } from "@/app/actions";
 import { useReactToPrint } from 'react-to-print';
@@ -260,9 +261,34 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
     const [logs, setLogs] = useState<string[]>([]);
     const [apiRequests, setApiRequests] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Verification State
+    const [repoUrl, setRepoUrl] = useState<string>("");
+    const [isVerifying, setIsVerifying] = useState<boolean>(false);
+    const [verificationResult, setVerificationResult] = useState<{ valid: string[], missing: string[] } | null>(null);
+
     const router = useRouter();
 
     const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
+
+    async function handleVerifyFiles() {
+        if (!repoUrl) return;
+        setIsVerifying(true);
+        setVerificationResult(null);
+        setError(null);
+        try {
+            const { validFiles, missingFiles } = await fetchRepoFilesAction(repoUrl, filePaths);
+            setVerificationResult({
+                valid: validFiles.map(f => f.path),
+                missing: missingFiles
+            });
+        } catch (err: any) {
+            console.error("Verification error:", err);
+            setError(err.message || "Error al verificar el repositorio");
+        } finally {
+            setIsVerifying(false);
+        }
+    }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -369,20 +395,85 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                         name="url"
                         placeholder="https://github.com/usuario/repositorio"
                         required
-                        disabled={status === 'grading'}
+                        disabled={status === 'grading' || isVerifying}
                         className="flex-1"
+                        value={repoUrl}
+                        onChange={(e) => setRepoUrl(e.target.value)}
                     />
-                    <Button type="submit" disabled={status === 'grading'} className="w-full sm:w-auto">
-                        {status === 'grading' ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Evaluando
-                            </>
-                        ) : (
-                            "Entregar Tarea"
-                        )}
-                    </Button>
+                    <TooltipProvider delayDuration={200}>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={handleVerifyFiles}
+                                        disabled={status === 'grading' || isVerifying || !repoUrl}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {isVerifying ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Buscando
+                                            </>
+                                        ) : (
+                                            "Verificar Archivos"
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="max-w-[200px]">Simula la búsqueda en el repositorio para comprobar si el sistema encuentra todos los archivos requeridos antes de la entrega final.</p>
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button type="submit" disabled={status === 'grading' || isVerifying} className="w-full sm:w-auto">
+                                        {status === 'grading' ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Evaluando
+                                            </>
+                                        ) : (
+                                            "Entregar Tarea"
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="max-w-[200px]">Envía definitivamente tu repositorio para evaluación automática por la IA. Esto consumirá un intento.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    </TooltipProvider>
                 </div>
+
+                {verificationResult && (
+                    <div className="mt-2 p-3 bg-muted/30 border rounded-md text-sm space-y-2">
+                        <p className="font-semibold text-xs text-muted-foreground uppercase">Resultado de Verificación de Archivos:</p>
+                        {verificationResult.valid.length > 0 && (
+                            <div>
+                                <p className="text-green-600 font-medium flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> Archivos encontrados ({verificationResult.valid.length}):</p>
+                                <ul className="list-disc pl-5 text-xs mt-1 text-muted-foreground">
+                                    {verificationResult.valid.map(file => <li key={file}>{file}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                        {verificationResult.missing.length > 0 ? (
+                            <div className="mt-2">
+                                <p className="text-destructive font-medium flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Archivos faltantes ({verificationResult.missing.length}):</p>
+                                <ul className="list-disc pl-5 text-xs mt-1 text-destructive/80">
+                                    {verificationResult.missing.map(file => <li key={`missing-${file}`}>{file}</li>)}
+                                </ul>
+                                <p className="text-xs text-destructive/80 mt-1 italic font-medium">⚠️ Si envías la entrega así, los archivos faltantes recibirán calificación de 0.</p>
+                            </div>
+                        ) : (
+                            <div className="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded text-green-700 flex items-start gap-2">
+                                <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                <p className="text-xs font-medium leading-relaxed">¡Excelente! Todos los archivos requeridos fueron encontrados en tu repositorio. Puedes realizar la entrega final con confianza.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                     Asegúrate de que el repositorio sea público o que el sistema tenga acceso.
                 </p>
