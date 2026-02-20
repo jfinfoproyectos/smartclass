@@ -708,6 +708,19 @@ export async function finalizeSubmissionAction(
     const result = await finalizeSubmission(analyses, description, missingFiles, session.user.id);
     const apiRequestsCount = analyses.length + 1;
 
+    // Log API usage if global key is active
+    const { default: prisma } = await import("@/lib/prisma");
+    const settings = await prisma.systemSettings.findUnique({ where: { id: "settings" } });
+    if (settings?.geminiApiKeyMode === "GLOBAL" && settings?.encryptedGlobalApiKey) {
+        const { auditLogger } = await import("@/services/auditLogger");
+        await auditLogger.logGeminiApiUsage(
+            session.user.id,
+            session.user.name || "Usuario",
+            session.user.role || "student",
+            apiRequestsCount
+        );
+    }
+
     // Save the submission
     await activityService.submitActivity({
         url: repoUrl,
@@ -1447,6 +1460,21 @@ export async function gradeGoogleColabAction(activityId: string, colabUrl: strin
 
     const { gradeGoogleColabSubmission } = await import("@/services/gemini/gradingService");
     const result = await gradeGoogleColabSubmission(statement, colabUrl, session.user.id);
+
+    // Log API usage if global key is active
+    if (result.apiRequestsCount) {
+        const { default: prisma } = await import("@/lib/prisma");
+        const settings = await prisma.systemSettings.findUnique({ where: { id: "settings" } });
+        if (settings?.geminiApiKeyMode === "GLOBAL" && settings?.encryptedGlobalApiKey) {
+            const { auditLogger } = await import("@/services/auditLogger");
+            await auditLogger.logGeminiApiUsage(
+                session.user.id,
+                session.user.name || "Usuario",
+                session.user.role || "student",
+                result.apiRequestsCount
+            );
+        }
+    }
 
     // Save the submission
     await activityService.submitActivity({

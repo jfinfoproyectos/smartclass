@@ -284,6 +284,21 @@ export const auditLogger = {
     },
 
     /**
+     * Log Gemini API Usage (Global Key)
+     */
+    async logGeminiApiUsage(userId: string, userName: string, userRole: string, requestsCount: number) {
+        await this.log({
+            action: "OTHER",
+            entity: "SYSTEM",
+            userId,
+            userName,
+            userRole,
+            description: `Uso de API Gemini (Clave Global): ${requestsCount} petición(es)`,
+            metadata: { type: "GEMINI_API_USAGE", requestsCount },
+        });
+    },
+
+    /**
      * Get audit logs with filters
      */
     async getLogs(filters: {

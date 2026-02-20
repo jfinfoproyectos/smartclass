@@ -508,3 +508,56 @@ export async function deleteCourseAction(courseId: string) {
     revalidatePath("/dashboard/admin/courses");
     return { success: true };
 }
+
+// ============ GEMINI API USAGE ============
+
+export async function getGeminiApiLogsAction(filters?: {
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+}) {
+    await requireAdmin();
+
+    const where: any = {
+        action: "OTHER",
+        entity: "SYSTEM",
+        metadata: {
+            contains: '"GEMINI_API_USAGE"'
+        }
+    };
+
+    if (filters?.startDate || filters?.endDate) {
+        where.createdAt = {};
+        if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
+        if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+    }
+
+    const [logs, total] = await Promise.all([
+        prisma.auditLog.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            take: filters?.limit || 50,
+            skip: filters?.offset || 0,
+        }),
+        prisma.auditLog.count({ where }),
+    ]);
+
+    // Calculate total requests directly from logs without DB aggregation to keep schema simple
+    const allMatchingLogs = await prisma.auditLog.findMany({
+        where,
+        select: { metadata: true }
+    });
+
+    let totalRequests = 0;
+    allMatchingLogs.forEach(log => {
+        if (log.metadata) {
+            try {
+                const meta = JSON.parse(log.metadata);
+                if (meta.requestsCount) totalRequests += meta.requestsCount;
+            } catch (e) { }
+        }
+    });
+
+    return { logs, total, totalRequests };
+}

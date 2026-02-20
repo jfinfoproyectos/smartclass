@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuditLogPanel } from "@/features/admin/AuditLogPanel";
+import { GeminiApiLogPanel } from "@/features/admin/GeminiApiLogPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Bot, ShieldAlert } from "lucide-react";
 
 export default async function AuditLogsPage() {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -19,7 +22,24 @@ export default async function AuditLogsPage() {
                 </p>
             </div>
 
-            <AuditLogPanel />
+            <Tabs defaultValue="general" className="w-full">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="general" className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4" />
+                        Auditoría General
+                    </TabsTrigger>
+                    <TabsTrigger value="gemini" className="flex items-center gap-2">
+                        <Bot className="h-4 w-4" />
+                        Uso API Gemini
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="general" className="m-0">
+                    <AuditLogPanel />
+                </TabsContent>
+                <TabsContent value="gemini" className="m-0">
+                    <GeminiApiLogPanel />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
