@@ -83,27 +83,27 @@ function SortablePathItem({ id, path, index, onRemove }: { id: string, path: str
         <div
             ref={setNodeRef}
             style={style}
-            className="inline-flex items-center rounded-full border px-2.5 py-0.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 font-mono text-xs gap-1 pr-1 pl-1 cursor-default relative"
+            className="flex items-center w-full rounded-md border px-3 py-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-border bg-card text-card-foreground hover:bg-muted/50 font-mono text-sm gap-2 cursor-default relative shadow-sm"
         >
             <div
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing hover:bg-muted p-0.5 rounded mr-1 opacity-70 hover:opacity-100 touch-none flex items-center"
+                className="cursor-grab active:cursor-grabbing p-1 rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground touch-none flex items-center shrink-0"
             >
-                <GripVertical className="h-3 w-3" />
+                <GripVertical className="h-4 w-4" />
             </div>
-            {path}
+            <span className="flex-1 truncate">{path}</span>
             <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-4 w-4 hover:bg-transparent hover:text-destructive rounded-full"
+                className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive rounded-full shrink-0"
                 onClick={(e) => {
                     e.stopPropagation(); // Prevent drag interference
                     onRemove(index);
                 }}
             >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
             </Button>
         </div>
     );
@@ -256,7 +256,7 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
                                 items={paths}
                                 strategy={verticalListSortingStrategy}
                             >
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-col gap-2 w-full">
                                     {paths.map((path, index) => (
                                         <SortablePathItem
                                             key={path}
