@@ -178,16 +178,31 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                 </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="instructions" className="text-xs sm:text-sm">Instrucciones</TabsTrigger>
-                        <TabsTrigger value="rubric" className="text-xs sm:text-sm">Rúbrica</TabsTrigger>
-                        <TabsTrigger value="feedback" className="text-xs sm:text-sm">Feedback</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 h-auto">
+                        <TabsTrigger value="instructions" className="text-xs sm:text-sm py-2 whitespace-normal wrap-break-word">
+                            <div className="flex flex-col items-center">
+                                <span>Instrucciones</span>
+                            </div>
+                        </TabsTrigger>
+                        <TabsTrigger value="rubric" className="text-xs sm:text-sm py-2 whitespace-normal wrap-break-word">
+                            <div className="flex flex-col items-center">
+                                <span>Rúbrica (Trabajo a realizar)</span>
+                            </div>
+                        </TabsTrigger>
+                        <TabsTrigger value="feedback" className="text-xs sm:text-sm py-2 whitespace-normal wrap-break-word">
+                            <div className="flex flex-col items-center">
+                                <span>Resultado de Evaluación</span>
+                            </div>
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="instructions" className="mt-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Instrucciones</CardTitle>
+                                <CardTitle>Instrucciones de la Actividad</CardTitle>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Nota: Las instrucciones detalladas a continuación <strong>no se califican directamente</strong>, pero son una guía necesaria para que puedas configurar tu entorno y realizar la actividad correctamente.
+                                </p>
                             </CardHeader>
                             <CardContent>
                                 {activity.filePaths && (
@@ -222,7 +237,10 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                     <TabsContent value="rubric" className="mt-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Enunciado / Rúbrica de Evaluación</CardTitle>
+                                <CardTitle>Rúbrica / Trabajo a Realizar</CardTitle>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Este es el <strong>trabajo específico que debes realizar</strong> y los criterios bajo los cuales la inteligencia artificial evaluará y calificará tu entrega.
+                                </p>
                             </CardHeader>
                             <CardContent>
                                 <div data-color-mode={mode} className="w-full max-w-full overflow-hidden [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word! select-none">
@@ -235,7 +253,10 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                     <TabsContent value="feedback" className="mt-4">
                         <Card className="w-full">
                             <CardHeader>
-                                <CardTitle>Retroalimentación</CardTitle>
+                                <CardTitle>Resultado de la Evaluación</CardTitle>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Aquí encontrarás los comentarios detallados, fortalezas, debilidades y la calificación asignada a tu entrega después de ser evaluada.
+                                </p>
                             </CardHeader>
                             <CardContent>
                                 {isSubmitted && submission.feedback ? (

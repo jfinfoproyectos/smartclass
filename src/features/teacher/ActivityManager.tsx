@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +32,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { createActivityAction, updateActivityAction, deleteActivityAction } from "@/app/actions";
-import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle, Sparkles } from "lucide-react";
+import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle, Sparkles, Upload, Download } from "lucide-react";
 
 
 import { scanRepositoryAction, getMissingSubmissionsAction } from "@/app/actions";
@@ -308,6 +308,55 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
     const [showDescriptionAI, setShowDescriptionAI] = useState(false);
     const [showStatementAI, setShowStatementAI] = useState(false);
 
+    const [formKey, setFormKey] = useState(0);
+    const formRef = useRef<HTMLFormElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importedData, setImportedData] = useState<any>(null);
+
+    const handleExport = () => {
+        if (!formRef.current) return;
+        const formData = new FormData(formRef.current);
+        const data = Object.fromEntries(formData.entries());
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const title = formData.get("title")?.toString().replace(/[^a-z0-9-]/gi, '_').toLowerCase() || "nueva_actividad";
+        const dateStr = format(new Date(), "yyyy-MM-dd-HHmm");
+        a.download = `${title}_${dateStr}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target?.result as string);
+                if (data.description !== undefined) setDescription(data.description);
+                if (data.statement !== undefined) setStatement(data.statement);
+                if (data.type !== undefined) setSelectedType(data.type);
+                setImportedData(data);
+                setFormKey(k => k + 1);
+            } catch (err) {
+                console.error("Error al importar", err);
+                alert("Archivo JSON inválido");
+            }
+        };
+        reader.readAsText(file);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    // Reset imported info when closing/opening
+    useEffect(() => {
+        if (!isOpen) {
+            setImportedData(null);
+            setFormKey(k => k + 1);
+        }
+    }, [isOpen]);
+
     const handleReorder = async (direction: 'up' | 'down', index: number) => {
         if (isReordering) return;
         if (direction === 'up' && index === 0) return;
@@ -360,7 +409,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                         <Button><Plus className="mr-2 h-4 w-4" /> Nueva Actividad</Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
-                        <form action={async (formData) => {
+                        <form key={formKey} ref={formRef} action={async (formData) => {
                             await createActivityAction(formData);
                             setIsOpen(false);
                             setDescription("**Instrucciones de la actividad**\n\n..."); // Reset
@@ -374,10 +423,25 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                             <input type="hidden" name="deadline" id="deadline-utc" />
 
                             <SheetHeader className="px-6 py-4 border-b">
-                                <SheetTitle>Crear Nueva Actividad</SheetTitle>
-                                <SheetDescription>
-                                    Configura los detalles y el contenido de la actividad.
-                                </SheetDescription>
+                                <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+                                    <div>
+                                        <SheetTitle>Crear Nueva Actividad</SheetTitle>
+                                        <SheetDescription>
+                                            Configura los detalles y el contenido de la actividad.
+                                        </SheetDescription>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input type="file" accept=".json" className="hidden" ref={fileInputRef} onChange={handleImport} />
+                                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                            <Upload className="h-4 w-4 mr-2" />
+                                            Importar
+                                        </Button>
+                                        <Button type="button" variant="outline" size="sm" onClick={handleExport}>
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Exportar
+                                        </Button>
+                                    </div>
+                                </div>
                             </SheetHeader>
 
                             <div className="flex-1 overflow-y-auto p-6">
@@ -386,13 +450,13 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                     <div className="lg:col-span-4 space-y-6">
                                         <div className="space-y-2">
                                             <Label htmlFor="title">Título</Label>
-                                            <Input id="title" name="title" required placeholder="Ej: Taller de React" />
+                                            <Input id="title" name="title" required placeholder="Ej: Taller de React" defaultValue={importedData?.title || ""} />
                                         </div>
 
                                         <div className="grid grid-cols-12 gap-4">
                                             <div className="col-span-6 space-y-2">
                                                 <Label htmlFor="type">Tipo</Label>
-                                                <Select name="type" defaultValue="GITHUB" onValueChange={setSelectedType}>
+                                                <Select name="type" defaultValue={importedData?.type || "GITHUB"} onValueChange={setSelectedType}>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecciona el tipo" />
                                                     </SelectTrigger>
@@ -405,12 +469,12 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                             </div>
                                             <div className="col-span-3 space-y-2">
                                                 <Label htmlFor="weight">Peso (%)</Label>
-                                                <Input id="weight" name="weight" type="number" step="1" min="1" max="100" defaultValue="1.0" required />
+                                                <Input id="weight" name="weight" type="number" step="1" min="1" max="100" defaultValue={importedData?.weight || "1.0"} required />
                                             </div>
                                             {selectedType !== "MANUAL" && (
                                                 <div className="col-span-3 space-y-2">
                                                     <Label htmlFor="maxAttempts">Intentos</Label>
-                                                    <Input id="maxAttempts" name="maxAttempts" type="number" min="1" max="10" defaultValue="1" required />
+                                                    <Input id="maxAttempts" name="maxAttempts" type="number" min="1" max="10" defaultValue={importedData?.maxAttempts || "1"} required />
                                                 </div>
                                             )}
                                         </div>
@@ -418,7 +482,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                         {selectedType === "GITHUB" && (
                                             <div className="space-y-2">
                                                 <Label>Archivos a evaluar (GitHub)</Label>
-                                                <FilePathInput name="filePaths" placeholder="src/index.ts" />
+                                                <FilePathInput name="filePaths" placeholder="src/index.ts" defaultValue={importedData?.filePaths || ""} />
                                                 <p className="text-xs text-muted-foreground">Agrega las rutas en orden de dependencia. Los archivos evaluados primero servirán como contexto para la IA y ayudarán a comprender los siguientes.</p>
                                             </div>
                                         )}
@@ -426,7 +490,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                         {selectedType === "MANUAL" && (
                                             <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
                                                 <div className="flex items-start space-x-3">
-                                                    <Checkbox id="allowLinkSubmission" name="allowLinkSubmission" value="true" />
+                                                    <Checkbox id="allowLinkSubmission" name="allowLinkSubmission" value="true" defaultChecked={importedData?.allowLinkSubmission === "true" || importedData?.allowLinkSubmission === true} />
                                                     <div className="space-y-1">
                                                         <Label htmlFor="allowLinkSubmission" className="font-medium cursor-pointer">
                                                             Permitir envío de enlaces
@@ -447,6 +511,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                                     id="openDateLocal"
                                                     name="openDateLocal"
                                                     type="datetime-local"
+                                                    defaultValue={importedData?.openDateLocal || ""}
                                                     onChange={(e) => {
                                                         const utcInput = document.getElementById('openDate-utc') as HTMLInputElement;
                                                         if (e.target.value) {
@@ -464,6 +529,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                                     name="deadlineLocal"
                                                     type="datetime-local"
                                                     required
+                                                    defaultValue={importedData?.deadlineLocal || ""}
                                                     onChange={(e) => {
                                                         const utcInput = document.getElementById('deadline-utc') as HTMLInputElement;
                                                         if (e.target.value) {
@@ -696,6 +762,57 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
     const [statement, setStatement] = useState(activity.statement || "");
     const [selectedType, setSelectedType] = useState(activity.type);
 
+    const [formKey, setFormKey] = useState(0);
+    const formRef = useRef<HTMLFormElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importedData, setImportedData] = useState<any>(null);
+
+    const handleExport = () => {
+        if (!formRef.current) return;
+        const formData = new FormData(formRef.current);
+        const data = Object.fromEntries(formData.entries());
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const title = formData.get("title")?.toString().replace(/[^a-z0-9-]/gi, '_').toLowerCase() || "actividad";
+        const dateStr = format(new Date(), "yyyy-MM-dd-HHmm");
+        a.download = `${title}_${dateStr}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target?.result as string);
+                if (data.description !== undefined) setDescription(data.description);
+                if (data.statement !== undefined) setStatement(data.statement);
+                if (data.type !== undefined) setSelectedType(data.type);
+                setImportedData(data);
+                setFormKey(k => k + 1);
+            } catch (err) {
+                console.error("Error al importar", err);
+                alert("Archivo JSON inválido");
+            }
+        };
+        reader.readAsText(file);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            setDescription(activity.description || "");
+            setStatement(activity.statement || "");
+            setSelectedType(activity.type);
+            setImportedData(null);
+            setFormKey(k => k + 1);
+        }
+    }, [isOpen, activity]);
+
     return (
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
@@ -704,7 +821,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                 </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
-                <form action={async (formData) => {
+                <form key={formKey} ref={formRef} action={async (formData) => {
                     await updateActivityAction(formData);
                     setIsOpen(false);
                 }} className="flex flex-col h-full">
@@ -717,8 +834,23 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                     <input type="hidden" name="deadline" id={`deadline-utc-${activity.id}`} defaultValue={new Date(activity.deadline).toISOString()} />
 
                     <SheetHeader className="px-6 py-4 border-b">
-                        <SheetTitle>Editar Actividad</SheetTitle>
-                        <SheetDescription>Actualiza los detalles y el contenido.</SheetDescription>
+                        <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+                            <div>
+                                <SheetTitle>Editar Actividad</SheetTitle>
+                                <SheetDescription>Actualiza los detalles y el contenido.</SheetDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                <input type="file" accept=".json" className="hidden" ref={fileInputRef} onChange={handleImport} />
+                                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Importar
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={handleExport}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Exportar
+                                </Button>
+                            </div>
+                        </div>
                     </SheetHeader>
 
                     <div className="flex-1 overflow-y-auto p-6">
@@ -727,14 +859,14 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                             <div className="lg:col-span-4 space-y-6">
                                 <div className="space-y-2">
                                     <Label htmlFor={`title-${activity.id}`}>Título</Label>
-                                    <Input id={`title-${activity.id}`} name="title" defaultValue={activity.title} required />
+                                    <Input id={`title-${activity.id}`} name="title" defaultValue={importedData?.title ?? activity.title} required />
                                 </div>
 
 
                                 <div className="grid grid-cols-12 gap-4">
                                     <div className="col-span-6 space-y-2">
                                         <Label htmlFor={`type-${activity.id}`}>Tipo</Label>
-                                        <Select name="type" defaultValue={activity.type} onValueChange={setSelectedType}>
+                                        <Select name="type" defaultValue={importedData?.type ?? activity.type} onValueChange={setSelectedType}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Selecciona el tipo" />
                                             </SelectTrigger>
@@ -747,12 +879,12 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                     </div>
                                     <div className="col-span-3 space-y-2">
                                         <Label htmlFor={`weight-${activity.id}`}>Peso (%)</Label>
-                                        <Input id={`weight-${activity.id}`} name="weight" type="number" step="1" min="1" max="100" defaultValue={activity.weight.toFixed(1)} required />
+                                        <Input id={`weight-${activity.id}`} name="weight" type="number" step="1" min="1" max="100" defaultValue={importedData?.weight ?? activity.weight.toFixed(1)} required />
                                     </div>
                                     {selectedType !== "MANUAL" && (
                                         <div className="col-span-3 space-y-2">
                                             <Label htmlFor={`maxAttempts-${activity.id}`}>Intentos</Label>
-                                            <Input id={`maxAttempts-${activity.id}`} name="maxAttempts" type="number" min="1" max="10" defaultValue={activity.maxAttempts || 1} required />
+                                            <Input id={`maxAttempts-${activity.id}`} name="maxAttempts" type="number" min="1" max="10" defaultValue={importedData?.maxAttempts ?? activity.maxAttempts ?? 1} required />
                                         </div>
                                     )}
                                 </div>
@@ -765,7 +897,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
 
                                     {selectedType === "GITHUB" && (
                                         <>
-                                            <FilePathInput name="filePaths" defaultValue={activity.filePaths || ""} placeholder="src/index.ts" />
+                                            <FilePathInput name="filePaths" defaultValue={importedData?.filePaths ?? activity.filePaths ?? ""} placeholder="src/index.ts" />
                                             <p className="text-xs text-muted-foreground">Agrega las rutas en orden de dependencia. Los archivos evaluados primero servirán como contexto para la IA y ayudarán a comprender los siguientes.</p>
                                         </>
                                     )}
@@ -779,7 +911,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                                     id={`allowLinkSubmission-${activity.id}`}
                                                     name="allowLinkSubmission"
                                                     value="true"
-                                                    defaultChecked={activity.allowLinkSubmission || false}
+                                                    defaultChecked={importedData?.allowLinkSubmission !== undefined ? (importedData.allowLinkSubmission === "true" || importedData.allowLinkSubmission === true) : (activity.allowLinkSubmission ?? false)}
                                                 />
                                                 <div className="space-y-1">
                                                     <Label htmlFor={`allowLinkSubmission-${activity.id}`} className="font-medium cursor-pointer">
@@ -801,7 +933,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                             id={`openDate-${activity.id}`}
                                             name="openDateLocal"
                                             type="datetime-local"
-                                            defaultValue={activity.openDate ? new Date(activity.openDate).toISOString().slice(0, 16) : ""}
+                                            defaultValue={importedData?.openDateLocal ?? (activity.openDate ? new Date(activity.openDate).toISOString().slice(0, 16) : "")}
                                             onChange={(e) => {
                                                 const utcInput = document.getElementById(`openDate-utc-${activity.id}`) as HTMLInputElement;
                                                 if (e.target.value) {
@@ -818,7 +950,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                             id={`deadline-${activity.id}`}
                                             name="deadlineLocal"
                                             type="datetime-local"
-                                            defaultValue={new Date(activity.deadline).toISOString().slice(0, 16)}
+                                            defaultValue={importedData?.deadlineLocal ?? new Date(activity.deadline).toISOString().slice(0, 16)}
                                             required
                                             onChange={(e) => {
                                                 const utcInput = document.getElementById(`deadline-utc-${activity.id}`) as HTMLInputElement;

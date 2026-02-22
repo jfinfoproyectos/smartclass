@@ -35,12 +35,23 @@ export function StudentDashboard({
     const [selectedCourse, setSelectedCourse] = useState<string>("");
     const [openCombobox, setOpenCombobox] = useState(false);
 
-    // Set first course as default
+    // Set first course or saved course as default
     useEffect(() => {
         if (myEnrollments.length > 0 && !selectedCourse) {
-            setSelectedCourse(myEnrollments[0].course.id);
+            const savedCourse = localStorage.getItem("student_selected_course");
+            if (savedCourse && myEnrollments.some(e => e.course.id === savedCourse)) {
+                setSelectedCourse(savedCourse);
+            } else {
+                setSelectedCourse(myEnrollments[0].course.id);
+            }
         }
-    }, [myEnrollments.length]);
+    }, [myEnrollments, selectedCourse]);
+
+    const handleSelectCourse = (courseId: string) => {
+        setSelectedCourse(courseId);
+        localStorage.setItem("student_selected_course", courseId);
+        setOpenCombobox(false);
+    };
 
     return (
         <div className="flex-1 space-y-6 p-6 md:p-8">
@@ -94,8 +105,7 @@ export function StudentDashboard({
                                                     key={enrollment.course.id}
                                                     value={enrollment.course.id}
                                                     onSelect={(currentValue) => {
-                                                        setSelectedCourse(currentValue);
-                                                        setOpenCombobox(false);
+                                                        handleSelectCourse(currentValue);
                                                     }}
                                                 >
                                                     <Check

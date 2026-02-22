@@ -40,10 +40,11 @@ export function DynamicBreadcrumb() {
                 const segment = pathSegments[i];
                 const isLast = i === pathSegments.length - 1;
 
-                // Role segments: skip them UNLESS they are the last segment (the dashboard root for that role)
+                // Role segments: we don't display them normally unless they are the last segment,
+                // but we DO need to include them in the URL for subsequent segments.
                 const roleSegments = ["teacher", "student", "admin"];
                 if (roleSegments.includes(segment) && !isLast) {
-                    continue;
+                    continue; // Skip adding a visible breadcrumb part for this 
                 }
 
                 // Map segment names to readable labels
@@ -61,6 +62,9 @@ export function DynamicBreadcrumb() {
                     calendar: "Calendario",
                 };
 
+                // Create the href for this segment using the full real path
+                const href = isLast ? undefined : `/${pathSegments.slice(0, i + 1).join("/")}`;
+
                 // Check if it's a UUID or ID (course/activity detail)
                 const isId = segment.match(/^[a-f0-9-]{36}$/) || (!segmentMap[segment] && segment.match(/^[a-z0-9]+$/i));
 
@@ -73,27 +77,27 @@ export function DynamicBreadcrumb() {
                         const courseTitle = await getCourseTitle(segment);
                         breadcrumbs.push({
                             label: courseTitle || "Curso",
-                            href: isLast ? undefined : `/dashboard/${pathSegments.slice(1, i + 1).join("/")}`,
+                            href,
                         });
                     } else if (prevSegment === "activities") {
                         // Fetch activity name
                         const activityTitle = await getActivityTitle(segment);
                         breadcrumbs.push({
                             label: activityTitle || "Actividad",
-                            href: isLast ? undefined : `/dashboard/${pathSegments.slice(1, i + 1).join("/")}`,
+                            href,
                         });
                     } else {
                         // Generic ID
                         breadcrumbs.push({
                             label: segment,
-                            href: isLast ? undefined : `/dashboard/${pathSegments.slice(1, i + 1).join("/")}`,
+                            href,
                         });
                     }
                 } else {
                     const label = segmentMap[segment] || segment;
                     breadcrumbs.push({
                         label,
-                        href: isLast ? undefined : `/dashboard/${pathSegments.slice(1, i + 1).join("/")}`,
+                        href,
                     });
                 }
             }
