@@ -20,6 +20,7 @@ import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useTheme } from "next-themes";
+import { useCooldown } from "@/hooks/use-cooldown";
 
 interface GithubActivityDetailsProps {
     activity: any;
@@ -162,6 +163,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                             statement={activity.statement || ""}
                                             filePaths={activity.filePaths || ""}
                                             onEvaluationComplete={() => setActiveTab("feedback")}
+                                            lastSubmittedAt={submission.lastSubmittedAt}
                                         />
                                     </div>
                                 )}
@@ -172,6 +174,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                 statement={activity.statement || ""}
                                 filePaths={activity.filePaths || ""}
                                 onEvaluationComplete={() => setActiveTab("feedback")}
+                                lastSubmittedAt={null}
                             />
                         )}
                     </CardContent>
@@ -276,7 +279,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     );
 }
 
-function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete }: { activityId: string, statement: string, filePaths: string, onEvaluationComplete?: () => void }) {
+function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete, lastSubmittedAt }: { activityId: string, statement: string, filePaths: string, onEvaluationComplete?: () => void, lastSubmittedAt?: string | Date | null }) {
     const [status, setStatus] = useState<'idle' | 'grading' | 'success' | 'error'>('idle');
     const [progress, setProgress] = useState<string>("");
     const [logs, setLogs] = useState<string[]>([]);
@@ -289,6 +292,7 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
     const [verificationResult, setVerificationResult] = useState<{ valid: string[], missing: string[] } | null>(null);
 
     const router = useRouter();
+    const { isCooldownActive, remainingTime } = useCooldown(lastSubmittedAt, 5);
 
     const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
 
@@ -416,7 +420,7 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                         name="url"
                         placeholder="https://github.com/usuario/repositorio"
                         required
-                        disabled={status === 'grading' || isVerifying}
+                        disabled={status === 'grading' || isVerifying || isCooldownActive}
                         className="flex-1"
                         value={repoUrl}
                         onChange={(e) => setRepoUrl(e.target.value)}
@@ -429,7 +433,7 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                                         type="button"
                                         variant="secondary"
                                         onClick={handleVerifyFiles}
-                                        disabled={status === 'grading' || isVerifying || !repoUrl}
+                                        disabled={status === 'grading' || isVerifying || !repoUrl || isCooldownActive}
                                         className="w-full sm:w-auto"
                                     >
                                         {isVerifying ? (
@@ -449,7 +453,7 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
 
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button type="submit" disabled={status === 'grading' || isVerifying} className="w-full sm:w-auto">
+                                    <Button type="submit" disabled={status === 'grading' || isVerifying || isCooldownActive} className="w-full sm:w-auto">
                                         {status === 'grading' ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -467,6 +471,14 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                         </div>
                     </TooltipProvider>
                 </div>
+                {isCooldownActive && (
+                    <div className="mt-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                        <Loader2 className="h-4 w-4 shrink-0 mt-0.5 animate-spin" />
+                        <p>
+                            Debes esperar <strong>{remainingTime}</strong> antes de poder realizar una nueva entrega.
+                        </p>
+                    </div>
+                )}
 
                 {verificationResult && (
                     <div className="mt-2 p-3 bg-muted/30 border rounded-md text-sm space-y-2">

@@ -138,6 +138,20 @@ export const activityService = {
             }
         }
 
+        // Check cooldown period (5 minutes) - except for teacher grading
+        const isTeacherGrading = data.grade !== undefined || data.feedback !== undefined;
+        if (!isTeacherGrading && existingSubmission && existingSubmission.lastSubmittedAt) {
+            const now = new Date().getTime();
+            const lastTime = new Date(existingSubmission.lastSubmittedAt).getTime();
+            const difference = now - lastTime;
+            const cooldownMs = 5 * 60 * 1000;
+
+            if (difference < cooldownMs) {
+                const remainingMinutes = Math.ceil((cooldownMs - difference) / (60 * 1000));
+                throw new Error(`Debes esperar ${remainingMinutes} minuto(s) antes de realizar una nueva entrega`);
+            }
+        }
+
         // 1. Prepare grade and feedback variables
         let grade = data.grade !== undefined ? data.grade : null;
         let feedback = data.feedback !== undefined ? data.feedback : null;

@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { submitActivityAction } from "@/app/actions";
 import { useFormState } from "react-dom";
 import { toast } from "sonner";
+import { useCooldown } from "@/hooks/use-cooldown";
 
 interface ManualActivityDetailsProps {
     activity: any;
@@ -35,6 +36,7 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
     const { resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [state, formAction] = useFormState(submitActivityAction, initialState);
+    const { isCooldownActive, remainingTime } = useCooldown(submission?.lastSubmittedAt, 5);
 
     useEffect(() => {
         setMounted(true);
@@ -104,7 +106,7 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                         className="text-blue-600 hover:underline text-sm break-all flex items-center gap-1"
                                     >
                                         {submission.url}
-                                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                                        <ExternalLink className="h-3 w-3 shrink-0" />
                                     </a>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
@@ -144,14 +146,23 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                                 placeholder="https://drive.google.com/..."
                                                 defaultValue={submission?.url || ""}
                                                 required
+                                                disabled={isCooldownActive}
                                             />
                                             <p className="text-xs text-muted-foreground">
                                                 Asegúrate de que el enlace sea accesible para el profesor.
                                             </p>
                                         </div>
-                                        <Button type="submit" className="w-full">
+                                        <Button type="submit" className="w-full" disabled={isCooldownActive}>
                                             {submission ? "Actualizar Entrega" : "Enviar Entrega"}
                                         </Button>
+                                        {isCooldownActive && (
+                                            <div className="mt-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                                                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                                <p>
+                                                    Debes esperar <strong>{remainingTime}</strong> antes de poder actualizar tu entrega.
+                                                </p>
+                                            </div>
+                                        )}
                                     </form>
                                 </div>
                             )

@@ -19,6 +19,7 @@ import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useTheme } from "next-themes";
+import { useCooldown } from "@/hooks/use-cooldown";
 
 interface GoogleColabActivityDetailsProps {
     activity: any;
@@ -141,6 +142,7 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
                                         <SubmissionForm
                                             activityId={activity.id}
                                             statement={activity.statement || ""}
+                                            lastSubmittedAt={submission.lastSubmittedAt}
                                         />
                                     </div>
                                 )}
@@ -149,6 +151,7 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
                             <SubmissionForm
                                 activityId={activity.id}
                                 statement={activity.statement || ""}
+                                lastSubmittedAt={null}
                             />
                         )}
                     </CardContent>
@@ -231,12 +234,13 @@ export function GoogleColabActivityDetails({ activity, userId, studentName }: Go
     );
 }
 
-function SubmissionForm({ activityId, statement }: { activityId: string, statement: string }) {
+function SubmissionForm({ activityId, statement, lastSubmittedAt }: { activityId: string, statement: string, lastSubmittedAt?: string | Date | null }) {
     const [status, setStatus] = useState<'idle' | 'grading' | 'success' | 'error'>('idle');
     const [progress, setProgress] = useState<string>("");
     const [apiRequests, setApiRequests] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const { isCooldownActive, remainingTime } = useCooldown(lastSubmittedAt, 5);
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -277,9 +281,9 @@ function SubmissionForm({ activityId, statement }: { activityId: string, stateme
                         name="url"
                         placeholder="https://colab.research.google.com/..."
                         required
-                        disabled={status === 'grading'}
+                        disabled={status === 'grading' || isCooldownActive}
                     />
-                    <Button type="submit" disabled={status === 'grading'}>
+                    <Button type="submit" disabled={status === 'grading' || isCooldownActive}>
                         {status === 'grading' ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -290,6 +294,14 @@ function SubmissionForm({ activityId, statement }: { activityId: string, stateme
                         )}
                     </Button>
                 </div>
+                {isCooldownActive && (
+                    <div className="mt-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                        <Loader2 className="h-4 w-4 shrink-0 mt-0.5 animate-spin" />
+                        <p>
+                            Debes esperar <strong>{remainingTime}</strong> antes de poder realizar una nueva entrega.
+                        </p>
+                    </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                     Asegúrate de que el enlace sea público ("Cualquiera con el enlace puede ver").
                 </p>
