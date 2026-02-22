@@ -471,6 +471,14 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                         </div>
                     </TooltipProvider>
                 </div>
+
+                <div className="mt-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p>
+                        <strong>Nota:</strong> Si acabas de realizar un cambio en tu repositorio, por favor <strong>espera 5 minutos</strong> antes de verificar o enviar, para asegurar que los cambios se hayan sincronizado correctamente con GitHub.
+                    </p>
+                </div>
+
                 {isCooldownActive && (
                     <div className="mt-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
                         <Loader2 className="h-4 w-4 shrink-0 mt-0.5 animate-spin" />
