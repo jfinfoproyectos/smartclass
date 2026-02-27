@@ -15,79 +15,100 @@ export async function finalizeSubmission(
     analyses: FileAnalysis[],
     description: string,
     missingFiles: string[],
-    userId?: string
+    userId?: string,
+    maxRetries = 3
 ): Promise<GradingResult> {
-    try {
-        const ai = await getGeminiClient(userId);
-        const analysesText = JSON.stringify(analyses, null, 2);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const ai = await getGeminiClient(userId);
+            const analysesText = JSON.stringify(analyses, null, 2);
 
-        const prompt = `
-        Actúa como un evaluador principal. He recibido los análisis individuales de los archivos de un estudiante.
-        Tu tarea es consolidar estos análisis y emitir la nota final y retroalimentación.
-        
-        **REGLAS ESTRICTAS**: 
-        1. Evalúa **EXCLUSIVAMENTE** lo que se solicita en la "Rúbrica". NO supongas que faltan características, manejo de errores, frameworks, o funcionalidades adicionales si no fueron explícitamente solicitadas. 
-        Penaliza ÚNICAMENTE si no se cumplió algo pedido en la rúbrica.
-        2. Al evaluar ejercicios de Java o lenguajes orientados a objetos, **NO penalices** por problemas de dependencias, falta de imports, o clases no definidas en los archivos provistos. Asume que están en el contexto del proyecto. Tampoco evalúes estrictamente la indentación.
-        
-        **Rúbrica**: "${description}"
-        
-        **Análisis de Archivos**:
-        ${analysesText}
-        
-        **Archivos Faltantes (CRÍTICO)**: ${missingFiles.join(", ") || "Ninguno"}
-        
-        **POLÍTICA DE CALIFICACIÓN Y FEEDBACK**:
-        1. Si faltan archivos requeridos, penaliza severamente (Nota máxima 2.0 si faltan archivos clave).
-        2. Promedia la calidad de los archivos existentes en base ÚNICAMENTE a lo solicitado en la rúbrica. No bajes nota por "falta de extras".
-        3. Genera un feedback constructivo y completo. **El contenido de este feedback DEBE estar basado ESTRICTAMENTE en el "Enunciado/Rúbrica" evaluado y los resultados del análisis. No hagas mención ni evalúes aspectos de instrucciones generales que no estén en la rúbrica.**
-        
-        **SALIDA REQUERIDA (JSON)**:
-        {
-            "grade": <Nota final 0.0 - 5.0>,
-            "feedback": "<Markdown estructurado con tabla de requisitos, fortalezas y debilidades>"
+            const prompt = `
+            Actúa como un evaluador principal. He recibido los análisis individuales de los archivos de un estudiante.
+            Tu tarea es consolidar estos análisis y emitir la nota final y retroalimentación.
+            
+            **REGLAS ESTRICTAS**: 
+            1. Evalúa **EXCLUSIVAMENTE** lo que se solicita en la "Rúbrica". NO supongas que faltan características, manejo de errores, frameworks, o funcionalidades adicionales si no fueron explícitamente solicitadas. 
+            Penaliza ÚNICAMENTE si no se cumplió algo pedido en la rúbrica.
+            2. Al evaluar ejercicios de Java o lenguajes orientados a objetos, **NO penalices** por problemas de dependencias, falta de imports, o clases no definidas en los archivos provistos. Asume que están en el contexto del proyecto. Tampoco evalúes estrictamente la indentación.
+            
+            **Rúbrica**: "${description}"
+            
+            **Análisis de Archivos**:
+            ${analysesText}
+            
+            **Archivos Faltantes (CRÍTICO)**: ${missingFiles.join(", ") || "Ninguno"}
+            
+            **POLÍTICA DE CALIFICACIÓN Y FEEDBACK**:
+            1. Si faltan archivos requeridos, penaliza severamente (Nota máxima 2.0 si faltan archivos clave).
+            2. Promedia la calidad de los archivos existentes en base ÚNICAMENTE a lo solicitado en la rúbrica. No bajes nota por "falta de extras".
+            3. Genera un feedback constructivo y completo. **El contenido de este feedback DEBE estar basado ESTRICTAMENTE en el "Enunciado/Rúbrica" evaluado y los resultados del análisis. No hagas mención ni evalúes aspectos de instrucciones generales que no estén en la rúbrica.**
+            
+            **SALIDA REQUERIDA (JSON)**:
+            {
+                "grade": <Nota final 0.0 - 5.0>,
+                "feedback": "<Markdown estructurado con tabla de requisitos, fortalezas y debilidades>"
+            }
+            `;
+
+            const result = await ai.models.generateContent({
+                model: MODEL_NAME,
+                contents: prompt,
+                config: { responseMimeType: "application/json", maxOutputTokens: 8192 }
+            });
+
+            const text = result.text;
+            if (!text) {
+                throw new Error("No response text received from AI");
+            }
+            const json = extractJSON<GradingResult>(text);
+
+            // Repair feedback
+            if (json.feedback) {
+                json.feedback = repairFeedbackText(json.feedback);
+            }
+
+            return json;
+        } catch (error: any) {
+            console.error(`Gemini API Error (Finalize) - Attempt ${attempt}:`, error);
+
+            const errorString = typeof error === 'string' ? error : (error.message || JSON.stringify(error) || "Error desconocido al evaluar.");
+
+            if (
+                errorString.includes("429") ||
+                errorString.toLowerCase().includes("quota") ||
+                errorString.toLowerCase().includes("exhausted") ||
+                errorString.includes("RESOURCE_EXHAUSTED") ||
+                errorString.includes("503") ||
+                errorString.includes("500")
+            ) {
+                if (attempt < maxRetries) {
+                    const delayMs = 4000 * Math.pow(2, attempt - 1);
+                    console.warn(`[GradingService] Rate limit error en finalizeSubmission. Reintentando en ${delayMs}ms (Intento ${attempt}/${maxRetries})...`);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    continue;
+                }
+            }
+
+            let errorMessage = "Error al consolidar la evaluación final.";
+
+            if (errorString.includes("SAFETY")) {
+                errorMessage = "Evaluación detenida por filtros de seguridad.";
+            } else if (
+                errorString.includes("429") ||
+                errorString.toLowerCase().includes("quota") ||
+                errorString.toLowerCase().includes("exhausted") ||
+                errorString.includes("RESOURCE_EXHAUSTED")
+            ) {
+                errorMessage = "Has excedido la cuota gratuita de peticiones a la IA de Gemini.";
+            } else {
+                errorMessage = typeof error.message === 'string' ? error.message : errorMessage;
+            }
+
+            throw new Error(errorMessage);
         }
-        `;
-
-        const result = await ai.models.generateContent({
-            model: MODEL_NAME,
-            contents: prompt,
-            config: { responseMimeType: "application/json", maxOutputTokens: 8192 }
-        });
-
-        const text = result.text;
-        if (!text) {
-            throw new Error("No response text received from AI");
-        }
-        const json = extractJSON<GradingResult>(text);
-
-        // Repair feedback
-        if (json.feedback) {
-            json.feedback = repairFeedbackText(json.feedback);
-        }
-
-        return json;
-    } catch (error: any) {
-        console.error("Gemini API Error (Finalize):", error);
-
-        const errorString = typeof error === 'string' ? error : (error.message || JSON.stringify(error) || "Error desconocido al evaluar.");
-        let errorMessage = "Error al consolidar la evaluación final.";
-
-        if (errorString.includes("SAFETY")) {
-            errorMessage = "Evaluación detenida por filtros de seguridad.";
-        } else if (
-            errorString.includes("429") ||
-            errorString.toLowerCase().includes("quota") ||
-            errorString.toLowerCase().includes("exhausted") ||
-            errorString.includes("RESOURCE_EXHAUSTED")
-        ) {
-            errorMessage = "Has excedido la cuota gratuita de peticiones a la IA de Gemini.";
-        } else {
-            errorMessage = typeof error.message === 'string' ? error.message : errorMessage;
-        }
-
-        throw new Error(errorMessage);
     }
+    throw new Error('Fallback return. This should never be reached.');
 }
 
 /**
@@ -119,7 +140,8 @@ export async function gradeSubmission(
         let accumulatedContext = "";
         let apiRequestsCount = 0;
 
-        for (const path of paths) {
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
             const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, token || undefined);
             if (content) {
                 console.log(`[GradingService] Analyzing file: ${path}`);
@@ -132,6 +154,11 @@ export async function gradeSubmission(
                 // Add this file's summary to the accumulated context for the next files
                 accumulatedContext += `\n- **${path}**: ${analysis.summary}`;
 
+                // DELAY ENTRE ARCHIVOS para no saturar la API de Gemini o GitHub
+                if (i < paths.length - 1) {
+                    console.log(`[GradingService] Pausando 3 segundos antes del siguiente archivo para evitar rate limits...`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                }
             } else {
                 console.error(`[GradingService] Missing file: ${path}`);
                 missingFiles.push(path);

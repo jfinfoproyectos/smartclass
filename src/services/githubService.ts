@@ -22,30 +22,43 @@ export const githubService = {
         }
     },
 
-    async getFileContent(owner: string, repo: string, path: string, token?: string): Promise<string | null> {
-        try {
-            // Use raw.githubusercontent.com for simpler raw content fetching
-            // Format: https://raw.githubusercontent.com/owner/repo/HEAD/path/to/file
-            // Using HEAD to get the default branch's latest version is a safe bet if we don't know the branch
-            const url = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
+    async getFileContent(owner: string, repo: string, path: string, token?: string, retries = 3): Promise<string | null> {
+        const url = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
 
-            const headers: HeadersInit = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const response = await fetch(url, { headers });
 
-            const response = await fetch(url, { headers });
+                if (!response.ok) {
+                    if (response.status === 429 || response.status >= 500) {
+                        if (attempt < retries) {
+                            const delayMs = 1000 * Math.pow(2, attempt - 1); // 1s, 2s
+                            console.warn(`[GitHubService] HTTP ${response.status} en ${path}. Reintentando en ${delayMs}ms (Intento ${attempt}/${retries})...`);
+                            await new Promise(resolve => setTimeout(resolve, delayMs));
+                            continue;
+                        }
+                    }
+                    console.error(`Failed to fetch ${url}: ${response.statusText}`);
+                    return null;
+                }
 
-            if (!response.ok) {
-                console.error(`Failed to fetch ${url}: ${response.statusText}`);
+                return await response.text();
+            } catch (error) {
+                if (attempt < retries) {
+                    const delayMs = 1000 * Math.pow(2, attempt - 1);
+                    console.warn(`[GitHubService] Network error en ${path}. Reintentando en ${delayMs}ms (Intento ${attempt}/${retries})...`);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    continue;
+                }
+                console.error("Error fetching file from GitHub:", error);
                 return null;
             }
-
-            return await response.text();
-        } catch (error) {
-            console.error("Error fetching file from GitHub:", error);
-            return null;
         }
+        return null;
     },
 
     async getRepoStructure(owner: string, repo: string, token?: string): Promise<string[]> {
