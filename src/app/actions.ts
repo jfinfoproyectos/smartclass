@@ -682,14 +682,14 @@ export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
     return { validFiles, missingFiles };
 }
 
-export async function analyzeFileAction(filename: string, content: string, description: string, repoUrl: string) {
+export async function analyzeFileAction(filename: string, content: string, description: string, repoUrl: string, previousContext?: string) {
     const session = await getSession();
     if (!session || session.user.role !== "student") {
         throw new Error("Unauthorized");
     }
 
     const { analyzeFile } = await import("@/services/gemini/codeAnalysisService");
-    return await analyzeFile(filename, content, description, repoUrl, session.user.id);
+    return await analyzeFile(filename, content, description, repoUrl, session.user.id, previousContext);
 }
 
 export async function finalizeSubmissionAction(

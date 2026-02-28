@@ -182,10 +182,14 @@ export const activityService = {
         }
 
         // 3. Upsert submission with grade (if available)
-        // For multiple attempts, keep the highest grade
-        const finalGrade = existingSubmission && existingSubmission.grade !== null && grade !== null
-            ? Math.max(existingSubmission.grade, grade)
+        // For multiple attempts, keep the highest grade AND the feedback from that best attempt
+        const existingGrade = existingSubmission?.grade ?? null;
+        const bestGradeIsExisting = existingGrade !== null && grade !== null && existingGrade > grade;
+        const finalGrade = existingGrade !== null && grade !== null
+            ? Math.max(existingGrade, grade)
             : grade;
+        // Preserve feedback from the attempt with the highest grade
+        const finalFeedback = bestGradeIsExisting ? existingSubmission!.feedback : feedback;
 
         const submission = await prisma.submission.upsert({
             where: {
@@ -197,7 +201,7 @@ export const activityService = {
             update: {
                 url: data.url,
                 grade: finalGrade,
-                feedback: feedback,
+                feedback: finalFeedback,
                 attemptCount: { increment: 1 },
                 lastSubmittedAt: new Date(),
             },

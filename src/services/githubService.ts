@@ -61,36 +61,51 @@ export const githubService = {
         return null;
     },
 
-    async getRepoStructure(owner: string, repo: string, token?: string): Promise<string[]> {
-        try {
-            // Use GitHub API to get the tree
-            // https://api.github.com/repos/OWNER/REPO/git/trees/HEAD?recursive=1
-            const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
+    async getRepoStructure(owner: string, repo: string, token?: string, retries = 3): Promise<string[]> {
+        // Use GitHub API to get the tree
+        // https://api.github.com/repos/OWNER/REPO/git/trees/HEAD?recursive=1
+        const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
 
-            const headers: HeadersInit = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(url, { headers });
-
-            if (!response.ok) {
-                console.error(`Failed to fetch repo structure: ${response.statusText}`);
-                return [];
-            }
-
-            const data = await response.json();
-            if (!data.tree || !Array.isArray(data.tree)) {
-                return [];
-            }
-
-            // Filter only blobs (files), ignore trees (directories)
-            return data.tree
-                .filter((item: any) => item.type === "blob")
-                .map((item: any) => item.path);
-        } catch (error) {
-            console.error("Error fetching repo structure:", error);
-            return [];
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
         }
+
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const response = await fetch(url, { headers });
+
+                if (!response.ok) {
+                    if ((response.status === 429 || response.status >= 500) && attempt < retries) {
+                        const delayMs = 2000 * attempt;
+                        console.warn(`[GitHubService] HTTP ${response.status} en getRepoStructure. Reintentando en ${delayMs}ms (Intento ${attempt}/${retries})...`);
+                        await new Promise(resolve => setTimeout(resolve, delayMs));
+                        continue;
+                    }
+                    console.error(`Failed to fetch repo structure: ${response.statusText}`);
+                    return [];
+                }
+
+                const data = await response.json();
+                if (!data.tree || !Array.isArray(data.tree)) {
+                    return [];
+                }
+
+                // Filter only blobs (files), ignore trees (directories)
+                return data.tree
+                    .filter((item: any) => item.type === "blob")
+                    .map((item: any) => item.path);
+            } catch (error) {
+                if (attempt < retries) {
+                    const delayMs = 2000 * attempt;
+                    console.warn(`[GitHubService] Network error en getRepoStructure. Reintentando en ${delayMs}ms (Intento ${attempt}/${retries})...`);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    continue;
+                }
+                console.error("Error fetching repo structure:", error);
+                return [];
+            }
+        }
+        return [];
     }
 };

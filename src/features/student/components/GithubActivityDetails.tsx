@@ -341,13 +341,18 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
 
             // 2. Analyze each file
             const analyses = [];
-            for (const file of validFiles) {
+            let accumulatedContext = "";
+            for (let i = 0; i < validFiles.length; i++) {
+                const file = validFiles[i];
                 addLog(`🤖 Analizando ${file.path}...`);
                 setProgress(`Analizando ${file.path}...`);
 
                 try {
-                    const analysis = await analyzeFileAction(file.path, file.content, statement, url);
+                    const analysis = await analyzeFileAction(file.path, file.content, statement, url, accumulatedContext || undefined);
                     analyses.push(analysis);
+
+                    // Accumulate context for the next file (mirrors server-side MAP-REDUCE)
+                    accumulatedContext += `\n- **${file.path}**: ${analysis.summary}`;
 
                     if (analysis.scoreContribution > 3) {
                         addLog(`✨ ${file.path}: Buen trabajo (${analysis.scoreContribution.toFixed(1)}/5.0)`);
@@ -360,6 +365,12 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                         analysis.errors.forEach((err: any) => {
                             addLog(`❌ [${file.path}:${err.line || '?'}] ${err.message}`);
                         });
+                    }
+
+                    // Delay between files to avoid Gemini rate limits
+                    if (i < validFiles.length - 1) {
+                        addLog(`⏳ Esperando antes del siguiente archivo...`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
                     }
                 } catch (fileError: any) {
                     addLog(`❌ Error al analizar ${file.path}: ${fileError.message}`);

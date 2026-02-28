@@ -62,7 +62,20 @@ export function extractJSON<T = any>(text: string): T {
         jsonStr = text.substring(firstOpenBrace, lastCloseBrace + 1);
     }
 
-    return JSON.parse(jsonStr);
+    try {
+        return JSON.parse(jsonStr);
+    } catch (primaryError) {
+        // Fallback: try to extract JSON from a markdown code block (```json ... ```)
+        const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (markdownMatch?.[1]) {
+            try {
+                return JSON.parse(markdownMatch[1]);
+            } catch {
+                // Ignore fallback error, throw the original
+            }
+        }
+        throw primaryError;
+    }
 }
 
 /**
