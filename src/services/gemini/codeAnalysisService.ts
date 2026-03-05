@@ -1,13 +1,37 @@
 import { getGeminiClient, MODEL_NAME, extractJSON } from "./client";
+import { githubService } from "../githubService";
 
 export interface FileAnalysis {
     filename: string;
     repoUrl: string;
+    fileUrl: string; // URL directa al archivo en GitHub (blob)
     summary: string;
     strengths: string[];
     weaknesses: string[];
     errors: Array<{ line: number; message: string }>;
     scoreContribution: number;
+}
+
+/**
+ * Construye la URL de GitHub para un archivo específico dentro de un repo.
+ * Ejemplo: https://github.com/owner/repo/blob/HEAD/src/Main.java
+ */
+function buildGitHubFileUrl(repoUrl: string, filename: string): string {
+    try {
+        const repoInfo = githubService.parseGitHubUrl(repoUrl);
+        if (repoInfo) {
+            const { owner, repo, branch } = repoInfo;
+            // Use 'main' as a safer default for web links if HEAD is returned, 
+            // but if a specific branch was detected, use it.
+            const targetBranch = branch === "HEAD" ? "main" : branch;
+
+            // Encode filename parts but keep slashes
+            const encodedFile = filename.split('/').map(part => encodeURIComponent(part)).join('/');
+
+            return `https://github.com/${owner}/${repo}/blob/${targetBranch}/${encodedFile}`;
+        }
+    } catch { }
+    return repoUrl;
 }
 
 /**
@@ -37,6 +61,8 @@ export async function analyzeFile(
                 `;
             }
 
+            const fileUrl = buildGitHubFileUrl(repoUrl, filename);
+
             const prompt = `
             Actúa como un tutor experto y evaluador de código senior.
             Analiza el siguiente archivo de código individualmente con respecto a la rúbrica proporcionada.
@@ -49,13 +75,14 @@ export async function analyzeFile(
             **Rúbrica/Enunciado**: "${description}"
             ${contextSection}
             **Archivo a evaluar**: ${filename}
+            **URL directa del archivo en GitHub**: ${fileUrl}
             **Contenido**:
             ${content}
             
             **TAREA**:
             1. Identifica qué requisitos de la rúbrica se cumplen en este archivo evaluado.
             2. Evalúa la calidad del código (limpieza, lógica, eficiencia) PERO solo en el contexto de lo solicitado.
-            3. Detecta errores específicos CON EL NÚMERO DE LÍNEA EXACTO, pero solo penaliza errores reales o cosas que incumplan la rúbrica (no penalices por "falta de extras").
+            3. Detecta errores específicos CON EL NÚMERO DE LÍNEA EXACTO. Para cada error usa el formato de enlace markdown: [Ver línea N](${fileUrl}#LN) donde N es el número de línea exacto.
             
             **SALIDA REQUERIDA (JSON)**:
             {
@@ -64,7 +91,7 @@ export async function analyzeFile(
                 "strengths": ["Punto fuerte 1", "Punto fuerte 2"],
                 "weaknesses": ["Debilidad 1", "Debilidad 2"],
                 "errors": [
-                    { "line": <número de línea EXACTO (obligatorio)>, "message": "Descripción del error" }
+                    { "line": <número de línea EXACTO (obligatorio)>, "message": "Descripción del error — [Ver línea N](${fileUrl}#LN)" }
                 ],
                 "scoreContribution": <0.0 a 5.0, estimación de calidad de este archivo>
             }
@@ -90,8 +117,9 @@ export async function analyzeFile(
                 throw new Error(`Error al analizar el archivo ${filename}: JSON inválido generado por la IA. ${parseError.message}`);
             }
 
-            // Add repoUrl to the analysis
+            // Add repoUrl and fileUrl to the analysis
             analysis.repoUrl = repoUrl;
+            analysis.fileUrl = fileUrl;
             return analysis;
         } catch (error: any) {
             const errorString = typeof error === 'string' ? error : (error.message || JSON.stringify(error) || "");
@@ -121,6 +149,7 @@ export async function analyzeFile(
             return {
                 filename,
                 repoUrl,
+                fileUrl: buildGitHubFileUrl(repoUrl, filename),
                 summary: `Error al analizar este archivo: ${error.message || errorString}`,
                 strengths: [],
                 weaknesses: [`No se pudo analizar debido a un error: ${error.message || errorString}`],

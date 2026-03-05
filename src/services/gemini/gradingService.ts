@@ -9,75 +9,108 @@ export interface GradingResult {
 }
 
 /**
- * Finalize submission by consolidating individual file analyses (REDUCE phase)
+ * Finalize submission by consolidating individual file analyses (REDUCE phase).
+ *
+ * GRADING FORMULA (deterministic, server-side):
+ *   grade = sum(scoreContribution per analyzed file) / totalExpectedFiles
+ *   Missing files contribute 0 to the sum.
+ *   Result clamped to [0.0, 5.0], rounded to 1 decimal.
  */
 export async function finalizeSubmission(
     analyses: FileAnalysis[],
     description: string,
     missingFiles: string[],
     userId?: string,
+    totalExpectedFiles?: number,  // total files expected (found + missing)
     maxRetries = 3
 ): Promise<GradingResult> {
+
+    // ── SERVER-SIDE GRADE FORMULA ─────────────────────────────────────────────
+    const expectedTotal = totalExpectedFiles ?? (analyses.length + missingFiles.length);
+    const scoreSum = analyses.reduce((sum, a) => sum + (a.scoreContribution ?? 0), 0);
+    // Missing files add 0 — no extra action needed.
+    const computedGrade = expectedTotal > 0
+        ? Math.min(5.0, Math.max(0.0, Math.round((scoreSum / expectedTotal) * 10) / 10))
+        : 0.0;
+
+    console.log(`[GradingService] Grade formula: sum=${scoreSum.toFixed(2)} / total=${expectedTotal} = ${computedGrade}`);
+
+    // ── FEEDBACK GENERATION (Gemini generates text only, NOT the grade) ───────
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const ai = await getGeminiClient(userId);
 
-            // COMPACT analyses to avoid Gemini token limit issues for repositories with many files
             const compactAnalyses = analyses.map(a => ({
                 filename: a.filename,
+                fileUrl: a.fileUrl,
                 summary: a.summary,
                 errors: a.errors,
                 scoreContribution: a.scoreContribution
             }));
 
+            const missingEntries = missingFiles.map(f => ({ filename: f, scoreContribution: 0, note: "ARCHIVO FALTANTE" }));
+
             const analysesText = JSON.stringify(compactAnalyses, null, 2);
+            const missingText = missingEntries.length > 0 ? JSON.stringify(missingEntries, null, 2) : "Ninguno";
 
             const prompt = `
-            Actúa como un evaluador principal. He recibido los análisis individuales de los archivos de un estudiante.
-            Tu tarea es consolidar estos análisis y emitir la nota final y retroalimentación.
-            
-            **REGLAS ESTRICTAS**: 
-            1. Evalúa **EXCLUSIVAMENTE** lo que se solicita en la "Rúbrica". NO supongas que faltan características, manejo de errores, frameworks, o funcionalidades adicionales si no fueron explícitamente solicitadas. 
-            Penaliza ÚNICAMENTE si no se cumplió algo pedido en la rúbrica.
-            2. Al evaluar ejercicios de Java o lenguajes orientados a objetos, **NO penalices** por problemas de dependencias, falta de imports, o clases no definidas en los archivos provistos. Asume que están en el contexto del proyecto. Tampoco evalúes estrictamente la indentación.
-            
+            Actúa como un evaluador principal. Tu tarea es generar únicamente el texto de retroalimentación.
+            La nota ya fue calculada matemáticamente por el servidor — NO la cambies.
+
+            **REGLAS ESTRICTAS**:
+            1. Evalúa EXCLUSIVAMENTE lo que se solicita en la "Rúbrica". No penalices por extras no pedidos.
+            2. No penalices por dependencias, imports faltantes o indentación.
+
             **Rúbrica**: "${description}"
-            
-            **Análisis de Archivos**:
+
+            **Nota final calculada**: ${computedGrade.toFixed(1)} / 5.0
+            (suma de notas por archivo ${scoreSum.toFixed(2)} / ${expectedTotal} archivos esperados)
+
+            **Archivos analizados** (incluye fileUrl — URL directa al archivo en GitHub):
             ${analysesText}
-            
-            **Archivos Faltantes (CRÍTICO)**: ${missingFiles.join(", ") || "Ninguno"}
-            
-            **POLÍTICA DE CALIFICACIÓN Y FEEDBACK**:
-            1. Si faltan archivos requeridos, penaliza severamente (Nota máxima 2.0 si faltan archivos clave).
-            2. Promedia la calidad de los archivos existentes en base ÚNICAMENTE a lo solicitado en la rúbrica. No bajes nota por "falta de extras".
-            3. Genera un feedback constructivo y completo. **El contenido de este feedback DEBE estar basado ESTRICTAMENTE en el "Enunciado/Rúbrica" evaluado y los resultados del análisis. No hagas mención ni evalúes aspectos de instrucciones generales que no estén en la rúbrica.**
-            
-            **SALIDA REQUERIDA (JSON)**:
-            {
-                "grade": <Nota final 0.0 - 5.0>,
-                "feedback": "<Markdown estructurado con tabla de requisitos, fortalezas y debilidades>"
-            }
+
+            **Archivos faltantes** (nota 0 por cada uno):
+            ${missingText}
+
+            **INSTRUCCIONES PARA EL FEEDBACK**:
+            1. Inicia con una tabla: | Archivo | Nota /5 | Estado |
+            2. Por cada archivo encontrado: menciona fortalezas y errores clave desde el análisis.
+            3. Por cada archivo faltante: indica nota 0.
+            4. Muestra la nota final ${computedGrade.toFixed(1)} / 5.0 y cómo se calculó.
+            5. ENLACES: cada mención de archivo debe llevar enlace Markdown con la fileUrl:
+               - Archivo: [nombre](fileUrl)
+               - Línea: [archivo#L42](fileUrl#L42)
+            6. Cierra con recomendaciones concretas para mejorar.
+
+            **SALIDA REQUERIDA**:
+            Devuelve ÚNICAMENTE el texto en formato Markdown. NO uses JSON. No envuelvas tu respuesta con bloques \`\`\`json. Escribe la retroalimentación directamente.
             `;
 
             const result = await ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: prompt,
-                config: { responseMimeType: "application/json", maxOutputTokens: 8192 }
+                config: { maxOutputTokens: 8192 } // No responseMimeType
             });
 
-            const text = result.text;
+            let text = result.text;
             if (!text) {
                 throw new Error("No response text received from AI");
             }
-            const json = extractJSON<GradingResult>(text);
 
-            // Repair feedback
-            if (json.feedback) {
-                json.feedback = repairFeedbackText(json.feedback);
+            // Clean up if the AI still wrapped it in generic markdown blocks
+            if (text.startsWith("\`\`\`markdown")) {
+                text = text.replace(/^\`\`\`markdown\n/, "").replace(/\n\`\`\`$/, "");
+            } else if (text.startsWith("\`\`\`")) {
+                text = text.replace(/^\`\`\`\n/, "").replace(/\n\`\`\`$/, "");
             }
 
-            return json;
+            let feedbackValue = repairFeedbackText(text);
+
+            // Return with the SERVER-computed grade — Gemini does NOT decide the grade
+            return {
+                grade: computedGrade,
+                feedback: feedbackValue || "Sin retroalimentación disponible."
+            };
         } catch (error: any) {
             console.error(`Gemini API Error (Finalize) - Attempt ${attempt}:`, error);
 
@@ -93,7 +126,7 @@ export async function finalizeSubmission(
             ) {
                 if (attempt < maxRetries) {
                     const delayMs = 4000 * Math.pow(2, attempt - 1);
-                    console.warn(`[GradingService] Rate limit error en finalizeSubmission. Reintentando en ${delayMs}ms (Intento ${attempt}/${maxRetries})...`);
+                    console.warn(`[GradingService] Rate limit en finalizeSubmission. Reintentando en ${delayMs}ms (${attempt}/${maxRetries})...`);
                     await new Promise(resolve => setTimeout(resolve, delayMs));
                     continue;
                 }
@@ -175,8 +208,8 @@ export async function gradeSubmission(
         }
 
         // REDUCE STEP: Consolidate analyses into final grade
-        console.log(`[GradingService] Finalizing submission with ${analyses.length} analyses.`);
-        const finalResult = await finalizeSubmission(analyses, description, missingFiles, userId);
+        console.log(`[GradingService] Finalizing submission with ${analyses.length} analyses, ${missingFiles.length} missing.`);
+        const finalResult = await finalizeSubmission(analyses, description, missingFiles, userId, paths.length);
         apiRequestsCount++;
         finalResult.apiRequestsCount = apiRequestsCount;
 

@@ -13,17 +13,23 @@ export const githubService = {
                 repo = repo.slice(0, -4);
             }
 
-            // Simple assumption: if no tree/branch specified, use default (handled by API usually, or we default to main/master)
-            // If user provides a direct file link (blob), we might need to handle that too, but for now let's assume repo root + file paths from activity config
+            let branch = "HEAD"; // Default
 
-            return { owner, repo };
+            // If URL contains /tree/branch or /blob/branch
+            if (pathParts.length >= 4 && (pathParts[2] === "tree" || pathParts[2] === "blob")) {
+                branch = pathParts[3];
+            }
+
+            return { owner, repo, branch };
         } catch (e) {
             return null;
         }
     },
 
-    async getFileContent(owner: string, repo: string, path: string, token?: string, retries = 3): Promise<string | null> {
-        const url = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
+    async getFileContent(owner: string, repo: string, path: string, branch: string = "HEAD", token?: string, retries = 3): Promise<string | null> {
+        // Use encodeURIComponent for each part of the path separately to avoid breaking slashes
+        const encodedPath = path.split('/').map(part => encodeURIComponent(part)).join('/');
+        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${encodedPath}`;
         const headers: HeadersInit = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;

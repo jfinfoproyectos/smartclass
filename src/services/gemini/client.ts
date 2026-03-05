@@ -62,14 +62,29 @@ export function extractJSON<T = any>(text: string): T {
         jsonStr = text.substring(firstOpenBrace, lastCloseBrace + 1);
     }
 
+    // Sanitize common LLM JSON errors:
+    // 1. Literal control characters (like raw newlines, tabs) inside string values
+    // This regex finds content between double quotes and replaces literal newlines/tabs with escapes
+    const sanitize = (str: string) => {
+        return str.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, content) => {
+            // Replace raw control characters (0-31) with their escaped versions
+            const escaped = content
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t')
+                .replace(/[\x00-\x1f]/g, (ch: string) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`);
+            return `"${escaped}"`;
+        });
+    };
+
     try {
-        return JSON.parse(jsonStr);
+        return JSON.parse(sanitize(jsonStr));
     } catch (primaryError) {
         // Fallback: try to extract JSON from a markdown code block (```json ... ```)
         const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (markdownMatch?.[1]) {
             try {
-                return JSON.parse(markdownMatch[1]);
+                return JSON.parse(sanitize(markdownMatch[1]));
             } catch {
                 // Ignore fallback error, throw the original
             }
