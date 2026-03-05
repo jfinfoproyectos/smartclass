@@ -21,7 +21,16 @@ export async function finalizeSubmission(
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const ai = await getGeminiClient(userId);
-            const analysesText = JSON.stringify(analyses, null, 2);
+
+            // COMPACT analyses to avoid Gemini token limit issues for repositories with many files
+            const compactAnalyses = analyses.map(a => ({
+                filename: a.filename,
+                summary: a.summary,
+                errors: a.errors,
+                scoreContribution: a.scoreContribution
+            }));
+
+            const analysesText = JSON.stringify(compactAnalyses, null, 2);
 
             const prompt = `
             Actúa como un evaluador principal. He recibido los análisis individuales de los archivos de un estudiante.

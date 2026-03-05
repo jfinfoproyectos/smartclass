@@ -5,6 +5,8 @@ import { courseService } from "@/services/courseService";
 import { profileService } from "@/services/profileService";
 import { ActivityDetails } from "@/features/student/ActivityDetails";
 
+export const maxDuration = 60; // Increase Vercel timeout to 60s for Gemini API calls
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const session = await auth.api.getSession({ headers: await headers() });
