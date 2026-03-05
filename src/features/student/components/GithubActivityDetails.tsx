@@ -5,15 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, ExternalLink, CheckCircle, Download } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, CheckCircle, Download, Send } from "lucide-react";
 import { format } from "date-fns";
 import { FeedbackViewer } from "../FeedbackViewer";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
-import { fetchRepoFilesAction, analyzeFileAction, finalizeSubmissionAction } from "@/app/actions";
+import { fetchRepoFilesAction, submitGithubActivityAction } from "@/app/actions";
 import { useReactToPrint } from 'react-to-print';
 import { ActivityReportTemplate } from '../ActivityReportTemplate';
 import MDEditor from '@uiw/react-md-editor';
@@ -21,6 +20,14 @@ import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useTheme } from "next-themes";
 import { useCooldown } from "@/hooks/use-cooldown";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface GithubActivityDetailsProps {
     activity: any;
@@ -57,6 +64,9 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
 
     const mode = mounted ? (resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto") : "light";
 
+    // Un nuevo intento solo está disponible si ya se calificó el intento anterior
+    const canAttemptAgain = attemptCount < maxAttempts && isGraded;
+
     return (
         <div className="space-y-6 w-full p-4 sm:p-6">
             <div className="flex flex-col gap-2">
@@ -79,7 +89,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                     {isGraded ? (
                                         <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Calificado</Badge>
                                     ) : isSubmitted ? (
-                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Enviado</Badge>
+                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Enviado — Pendiente de calificación</Badge>
                                     ) : (
                                         <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100">Pendiente</Badge>
                                     )}
@@ -128,7 +138,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                             <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 rounded-md flex items-start gap-2">
                                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                                 <p className="text-xs">
-                                    <strong>Nota importante:</strong> Tienes {maxAttempts} intentos disponibles. Se guardará automáticamente la nota más alta que obtengas entre todos tus intentos.
+                                    <strong>Intentos disponibles:</strong> Tienes {maxAttempts} intentos en total. El siguiente intento se habilitará únicamente después de que el profesor califique tu entrega actual.
                                 </p>
                             </div>
                         )}
@@ -155,25 +165,39 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                     </a>
                                 </div>
 
-                                {attemptCount < maxAttempts && (
+                                {!isGraded && (
+                                    <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300 rounded-md flex items-start gap-2">
+                                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                        <p className="text-xs">
+                                            Tu entrega fue recibida exitosamente. El profesor la revisará y asignará una calificación pronto.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {canAttemptAgain && (
                                     <div className="mt-6 pt-6 border-t">
                                         <h4 className="text-sm font-medium mb-4">Nueva Entrega (Intento {attemptCount + 1})</h4>
                                         <SubmissionForm
                                             activityId={activity.id}
-                                            statement={activity.statement || ""}
                                             filePaths={activity.filePaths || ""}
-                                            onEvaluationComplete={() => setActiveTab("feedback")}
                                             lastSubmittedAt={submission.lastSubmittedAt}
                                         />
+                                    </div>
+                                )}
+
+                                {!canAttemptAgain && attemptCount < maxAttempts && !isGraded && maxAttempts > 1 && (
+                                    <div className="p-3 bg-muted/50 border rounded-md flex items-start gap-2">
+                                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+                                        <p className="text-xs text-muted-foreground">
+                                            El siguiente intento se habilitará una vez que el profesor haya calificado tu entrega actual.
+                                        </p>
                                     </div>
                                 )}
                             </div>
                         ) : (
                             <SubmissionForm
                                 activityId={activity.id}
-                                statement={activity.statement || ""}
                                 filePaths={activity.filePaths || ""}
-                                onEvaluationComplete={() => setActiveTab("feedback")}
                                 lastSubmittedAt={null}
                             />
                         )}
@@ -215,7 +239,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                             Archivos Requeridos para Evaluación
                                         </h4>
                                         <p className="text-xs text-muted-foreground mb-3">
-                                            El sistema buscará y evaluará estrictamente los siguientes archivos en tu repositorio. Asegúrate de que existan y tengan el nombre correcto.
+                                            El sistema buscará los siguientes archivos en tu repositorio al momento de la entrega. Asegúrate de que existan y tengan el nombre correcto.
                                         </p>
                                         <ul className="space-y-2">
                                             {activity.filePaths.split(',').map((path: string, index: number) => (
@@ -242,7 +266,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                             <CardHeader>
                                 <CardTitle>Rúbrica / Trabajo a Realizar</CardTitle>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    Este es el <strong>trabajo específico que debes realizar</strong> y los criterios bajo los cuales la inteligencia artificial evaluará y calificará tu entrega.
+                                    Este es el <strong>trabajo específico que debes realizar</strong> y los criterios bajo los cuales el profesor evaluará tu entrega.
                                 </p>
                             </CardHeader>
                             <CardContent>
@@ -258,7 +282,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                             <CardHeader>
                                 <CardTitle>Resultado de la Evaluación</CardTitle>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    Aquí encontrarás los comentarios detallados, fortalezas, debilidades y la calificación asignada a tu entrega después de ser evaluada.
+                                    Aquí encontrarás los comentarios detallados y la calificación asignada a tu entrega por el profesor.
                                 </p>
                             </CardHeader>
                             <CardContent>
@@ -268,6 +292,7 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                                     <div className="text-center py-8 text-muted-foreground">
                                         <p>Aún no hay retroalimentación disponible para esta actividad.</p>
                                         {!isSubmitted && <p className="text-sm mt-2">Debes realizar una entrega para recibir retroalimentación.</p>}
+                                        {isSubmitted && !isGraded && <p className="text-sm mt-2">Tu entrega está siendo revisada por el profesor.</p>}
                                     </div>
                                 )}
                             </CardContent>
@@ -279,214 +304,116 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
     );
 }
 
-function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete, lastSubmittedAt }: { activityId: string, statement: string, filePaths: string, onEvaluationComplete?: () => void, lastSubmittedAt?: string | Date | null }) {
-    const [status, setStatus] = useState<'idle' | 'grading' | 'success' | 'error'>('idle');
-    const [progress, setProgress] = useState<string>("");
-    const [logs, setLogs] = useState<string[]>([]);
-    const [apiRequests, setApiRequests] = useState<number | null>(null);
+function SubmissionForm({
+    activityId,
+    filePaths,
+    lastSubmittedAt
+}: {
+    activityId: string;
+    filePaths: string;
+    lastSubmittedAt?: string | Date | null;
+}) {
+    const [repoUrl, setRepoUrl] = useState("");
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [verificationResult, setVerificationResult] = useState<{ valid: string[]; missing: string[] } | null>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Verification State
-    const [repoUrl, setRepoUrl] = useState<string>("");
-    const [isVerifying, setIsVerifying] = useState<boolean>(false);
-    const [verificationResult, setVerificationResult] = useState<{ valid: string[], missing: string[] } | null>(null);
 
     const router = useRouter();
     const { isCooldownActive, remainingTime } = useCooldown(lastSubmittedAt, 5);
 
-    const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
+    async function handleVerifyAndShowConfirm() {
+        if (!repoUrl.trim()) {
+            setError("Por favor ingresa la URL del repositorio.");
+            return;
+        }
 
-    async function handleVerifyFiles() {
-        if (!repoUrl) return;
+        setError(null);
         setIsVerifying(true);
         setVerificationResult(null);
-        setError(null);
+
         try {
             const { validFiles, missingFiles } = await fetchRepoFilesAction(repoUrl, filePaths);
             setVerificationResult({
                 valid: validFiles.map(f => f.path),
                 missing: missingFiles
             });
+            setShowConfirmDialog(true);
         } catch (err: any) {
-            console.error("Verification error:", err);
-            setError(err.message || "Error al verificar el repositorio");
+            setError(err.message || "Error al verificar el repositorio. Verifica que la URL sea correcta y el repositorio sea público.");
         } finally {
             setIsVerifying(false);
         }
     }
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        const url = formData.get("url") as string;
-
-        if (!url) return;
-
-        setStatus('grading');
+    async function handleConfirmSubmit() {
+        setIsSubmitting(true);
         setError(null);
-        setLogs([]);
-        setApiRequests(null);
-        setProgress("Iniciando evaluación...");
 
         try {
-            // 1. Fetch files
-            addLog("🔍 Buscando archivos en el repositorio...");
-            const { validFiles, missingFiles } = await fetchRepoFilesAction(url, filePaths);
-
-            if (validFiles.length === 0 && missingFiles.length > 0) {
-                throw new Error(`No se encontraron archivos requeridos: ${missingFiles.join(", ")}`);
-            }
-
-            addLog(`✅ Encontrados ${validFiles.length} archivos. Faltantes: ${missingFiles.length}`);
-
-            // 2. Analyze each file
-            const analyses = [];
-            let accumulatedContext = "";
-            for (let i = 0; i < validFiles.length; i++) {
-                const file = validFiles[i];
-                addLog(`🤖 Analizando ${file.path}...`);
-                setProgress(`Analizando ${file.path}...`);
-
-                try {
-                    const analysis = await analyzeFileAction(file.path, file.content, statement, url, accumulatedContext || undefined);
-                    analyses.push(analysis);
-
-                    // Accumulate context for the next file (mirrors server-side MAP-REDUCE)
-                    accumulatedContext += `\n- **${file.path}**: ${analysis.summary}`;
-
-                    if (analysis.scoreContribution > 3) {
-                        addLog(`✨ ${file.path}: Buen trabajo (${analysis.scoreContribution.toFixed(1)}/5.0)`);
-                    } else {
-                        addLog(`⚠️ ${file.path}: Requiere mejoras (${analysis.scoreContribution.toFixed(1)}/5.0)`);
-                    }
-
-                    // Show errors if any
-                    if (analysis.errors && analysis.errors.length > 0) {
-                        analysis.errors.forEach((err: any) => {
-                            addLog(`❌ [${file.path}:${err.line || '?'}] ${err.message}`);
-                        });
-                    }
-
-                    // Delay between files to avoid Gemini rate limits
-                    if (i < validFiles.length - 1) {
-                        addLog(`⏳ Esperando antes del siguiente archivo...`);
-                        await new Promise(resolve => setTimeout(resolve, 3000));
-                    }
-                } catch (fileError: any) {
-                    addLog(`❌ Error al analizar ${file.path}: ${fileError.message}`);
-
-                    // Detener todo si es un error de cuota de Gemini
-                    if (fileError.message && (fileError.message.includes("429") || fileError.message.toLowerCase().includes("cuota"))) {
-                        throw fileError;
-                    }
-
-                    // Continue with other files even if one fails
-                    analyses.push({
-                        filename: file.path,
-                        repoUrl: url,
-                        summary: `Error al analizar: ${fileError.message}`,
-                        strengths: [],
-                        weaknesses: [`Error de análisis: ${fileError.message}`],
-                        errors: [],
-                        scoreContribution: 0
-                    });
-                }
-            }
-
-            // 3. Finalize
-            addLog("🏁 Calculando nota final...");
-            setProgress("Finalizando evaluación...");
-            const finalResult = await finalizeSubmissionAction(activityId, url, analyses, statement, missingFiles);
-
-            if (finalResult?.apiRequestsCount) {
-                setApiRequests(finalResult.apiRequestsCount);
-            }
-
-            setStatus('success');
-            addLog("🎉 Evaluación completada exitosamente.");
-
-            // Call the callback to switch to feedback tab
-            if (onEvaluationComplete) {
-                setTimeout(() => {
-                    onEvaluationComplete();
-                }, 1000); // Small delay to let user see success message
-            }
-
+            await submitGithubActivityAction(activityId, repoUrl);
+            setShowConfirmDialog(false);
+            setSubmitSuccess(true);
             router.refresh();
         } catch (err: any) {
-            console.error(err);
-            setStatus('error');
-            setError(err.message || "Ocurrió un error inesperado");
-            addLog(`❌ Error: ${err.message}`);
+            setError(err.message || "Error al realizar la entrega.");
+            setShowConfirmDialog(false);
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
+    if (submitSuccess) {
+        return (
+            <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-lg flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 shrink-0" />
+                    <p className="font-medium">¡Entrega realizada exitosamente!</p>
+                </div>
+                <p className="text-xs ml-7">Tu repositorio fue registrado. El profesor lo revisará y asignará una calificación pronto.</p>
+            </div>
+        );
+    }
+
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="url">URL del Repositorio GitHub</Label>
+                <Label htmlFor="repo-url">URL del Repositorio GitHub</Label>
                 <div className="flex flex-col sm:flex-row gap-2">
                     <Input
-                        id="url"
-                        name="url"
+                        id="repo-url"
                         placeholder="https://github.com/usuario/repositorio"
-                        required
-                        disabled={status === 'grading' || isVerifying || isCooldownActive}
+                        disabled={isVerifying || isCooldownActive}
                         className="flex-1"
                         value={repoUrl}
                         onChange={(e) => setRepoUrl(e.target.value)}
                     />
-                    <TooltipProvider delayDuration={200}>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={handleVerifyFiles}
-                                        disabled={status === 'grading' || isVerifying || !repoUrl || isCooldownActive}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        {isVerifying ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Buscando
-                                            </>
-                                        ) : (
-                                            "Verificar Archivos"
-                                        )}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="max-w-[200px]">Simula la búsqueda en el repositorio para comprobar si el sistema encuentra todos los archivos requeridos antes de la entrega final.</p>
-                                </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button type="submit" disabled={status === 'grading' || isVerifying || isCooldownActive} className="w-full sm:w-auto">
-                                        {status === 'grading' ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Evaluando
-                                            </>
-                                        ) : (
-                                            "Entregar Tarea"
-                                        )}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="max-w-[200px]">Envía definitivamente tu repositorio para evaluación automática por la IA. Esto consumirá un intento.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </div>
-                    </TooltipProvider>
+                    <Button
+                        type="button"
+                        onClick={handleVerifyAndShowConfirm}
+                        disabled={isVerifying || !repoUrl.trim() || isCooldownActive}
+                        className="w-full sm:w-auto gap-2"
+                    >
+                        {isVerifying ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Verificando...
+                            </>
+                        ) : (
+                            <>
+                                <Send className="h-4 w-4" />
+                                Entregar
+                            </>
+                        )}
+                    </Button>
                 </div>
 
                 <div className="mt-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                     <p>
-                        <strong>Nota:</strong> Si acabas de realizar un cambio en tu repositorio, por favor <strong>espera 5 minutos</strong> antes de verificar o enviar, para asegurar que los cambios se hayan sincronizado correctamente con GitHub.
+                        <strong>Nota:</strong> Si acabas de realizar un cambio en tu repositorio, por favor <strong>espera 5 minutos</strong> antes de entregar, para asegurar que los cambios se hayan sincronizado correctamente con GitHub.
                     </p>
                 </div>
 
@@ -499,75 +426,109 @@ function SubmissionForm({ activityId, statement, filePaths, onEvaluationComplete
                     </div>
                 )}
 
-                {verificationResult && (
-                    <div className="mt-2 p-3 bg-muted/30 border rounded-md text-sm space-y-2">
-                        <p className="font-semibold text-xs text-muted-foreground uppercase">Resultado de Verificación de Archivos:</p>
-                        {verificationResult.valid.length > 0 && (
-                            <div>
-                                <p className="text-green-600 font-medium flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> Archivos encontrados ({verificationResult.valid.length}):</p>
-                                <ul className="list-disc pl-5 text-xs mt-1 text-muted-foreground">
-                                    {verificationResult.valid.map(file => <li key={file}>{file}</li>)}
-                                </ul>
-                            </div>
-                        )}
-                        {verificationResult.missing.length > 0 ? (
-                            <div className="mt-2">
-                                <p className="text-destructive font-medium flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Archivos faltantes ({verificationResult.missing.length}):</p>
-                                <ul className="list-disc pl-5 text-xs mt-1 text-destructive/80">
-                                    {verificationResult.missing.map(file => <li key={`missing-${file}`}>{file}</li>)}
-                                </ul>
-                                <p className="text-xs text-destructive/80 mt-1 italic font-medium">⚠️ Si envías la entrega así, los archivos faltantes recibirán calificación de 0.</p>
-                            </div>
-                        ) : (
-                            <div className="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded text-green-700 flex items-start gap-2">
-                                <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                                <p className="text-xs font-medium leading-relaxed">¡Excelente! Todos los archivos requeridos fueron encontrados en tu repositorio. Puedes realizar la entrega final con confianza.</p>
-                            </div>
-                        )}
+                {error && (
+                    <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 text-red-600 rounded-md flex items-start gap-2 text-sm">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <p>{error}</p>
                     </div>
                 )}
+
                 <p className="text-xs text-muted-foreground">
                     Asegúrate de que el repositorio sea público o que el sistema tenga acceso.
                 </p>
             </div>
 
-            {status === 'grading' && (
-                <div className="p-4 bg-muted rounded-lg space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-blue-600 wrap-break-word">
-                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                        <span className="wrap-break-word">{progress}</span>
-                    </div>
-                    <div className="space-y-1 max-h-40 overflow-y-auto text-xs font-mono bg-background p-2 rounded border">
-                        {logs.map((log, i) => (
-                            <div key={i} className="wrap-break-word">{log}</div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            {/* Diálogo de Confirmación de Entrega */}
+            <Dialog open={showConfirmDialog} onOpenChange={(open) => { if (!isSubmitting) setShowConfirmDialog(open); }}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Confirmar Entrega</DialogTitle>
+                        <DialogDescription>
+                            Revisa el siguiente informe antes de confirmar tu entrega. Esta acción consumirá un intento.
+                        </DialogDescription>
+                    </DialogHeader>
 
-            {status === 'error' && (
-                <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-start gap-2 text-sm">
-                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                    <div>
-                        <p className="font-medium">Error en la evaluación</p>
-                        <p>{error}</p>
-                    </div>
-                </div>
-            )}
+                    <div className="space-y-4 py-2">
+                        {/* Informe de verificación */}
+                        {verificationResult && (
+                            <div className="p-3 bg-muted/30 border rounded-md text-sm space-y-3">
+                                <p className="font-semibold text-xs text-muted-foreground uppercase">Informe de Verificación de Archivos</p>
 
-            {status === 'success' && (
-                <div className="p-4 bg-green-50 text-green-600 rounded-lg flex flex-col gap-1 text-sm border border-green-200">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5" />
-                        <p className="font-medium">¡Entrega evaluada correctamente!</p>
+                                {verificationResult.valid.length > 0 && (
+                                    <div>
+                                        <p className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1 text-xs">
+                                            <CheckCircle className="h-3.5 w-3.5" />
+                                            Archivos encontrados ({verificationResult.valid.length}):
+                                        </p>
+                                        <ul className="list-disc pl-5 text-xs mt-1 text-muted-foreground space-y-0.5">
+                                            {verificationResult.valid.map(file => (
+                                                <li key={file}><code className="font-mono">{file}</code></li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {verificationResult.missing.length > 0 ? (
+                                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-md">
+                                        <p className="text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1 text-xs">
+                                            <AlertCircle className="h-3.5 w-3.5" />
+                                            ⚠️ Archivos NO encontrados ({verificationResult.missing.length}):
+                                        </p>
+                                        <ul className="list-disc pl-5 text-xs mt-1 text-amber-700/80 dark:text-amber-400/80 space-y-0.5">
+                                            {verificationResult.missing.map(file => (
+                                                <li key={`missing-${file}`}><code className="font-mono">{file}</code></li>
+                                            ))}
+                                        </ul>
+                                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 font-medium">
+                                            Puedes entregar aunque falten archivos, pero el profesor los tendrá en cuenta al calificar.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="p-2 bg-green-500/10 border border-green-500/20 rounded text-green-700 dark:text-green-400 flex items-start gap-2">
+                                        <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                        <p className="text-xs font-medium leading-relaxed">¡Todos los archivos requeridos fueron encontrados! Tu entrega está completa.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded border">
+                            <strong>Repositorio a entregar:</strong>{" "}
+                            <a href={repoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                                {repoUrl}
+                            </a>
+                        </div>
                     </div>
-                    {apiRequests !== null && (
-                        <p className="text-xs text-green-700 ml-7">
-                            Peticiones a la API de Gemini: {apiRequests}
-                        </p>
-                    )}
-                </div>
-            )}
-        </form>
+
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowConfirmDialog(false)}
+                            disabled={isSubmitting}
+                            className="w-full sm:w-auto"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleConfirmSubmit}
+                            disabled={isSubmitting}
+                            className="w-full sm:w-auto gap-2"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Enviando...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="h-4 w-4" />
+                                    Confirmar Entrega
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }

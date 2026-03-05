@@ -656,7 +656,7 @@ export async function scanRepositoryAction(repoUrl: string) {
 
 export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
     const session = await getSession();
-    if (!session || session.user.role !== "student") {
+    if (!session || (session.user.role !== "student" && session.user.role !== "teacher")) {
         throw new Error("Unauthorized");
     }
 
@@ -684,7 +684,7 @@ export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
 
 export async function analyzeFileAction(filename: string, content: string, description: string, repoUrl: string, previousContext?: string) {
     const session = await getSession();
-    if (!session || session.user.role !== "student") {
+    if (!session || (session.user.role !== "student" && session.user.role !== "teacher")) {
         throw new Error("Unauthorized");
     }
 
@@ -692,45 +692,144 @@ export async function analyzeFileAction(filename: string, content: string, descr
     return await analyzeFile(filename, content, description, repoUrl, session.user.id, previousContext);
 }
 
-export async function finalizeSubmissionAction(
-    activityId: string,
-    repoUrl: string,
-    analyses: any[],
-    description: string,
-    missingFiles: string[]
-) {
+// Entrega simple de actividad GitHub (sin calificación con Gemini)
+export async function submitGithubActivityAction(activityId: string, repoUrl: string) {
     const session = await getSession();
     if (!session || session.user.role !== "student") {
         throw new Error("Unauthorized");
     }
 
+    const submission = await activityService.submitActivity({
+        url: repoUrl,
+        activityId,
+        userId: session.user.id,
+        // Sin grade ni feedback — el profesor lo asignará
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    const activity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        select: { title: true }
+    });
+
+    await auditLogger.logSubmission(
+        submission.id,
+        activity?.title || "Actividad",
+        session.user.id,
+        session.user.name || "Estudiante",
+        submission.attemptCount
+    );
+
+    revalidatePath("/dashboard/student");
+    return { success: true };
+}
+
+// Calificación de actividad GitHub con Gemini — solo para el PROFESOR
+export async function gradeGithubActivityAction(
+    activityId: string,
+    studentUserId: string,
+    repoUrl: string,
+    statement: string,
+    filePaths: string,
+    courseId: string
+) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const { githubService } = await import("@/services/githubService");
+    const { getGithubToken } = await import("@/lib/githubTokenHelper");
+    const repoInfo = githubService.parseGitHubUrl(repoUrl);
+    if (!repoInfo) throw new Error("URL de GitHub inválida");
+
+    const token = await getGithubToken();
+    const paths = filePaths ? filePaths.split(',').map((p: string) => p.trim()) : [];
+    const validFiles = [];
+    const missingFiles = [];
+
+    // 1. Obtener archivos del repositorio
+    for (const path of paths) {
+        const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, token || undefined);
+        if (content) {
+            validFiles.push({ path, content });
+        } else {
+            missingFiles.push(path);
+        }
+    }
+
+    // 2. Analizar cada archivo con Gemini (usando la API key del profesor/global)
+    const { analyzeFile } = await import("@/services/gemini/codeAnalysisService");
+    const analyses = [];
+    let accumulatedContext = "";
+
+    for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        try {
+            const analysis = await analyzeFile(file.path, file.content, statement, repoUrl, session.user.id, accumulatedContext || undefined);
+            analyses.push(analysis);
+            accumulatedContext += `\n- **${file.path}**: ${analysis.summary}`;
+
+            if (i < validFiles.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        } catch (fileError: any) {
+            analyses.push({
+                filename: file.path,
+                repoUrl,
+                summary: `Error al analizar: ${fileError.message}`,
+                strengths: [],
+                weaknesses: [`Error de análisis: ${fileError.message}`],
+                errors: [],
+                scoreContribution: 0
+            });
+        }
+    }
+
+    // 3. Calcular nota final
     const { finalizeSubmission } = await import("@/services/gemini/gradingService");
-    const result = await finalizeSubmission(analyses, description, missingFiles, session.user.id);
+    const result = await finalizeSubmission(analyses, statement, missingFiles, session.user.id);
     const apiRequestsCount = analyses.length + 1;
 
-    // Log API usage if global key is active
-    const { default: prisma } = await import("@/lib/prisma");
+    // 4. Guardar la calificación en la entrega existente del estudiante
+    await activityService.submitActivity({
+        url: repoUrl,
+        activityId,
+        userId: studentUserId,
+        grade: result.grade,
+        feedback: result.feedback + `\n\n*(Calificado por IA - Peticiones API: ${apiRequestsCount})*`
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    const [activity, student] = await Promise.all([
+        prisma.activity.findUnique({ where: { id: activityId }, select: { title: true } }),
+        prisma.user.findUnique({ where: { id: studentUserId }, select: { name: true } })
+    ]);
+
+    await auditLogger.logGrade(
+        activityId,
+        activity?.title || "Actividad",
+        student?.name || "Estudiante",
+        result.grade,
+        session.user.id,
+        session.user.name || "Profesor"
+    );
+
+    // Log API usage
     const settings = await prisma.systemSettings.findUnique({ where: { id: "settings" } });
     if (settings?.geminiApiKeyMode === "GLOBAL" && settings?.encryptedGlobalApiKey) {
-        const { auditLogger } = await import("@/services/auditLogger");
         await auditLogger.logGeminiApiUsage(
             session.user.id,
             session.user.name || "Usuario",
-            session.user.role || "student",
+            session.user.role || "teacher",
             apiRequestsCount
         );
     }
 
-    // Save the submission
-    await activityService.submitActivity({
-        url: repoUrl,
-        activityId,
-        userId: session.user.id,
-        grade: result.grade,
-        feedback: result.feedback + `\n\n*(Peticiones a la API de Gemini: ${apiRequestsCount})*`
-    });
-
-    revalidatePath("/dashboard/student");
+    revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
+    revalidatePath(`/dashboard/teacher`);
     return { ...result, apiRequestsCount };
 }
 

@@ -284,7 +284,8 @@ export function NavUser({
               </div>
             </div>
 
-            {apiKeyMode === "USER" && (
+            {/* Campo API Key: solo para profesores/admin */}
+            {apiKeyMode === "USER" && session?.user?.role !== "student" && (
               <div>
                 <Label htmlFor="apiKey">Gemini API Key</Label>
                 <Input

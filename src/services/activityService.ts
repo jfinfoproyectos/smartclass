@@ -2,6 +2,7 @@ import { gradeSubmission } from "./gemini/gradingService";
 import prisma from "@/lib/prisma";
 
 
+
 export const activityService = {
     async createActivity(data: { title: string; description?: string; statement?: string; filePaths?: string; deadline: Date; openDate?: Date; courseId: string; type?: "GITHUB" | "MANUAL" | "GOOGLE_COLAB"; weight?: number; maxAttempts?: number; allowLinkSubmission?: boolean }) {
         // Get max order for the course
@@ -152,34 +153,12 @@ export const activityService = {
             }
         }
 
-        // 1. Prepare grade and feedback variables
+        // 2. Prepare grade and feedback
+        // Para actividades GITHUB: si no se provee grade, se deja null
+        // (el profesor califica luego desde su panel)
+        // Para actividades MANUAL: el professor provee grade via gradeManualActivityAction
         let grade = data.grade !== undefined ? data.grade : null;
         let feedback = data.feedback !== undefined ? data.feedback : null;
-
-        // 2. For GITHUB, grade BEFORE creating/updating submission
-        // Only if grade was NOT provided (undefined)
-        if (activity.type === "GITHUB" && data.grade === undefined) {
-            try {
-                const gradingResult = await gradeSubmission(
-                    activity.statement || "",
-                    data.url,
-                    activity.filePaths || undefined
-                );
-                grade = gradingResult.grade;
-                feedback = gradingResult.feedback;
-
-                if (gradingResult.apiRequestsCount) {
-                    feedback += `\n\n*(Peticiones a la API de Gemini: ${gradingResult.apiRequestsCount})*`;
-                }
-            } catch (error: any) {
-                console.error("Error grading submission:", error);
-                // If grading fails, we throw an error so the submission is NOT created/updated
-                // and the attempt is NOT counted.
-                // Propagate the specific error message from grading service if available
-                const errorMessage = error.message || "Error desconocido al evaluar";
-                throw new Error(`Error al evaluar la entrega: ${errorMessage}. Por favor revisa tu repositorio y vuelve a intentarlo. El intento no será descontado.`);
-            }
-        }
 
         // 3. Upsert submission with grade (if available)
         // For multiple attempts, keep the highest grade AND the feedback from that best attempt

@@ -24,7 +24,7 @@ export function ProfileCompletionCheck() {
     const [nombres, setNombres] = useState("");
     const [apellido, setApellido] = useState("");
     const [telefono, setTelefono] = useState("");
-    const [geminiApiKey, setGeminiApiKey] = useState("");
+    const [geminiApiKey, setGeminiApiKey] = useState(""); // mantenemos para compatibilidad con profesores
     const [consent, setConsent] = useState(false);
 
     // Config State
@@ -34,6 +34,8 @@ export function ProfileCompletionCheck() {
     const [keyMissing, setKeyMissing] = useState(false);
 
     const { data: session, refetch } = authClient.useSession();
+    // El rol del usuario actual
+    const userRole = session?.user?.role;
 
     useEffect(() => {
         checkStatus();
@@ -66,11 +68,12 @@ export function ProfileCompletionCheck() {
             }
             setConsent(!!profile?.dataProcessingConsent); // Load existing consent if any
 
-            // Check API Key
+            // Check API Key -- solo relevante para profesores, no para estudiantes
             if (modeData) {
                 setApiKeyMode(modeData.mode);
                 setHasUserKey(modeData.hasUserKey);
-                if (modeData.mode === "USER" && !modeData.hasUserKey) {
+                // Los estudiantes ya no necesitan API Key de Gemini (la calificación la hace el profesor)
+                if (modeData.mode === "USER" && !modeData.hasUserKey && session?.user?.role !== "student") {
                     isKeyMissing = true;
                     isComplete = false;
                 }
@@ -189,7 +192,8 @@ export function ProfileCompletionCheck() {
                         </div>
                     )}
 
-                    {keyMissing && (
+                    {/* Sección de API Key --- solo para profesores/admin */}
+                    {keyMissing && userRole !== "student" && (
                         <div className="space-y-4">
                             <h3 className="font-medium border-b pb-2">Configuración de IA</h3>
                             <div className="space-y-2 pt-2">

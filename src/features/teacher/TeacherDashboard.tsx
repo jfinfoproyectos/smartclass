@@ -1,7 +1,3 @@
-"use client";
-
-
-
 import { CourseManager } from "./CourseManager";
 import { EnrollmentRequests } from "./EnrollmentRequests";
 
