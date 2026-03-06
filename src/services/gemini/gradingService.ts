@@ -184,7 +184,7 @@ export async function gradeSubmission(
 
         for (let i = 0; i < paths.length; i++) {
             const path = paths[i];
-            const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, token || undefined);
+            const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, repoInfo.branch, token || undefined);
             if (content) {
                 console.log(`[GradingService] Analyzing file: ${path}`);
 

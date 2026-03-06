@@ -671,7 +671,7 @@ export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
     const missingFiles = [];
 
     for (const path of paths) {
-        const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, token || undefined);
+        const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, repoInfo.branch, token || undefined);
         if (content) {
             validFiles.push({ path, content });
         } else {
