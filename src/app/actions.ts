@@ -887,6 +887,65 @@ export async function gradeManualActivityAction(formData: FormData) {
     revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
 }
 
+export async function rejectManualActivityAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const activityId = formData.get("activityId") as string;
+    const userId = formData.get("userId") as string;
+    const feedback = formData.get("feedback") as string;
+    const courseId = formData.get("courseId") as string;
+
+    if (!activityId || !userId) {
+        throw new Error("Faltan campos requeridos");
+    }
+
+    const existingSubmission = await activityService.getSubmission(activityId, userId);
+    if (!existingSubmission) {
+        throw new Error("No hay entrega para rechazar");
+    }
+
+    const prefix = "[ENTREGA RECHAZADA]";
+    const newFeedback = feedback 
+        ? (feedback.startsWith(prefix) ? feedback : `${prefix}\n${feedback}`) 
+        : `${prefix} Por favor, revisa las observaciones y vuelve a subir tu entrega.`;
+
+    await prisma.submission.update({
+        where: {
+            userId_activityId: {
+                userId,
+                activityId,
+            },
+        },
+        data: {
+            grade: null,
+            feedback: newFeedback,
+        },
+    });
+
+    // Auditoría
+    const { auditLogger } = await import("@/services/auditLogger");
+    const [activity, student] = await Promise.all([
+        prisma.activity.findUnique({ where: { id: activityId }, select: { title: true } }),
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+    ]);
+
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "SUBMISSION",
+        entityId: existingSubmission.id,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Entrega rechazada: ${activity?.title || "Actividad"} de ${student?.name || "Estudiante"}`,
+        success: true,
+    });
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
+}
+
 export async function reorderActivitiesAction(courseId: string, activityIds: string[]) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") {

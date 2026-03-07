@@ -113,10 +113,12 @@ export function ActivityDetail({
     const studentStatus = students.map(enrollment => {
         const student = enrollment.user;
         const submission = activity.submissions.find((sub: any) => sub.userId === student.id);
+        const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
 
         return {
             student,
             submission,
+            isRejected,
             status: submission ? (submission.grade !== null ? "graded" : "submitted") : "pending"
         };
     });
@@ -564,7 +566,7 @@ export function ActivityDetail({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {studentStatus.map(({ student, submission, status }) => (
+                                {studentStatus.map(({ student, submission, status, isRejected }) => (
                                     <TableRow key={student.id}>
                                         <TableCell>
                                             <div className="flex flex-col">
@@ -579,6 +581,8 @@ export function ActivityDetail({
                                                     <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100 border-orange-200">
                                                         ⭐ Por Calificar
                                                     </Badge>
+                                                ) : isRejected ? (
+                                                    <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent">Rechazado</Badge>
                                                 ) : (
                                                     <Badge variant="secondary">Entregado</Badge>
                                                 )
@@ -649,7 +653,7 @@ export function ActivityDetail({
             {/* Panel de detalle controlado — con navegación Anterior / Siguiente */}
             {(() => {
                 if (selectedStudentIndex === null) return null;
-                const { student, submission } = studentStatus[selectedStudentIndex];
+                const { student, submission, isRejected } = studentStatus[selectedStudentIndex];
                 const total = studentStatus.length;
                 const goPrev = () => setSelectedStudentIndex(i => i === null ? null : (i - 1 + total) % total);
                 const goNext = () => setSelectedStudentIndex(i => i === null ? null : (i + 1) % total);
@@ -917,13 +921,10 @@ export function ActivityDetail({
                                 {activity.type === "MANUAL" && (
                                     <div className="rounded-lg border p-4 bg-muted/30">
                                         <h4 className="font-semibold mb-3">Calificación Manual</h4>
-                                        <form action={async (formData) => {
-                                            formData.append("activityId", activity.id);
-                                            formData.append("userId", student.id);
-                                            formData.append("courseId", activity.courseId);
-                                            await import("@/app/actions").then(mod => mod.gradeManualActivityAction(formData));
-                                            toast.success("Calificación guardada");
-                                        }}>
+                                        <form>
+                                            <input type="hidden" name="activityId" value={activity.id} />
+                                            <input type="hidden" name="userId" value={student.id} />
+                                            <input type="hidden" name="courseId" value={activity.courseId} />
                                             <div className="space-y-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor={`grade-manual-${student.id}`}>Nota (0.0 - 5.0)</Label>
@@ -972,14 +973,37 @@ export function ActivityDetail({
                                                     <Textarea
                                                         id={`feedback-manual-${student.id}`}
                                                         name="feedback"
-                                                        defaultValue={submission?.feedback ?? ""}
+                                                        defaultValue={submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? ""}
                                                         placeholder="Comentarios para el estudiante..."
                                                         rows={4}
                                                     />
                                                 </div>
-                                                <Button type="submit" className="w-full">
-                                                    {submission ? "Actualizar Nota" : "Guardar Nota"}
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button 
+                                                        type="submit" 
+                                                        className="flex-1"
+                                                        formAction={async (formData) => {
+                                                            await import("@/app/actions").then(mod => mod.gradeManualActivityAction(formData));
+                                                            toast.success("Calificación guardada");
+                                                        }}
+                                                    >
+                                                        {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
+                                                    </Button>
+                                                    {submission && (
+                                                        <Button 
+                                                            type="submit"
+                                                            formAction={async (formData) => {
+                                                                await import("@/app/actions").then(mod => mod.rejectManualActivityAction(formData));
+                                                                toast.success("Entrega rechazada");
+                                                            }}
+                                                            formNoValidate
+                                                            variant="outline"
+                                                            className="text-destructive hover:bg-destructive/10"
+                                                        >
+                                                            Rechazar
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </form>
                                     </div>

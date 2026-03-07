@@ -139,9 +139,11 @@ export const activityService = {
             }
         }
 
-        // Check cooldown period (5 minutes) - except for teacher grading
+        // Check cooldown period (5 minutes) - except for teacher grading or if submission was rejected
         const isTeacherGrading = data.grade !== undefined || data.feedback !== undefined;
-        if (!isTeacherGrading && existingSubmission && existingSubmission.lastSubmittedAt) {
+        const isRejected = existingSubmission?.grade === null && existingSubmission?.feedback?.includes("[ENTREGA RECHAZADA]");
+        
+        if (!isTeacherGrading && !isRejected && existingSubmission && existingSubmission.lastSubmittedAt) {
             const now = new Date().getTime();
             const lastTime = new Date(existingSubmission.lastSubmittedAt).getTime();
             const difference = now - lastTime;

@@ -15,7 +15,7 @@ import '@uiw/react-markdown-preview/markdown.css';
 import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { submitActivityAction } from "@/app/actions";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { toast } from "sonner";
 import { useCooldown } from "@/hooks/use-cooldown";
 
@@ -33,10 +33,14 @@ const initialState = {
 export function ManualActivityDetails({ activity, userId, studentName }: ManualActivityDetailsProps) {
     const submission = activity.submissions?.[0];
     const isGraded = submission && submission.grade !== null;
+    const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
     const { resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const [state, formAction] = useFormState(submitActivityAction, initialState);
-    const { isCooldownActive, remainingTime } = useCooldown(submission?.lastSubmittedAt, 5);
+    const [state, formAction] = useActionState(submitActivityAction, initialState);
+    
+    // Si la entrega está rechazada, no aplicamos el cooldown
+    const cooldownTime = isRejected ? null : submission?.lastSubmittedAt;
+    const { isCooldownActive, remainingTime } = useCooldown(cooldownTime, 5);
 
     useEffect(() => {
         setMounted(true);
@@ -74,6 +78,8 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                 <span className="text-sm font-medium">Estado:</span>
                                 {isGraded ? (
                                     <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Calificado</Badge>
+                                ) : isRejected ? (
+                                    <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent">Rechazado - Vuelve a entregar</Badge>
                                 ) : submission ? (
                                     <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Entregado - Pendiente de Calificación</Badge>
                                 ) : (
@@ -114,9 +120,8 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                 </p>
                             </div>
                         )}
-
-                        {/* Submission form - only show if not graded AND allowLinkSubmission is enabled AND deadline not passed */}
-                        {!isGraded && activity.allowLinkSubmission && (
+                        {/* Submission form - only show if (not graded AND allowLinkSubmission is enabled AND (not submitted OR isRejected)) AND deadline not passed */}
+                        {!isGraded && activity.allowLinkSubmission && (!submission || isRejected) && (
                             activity.deadline && new Date(activity.deadline) < new Date() ? (
                                 <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 rounded-md flex items-start gap-2">
                                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -133,7 +138,9 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                         {submission ? "Actualizar Enlace de Entrega" : "Enviar Enlace de Entrega"}
                                     </h4>
                                     <p className="text-sm text-muted-foreground mb-4">
-                                        Envía un enlace a tu trabajo (Google Drive, OneDrive, sitio web, etc.) para que el profesor lo revise manualmente.
+                                        {submission
+                                            ? "Ingresa un nuevo enlace público que contenga el desarrollo de tu actividad a revaluar."
+                                            : "Ingresa un enlace público que contenga la entrega y desarrollo de tu actividad."}
                                     </p>
                                     <form action={formAction} className="space-y-4">
                                         <input type="hidden" name="activityId" value={activity.id} />
@@ -214,12 +221,12 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                                 <CardTitle>Retroalimentación</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {isGraded && submission.feedback ? (
+                                {(isGraded || isRejected) && submission?.feedback ? (
                                     <FeedbackViewer feedback={submission.feedback} />
                                 ) : (
                                     <div className="text-center py-8 text-muted-foreground">
                                         <p>Aún no hay retroalimentación disponible para esta actividad.</p>
-                                        {!isGraded && <p className="text-sm mt-2">El profesor aún no ha calificado esta actividad.</p>}
+                                        {!isGraded && !isRejected && <p className="text-sm mt-2">El profesor aún no ha evaluado esta actividad.</p>}
                                     </div>
                                 )}
                             </CardContent>

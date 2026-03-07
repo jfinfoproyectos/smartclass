@@ -90,12 +90,13 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                 <ExportButton
                                     data={enrollment.course.activities.map((activity: any, index: number) => {
                                         const submission = activity.submissions[0];
+                                        const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
                                         return {
                                             '#': index + 1,
                                             'Actividad': activity.title,
                                             'Peso': `${activity.weight.toFixed(1)}%`,
                                             'Estado': !activity.openDate || new Date() >= new Date(activity.openDate)
-                                                ? (submission?.grade !== null ? 'Calificado' : submission ? 'Enviado' : 'Pendiente')
+                                                ? (submission?.grade !== null ? 'Calificado' : isRejected ? 'Rechazado' : submission ? 'Enviado' : 'Pendiente')
                                                 : 'Bloqueado',
                                             'Fecha de Entrega': submission ? formatDateForExport(submission.lastSubmittedAt || submission.createdAt) : '-',
                                             'Calificación': submission?.grade !== null && submission?.grade !== undefined ? formatGradeForExport(submission.grade) : (!activity.openDate || new Date() >= new Date(activity.openDate)) && !submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? '0.0' : '-',
@@ -147,10 +148,11 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                 const submission = activity.submissions[0];
                                                 const isSubmitted = !!submission;
                                                 const isGraded = submission && submission.grade !== null;
+                                                const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
                                                 const isOpen = !activity.openDate || new Date() >= new Date(activity.openDate);
 
                                                 return (
-                                                    <TableRow key={activity.id}>
+                                                    <TableRow key={activity.id} suppressHydrationWarning>
                                                         <TableCell className="font-medium">
                                                             <div className="flex items-start gap-3">
                                                                 <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold mt-0.5">
@@ -170,11 +172,15 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                                 </div>
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell suppressHydrationWarning>
                                                             {!isOpen ? (
                                                                 <Badge variant="secondary">Bloqueado</Badge>
                                                             ) : isGraded ? (
                                                                 <Badge variant="success">Calificado</Badge>
+                                                            ) : isRejected ? (
+                                                                <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent gap-1">
+                                                                    <AlertCircle className="h-3 w-3" /> Rechazado
+                                                                </Badge>
                                                             ) : isSubmitted ? (
                                                                 <Badge variant="warning" className="gap-1">
                                                                     <Clock className="h-3 w-3" /> Enviado
@@ -185,7 +191,7 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                                 </Badge>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell className="hidden sm:table-cell">
+                                                        <TableCell className="hidden sm:table-cell" suppressHydrationWarning>
                                                             {isGraded ? (
                                                                 <span className="font-bold text-primary">
                                                                     {submission.grade.toFixed(1)}
@@ -196,8 +202,8 @@ export function MyEnrollments({ enrollments, studentName, selectedCourse }: { en
                                                                 <span className="text-muted-foreground">-</span>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell className="hidden md:table-cell">
-                                                            <div className="text-sm text-muted-foreground">
+                                                        <TableCell className="hidden md:table-cell" suppressHydrationWarning>
+                                                            <div className="text-sm text-muted-foreground" suppressHydrationWarning>
                                                                 {activity.type === "MANUAL" ? "-" : format(new Date(activity.deadline), "PP")}
                                                             </div>
                                                         </TableCell>
