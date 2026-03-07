@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { getMultiCourseGradesReportAction } from "@/app/actions";
 import { exportMultiSheetExcel } from "@/lib/export-utils";
 import { FileSpreadsheet } from "lucide-react";
+import { format } from "date-fns";
 
 // Helper function to format date consistently on server and client
 function formatDateTime(date: Date | string): string {
@@ -102,7 +103,7 @@ interface PendingEnrollment {
 function RegistrationSettingsDialog({ course }: { course: Course }) {
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<"permanent" | "date">(course.registrationDeadline ? "date" : "permanent");
-    const [deadline, setDeadline] = useState(course.registrationDeadline ? new Date(course.registrationDeadline).toISOString().slice(0, 16) : "");
+    const [deadline, setDeadline] = useState(course.registrationDeadline ? format(new Date(course.registrationDeadline), "yyyy-MM-dd'T'HH:mm") : "");
     // ... rest of the function (no change needed in body if types match)
 
     // I need to be careful with replace_file_content, I cannot assume body content.
@@ -664,7 +665,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [], current
                                                     id="startDate"
                                                     name="startDate"
                                                     type="date"
-                                                    defaultValue={editCourse?.startDate ? new Date(editCourse.startDate).toISOString().split('T')[0] : ''}
+                                                    defaultValue={editCourse?.startDate ? format(new Date(editCourse.startDate), "yyyy-MM-dd") : ''}
                                                 />
                                             </div>
 
@@ -676,7 +677,7 @@ export function CourseManager({ initialCourses, pendingEnrollments = [], current
                                                     id="endDate"
                                                     name="endDate"
                                                     type="date"
-                                                    defaultValue={editCourse?.endDate ? new Date(editCourse.endDate).toISOString().split('T')[0] : ''}
+                                                    defaultValue={editCourse?.endDate ? format(new Date(editCourse.endDate), "yyyy-MM-dd") : ''}
                                                 />
                                             </div>
                                         </div>

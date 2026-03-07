@@ -2096,3 +2096,144 @@ export async function getCourseCompleteDataAction(courseId: string) {
         statistics: statisticsData
     };
 }
+
+export async function getCourseStudentsCompleteDataAction(courseId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    // Get course info
+    const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        include: {
+            teacher: {
+                select: { name: true }
+            },
+            enrollments: {
+                where: { status: "APPROVED" },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                },
+                orderBy: {
+                    user: { name: 'asc' }
+                }
+            },
+            activities: {
+                orderBy: { order: 'asc' },
+                include: {
+                    submissions: {
+                        select: {
+                            userId: true,
+                            grade: true,
+                            feedback: true,
+                            url: true
+                        }
+                    }
+                }
+            },
+            attendances: {
+                orderBy: { date: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            },
+            remarks: {
+                orderBy: { date: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!course) {
+        throw new Error("Course not found");
+    }
+
+    const courseData: any = course;
+    const teacherName = courseData.teacher?.name || "Sin profesor";
+    const courseName = courseData.title;
+
+    // Process data per student
+    const studentsData = courseData.enrollments.map((enrollment: any) => {
+        const student = enrollment.user;
+        const studentId = student.id;
+
+        // 1. Calculate Average Grade
+        let totalWeightedGrade = 0;
+        let totalWeight = 0;
+
+        const studentActivities = course.activities.map((activity: any) => {
+            const submission = activity.submissions.find((s: any) => s.userId === studentId);
+
+            if (submission?.grade !== null && submission?.grade !== undefined) {
+                totalWeightedGrade += submission.grade * activity.weight;
+                totalWeight += activity.weight;
+            }
+
+            return {
+                id: activity.id,
+                title: activity.title,
+                weight: activity.weight,
+                type: activity.type,
+                deadline: activity.deadline,
+                submissions: submission ? [submission] : []
+            };
+        });
+
+        const averageGrade = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+
+        // 2. Filter Attendances
+        const studentAttendances = course.attendances
+            .filter((a: any) => a.userId === studentId)
+            .map((a: any) => ({
+                id: a.id,
+                date: a.date,
+                status: a.status,
+                justification: a.justification,
+                justificationUrl: a.justificationUrl
+            }));
+
+        // 3. Filter Remarks
+        const studentRemarks = course.remarks
+            .filter((r: any) => r.userId === studentId)
+            .map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                description: r.description,
+                type: r.type,
+                date: r.date
+            }));
+
+        return {
+            studentName: student.name || "Sin nombre",
+            courseName,
+            teacherName,
+            averageGrade,
+            activities: studentActivities,
+            attendances: studentAttendances,
+            remarks: studentRemarks
+        };
+    });
+
+    return studentsData;
+}

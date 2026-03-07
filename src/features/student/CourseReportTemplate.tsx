@@ -105,6 +105,7 @@ export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseRepor
                                 <th className="py-3 px-2 font-bold text-gray-700">Actividad</th>
                                 <th className="py-3 px-2 font-bold text-gray-700 text-center">Peso</th>
                                 <th className="py-3 px-2 font-bold text-gray-700 text-center">Estado</th>
+                                <th className="py-3 px-2 font-bold text-gray-700 text-center">Entrega(s)</th>
                                 <th className="py-3 px-2 font-bold text-gray-700 text-right">Nota</th>
                             </tr>
                         </thead>
@@ -132,6 +133,15 @@ export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseRepor
                                                 <span className="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-bold">
                                                     Pendiente
                                                 </span>
+                                            )}
+                                        </td>
+                                        <td className="py-3 px-2 text-center">
+                                            {submission?.url && (submission.url.startsWith('http://') || submission.url.startsWith('https://')) ? (
+                                                <a href={submission.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs block truncate max-w-[200px] mx-auto" title={submission.url}>
+                                                    Ver Entrega
+                                                </a>
+                                            ) : (
+                                                <span className="text-gray-400">-</span>
                                             )}
                                         </td>
                                         <td className="py-3 px-2 text-right font-bold text-gray-900">

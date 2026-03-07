@@ -189,6 +189,7 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                                 <TableHead>Actividad</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead>Nota</TableHead>
+                                <TableHead>Entrega(s)</TableHead>
                                 <TableHead>Entregado</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -236,6 +237,15 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                                             )}
                                         </TableCell>
                                         <TableCell>
+                                            {submission?.url && (submission.url.startsWith('http://') || submission.url.startsWith('https://')) ? (
+                                                <a href={submission.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm block truncate max-w-[200px]" title={submission.url}>
+                                                    Ver Entrega
+                                                </a>
+                                            ) : (
+                                                <span className="text-muted-foreground">-</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="text-sm text-muted-foreground">
                                                 {submission ? format(new Date(submission.createdAt), "PP p") : "-"}
                                             </div>
@@ -245,7 +255,7 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                             })}
                             {enrollment.course.activities.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                         No hay actividades en este curso.
                                     </TableCell>
                                 </TableRow>

@@ -1,5 +1,7 @@
 "use client";
 
+import { format } from "date-fns";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,14 +61,14 @@ export function AnnouncementManager() {
             // Convert Date objects to datetime-local format (YYYY-MM-DDTHH:mm)
             if (editingAnnouncement.startDate) {
                 const date = new Date(editingAnnouncement.startDate);
-                setStartDate(date.toISOString().slice(0, 16));
+                setStartDate(format(date, "yyyy-MM-dd'T'HH:mm"));
             } else {
                 setStartDate("");
             }
 
             if (editingAnnouncement.endDate) {
                 const date = new Date(editingAnnouncement.endDate);
-                setEndDate(date.toISOString().slice(0, 16));
+                setEndDate(format(date, "yyyy-MM-dd'T'HH:mm"));
             } else {
                 setEndDate("");
             }

@@ -933,7 +933,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                             id={`openDate-${activity.id}`}
                                             name="openDateLocal"
                                             type="datetime-local"
-                                            defaultValue={importedData?.openDateLocal ?? (activity.openDate ? new Date(activity.openDate).toISOString().slice(0, 16) : "")}
+                                            defaultValue={importedData?.openDateLocal ?? (activity.openDate ? format(new Date(activity.openDate), "yyyy-MM-dd'T'HH:mm") : "")}
                                             onChange={(e) => {
                                                 const utcInput = document.getElementById(`openDate-utc-${activity.id}`) as HTMLInputElement;
                                                 if (e.target.value) {
@@ -950,7 +950,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                             id={`deadline-${activity.id}`}
                                             name="deadlineLocal"
                                             type="datetime-local"
-                                            defaultValue={importedData?.deadlineLocal ?? new Date(activity.deadline).toISOString().slice(0, 16)}
+                                            defaultValue={importedData?.deadlineLocal ?? format(new Date(activity.deadline), "yyyy-MM-dd'T'HH:mm")}
                                             required
                                             onChange={(e) => {
                                                 const utcInput = document.getElementById(`deadline-utc-${activity.id}`) as HTMLInputElement;

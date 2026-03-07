@@ -44,7 +44,10 @@ import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourse
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StudentActivityDetails } from "./components/StudentActivityDetails";
+import { CourseReportPDFDocument } from "./components/CourseReportPDFDocument";
 import { toast } from "sonner";
+import { pdf } from "@react-pdf/renderer";
+import JSZip from "jszip";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -66,6 +69,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isExportingAttendance, setIsExportingAttendance] = useState(false);
+    const [isExportingZip, setIsExportingZip] = useState(false);
 
     // Absence Dialog State
     const [isAbsenceDialogOpen, setIsAbsenceDialogOpen] = useState(false);
@@ -104,6 +108,50 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
             toast.error("Error al generar el reporte");
         } finally {
             setIsExportingAttendance(false);
+        }
+    };
+
+    const handleExportZipReport = async () => {
+        setIsExportingZip(true);
+        try {
+            toast.loading("Obteniendo datos de los estudiantes...", { id: "zip-export" });
+            const { getCourseStudentsCompleteDataAction } = await import("@/app/actions");
+            const studentsData = await getCourseStudentsCompleteDataAction(courseId);
+
+            if (!studentsData || studentsData.length === 0) {
+                toast.error("No hay estudiantes matriculados o datos disponibles.", { id: "zip-export" });
+                setIsExportingZip(false);
+                return;
+            }
+
+            toast.loading(`Generando ${studentsData.length} reportes en PDF...`, { id: "zip-export" });
+            const zip = new JSZip();
+
+            for (const student of studentsData) {
+                const blob = await pdf(<CourseReportPDFDocument {...student} />).toBlob();
+                const sanitizedFileName = `Reporte_${student.studentName.replace(/[^a-zA-Z0-9_\-]/g, '_')}.pdf`;
+                zip.file(sanitizedFileName, blob);
+            }
+
+            toast.loading("Comprimiendo archivo ZIP...", { id: "zip-export" });
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+
+            // Trigger download
+            const url = window.URL.createObjectURL(zipBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Reportes_Estudiantes_${courseId.slice(0, 8)}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            toast.success("Archivo ZIP generado exitosamente", { id: "zip-export" });
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al generar el archivo ZIP. Verifica los registros del servidor.", { id: "zip-export" });
+        } finally {
+            setIsExportingZip(false);
         }
     };
 
@@ -232,6 +280,21 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                             <>
                                 <Calendar className="mr-2 h-4 w-4" />
                                 Reporte de Inasistencias
+                            </>
+                        )}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={handleExportZipReport}
+                        disabled={isExportingZip}
+                        className="w-full sm:w-auto"
+                    >
+                        {isExportingZip ? (
+                            <>Generando ZIP...</>
+                        ) : (
+                            <>
+                                <MoreHorizontal className="mr-2 h-4 w-4" />
+                                Descargar Reportes (ZIP)
                             </>
                         )}
                     </Button>
