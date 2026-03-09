@@ -16,7 +16,6 @@ import { VisualSchedule } from "@/features/teacher/VisualSchedule";
 import { QuickShare } from "@/features/teacher/QuickShare";
 
 import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
-import { LateCodeGenerator } from "@/features/attendance/components/LateCodeGenerator";
 
 export default async function Page({ params }: { params: Promise<{ courseId: string }> }) {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -45,7 +44,6 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{course.title}</h2>
                 <div className="flex flex-wrap items-center gap-2">
-                    <LateCodeGenerator courseId={courseId} />
                     <AttendanceTaker courseId={courseId} />
                 </div>
             </div>
