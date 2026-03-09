@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getStudentAttendanceStatsAction, registerLateArrivalAction, registerAbsenceJustificationAction, deleteAttendanceRecordAction } from "@/app/actions";
-import { AlertCircle, Clock, CheckCircle, ExternalLink, Trash2, Eye, Calendar as CalendarIcon } from "lucide-react";
+import { getStudentAttendanceStatsAction, registerAbsenceJustificationAction, deleteAttendanceRecordAction } from "@/app/actions";
+import {
+    AlertCircle,
+    CheckCircle,
+    Clock,
+    ExternalLink,
+    Trash2,
+    Eye,
+    Calendar as CalendarIcon
+} from "lucide-react";
 import {
     Table,
     TableBody,
@@ -54,7 +62,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
     const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
 
     // Form states
-    const [justificationType, setJustificationType] = useState<"LATE" | "WITH_SUPPORT" | "WITHOUT_SUPPORT">("LATE");
+    const [justificationType, setJustificationType] = useState<"WITH_SUPPORT" | "WITHOUT_SUPPORT">("WITH_SUPPORT");
     const [code, setCode] = useState("");
     const [justification, setJustification] = useState("");
     const [documentUrl, setDocumentUrl] = useState("");
@@ -92,7 +100,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
         const isPast = recordDate < toUTCStartOfDay(today);
 
         if (isToday) {
-            setJustificationType("LATE");
+            setJustificationType("WITH_SUPPORT");
         } else if (isPast) {
             setJustificationType("WITH_SUPPORT");
         } else {
@@ -111,12 +119,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
     };
 
     const handleJustify = async () => {
-        if (justificationType === "LATE") {
-            if (!code || !justification) {
-                toast.error("Por favor completa todos los campos");
-                return;
-            }
-        } else if (justificationType === "WITH_SUPPORT") {
+        if (justificationType === "WITH_SUPPORT") {
             if (!documentUrl || !justification) {
                 toast.error("Por favor completa todos los campos");
                 return;
@@ -130,14 +133,9 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
 
         setSubmitting(true);
         try {
-            if (justificationType === "LATE") {
-                await registerLateArrivalAction(courseId, code, justification);
-                toast.success("Llegada tarde registrada exitosamente");
-            } else {
-                if (!selectedRecord) return;
-                await registerAbsenceJustificationAction(courseId, selectedRecord.date, documentUrl || null, justification);
-                toast.success("Inasistencia justificada exitosamente");
-            }
+            if (!selectedRecord) return;
+            await registerAbsenceJustificationAction(courseId, selectedRecord.date, documentUrl || null, justification);
+            toast.success("Inasistencia justificada exitosamente");
 
             setIsDialogOpen(false);
             fetchStats();
@@ -361,48 +359,15 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                     <div className="space-y-4 py-4">
                         {/* Tabs for justification type */}
                         <div className="grid gap-2" style={{
-                            gridTemplateColumns: (() => {
-                                if (!selectedDate) return '1fr 1fr';
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                const date = new Date(selectedDate);
-                                date.setHours(0, 0, 0, 0);
-                                const isToday = date.getTime() === today.getTime();
-                                return isToday ? '1fr' : '1fr 1fr';
-                            })()
+                            gridTemplateColumns: '1fr 1fr'
                         }}>
-                            {(() => {
-                                if (!selectedDate) return null;
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                const date = new Date(selectedDate);
-                                date.setHours(0, 0, 0, 0);
-                                const isToday = date.getTime() === today.getTime();
-
-                                if (isToday) {
-                                    return (
-                                        <Button
-                                            type="button"
-                                            variant={justificationType === "LATE" ? "default" : "outline"}
-                                            onClick={() => setJustificationType("LATE")}
-                                            className="text-sm h-auto py-3"
-                                        >
-                                            <Clock className="mr-2 h-4 w-4" />
-                                            Llegada Tarde
-                                        </Button>
-                                    );
-                                }
-                                return null;
-                            })()}
-                            {(() => {
+                        {(() => {
                                 if (!selectedDate) return null;
                                 const today = new Date();
                                 today.setHours(0, 0, 0, 0);
                                 const date = new Date(selectedDate);
                                 date.setHours(0, 0, 0, 0);
                                 const isPast = date.getTime() < today.getTime();
-
-                                if (!isPast) return null;
 
                                 return (
                                     <>
@@ -429,22 +394,6 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                             })()}
                         </div>
 
-                        {justificationType === "LATE" && (
-                            <div className="space-y-4">
-                                <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-sm">
-                                    <p>Para justificar una llegada tarde, necesitas el código temporal proporcionado por el profesor.</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="code">Código Temporal</Label>
-                                    <Input
-                                        id="code"
-                                        placeholder="Ej: 123456"
-                                        value={code}
-                                        onChange={(e) => setCode(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        )}
 
                         {justificationType === "WITH_SUPPORT" && (
                             <div className="space-y-4">

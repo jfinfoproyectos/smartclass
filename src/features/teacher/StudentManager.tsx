@@ -31,7 +31,7 @@ import {
     SheetTrigger,
     SheetFooter,
 } from "@/components/ui/sheet";
-import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX } from "lucide-react";
+import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX, Clock } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -39,7 +39,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction, getStudentMissingActivitiesAction } from "@/app/actions";
+import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction, getStudentMissingActivitiesAction, getAbsentStudentsForTodayAction } from "@/app/actions";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -75,7 +75,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
     const [isAbsenceDialogOpen, setIsAbsenceDialogOpen] = useState(false);
     const [studentForAbsence, setStudentForAbsence] = useState<any | null>(null);
     const [absenceDate, setAbsenceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-    const [attendanceStatus, setAttendanceStatus] = useState<"PRESENT" | "ABSENT">("ABSENT");
+    const [attendanceStatus, setAttendanceStatus] = useState<"PRESENT" | "ABSENT" | "LATE">("ABSENT");
 
     const handleExportReport = async () => {
         setIsExporting(true);
@@ -298,6 +298,7 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                             </>
                         )}
                     </Button>
+                    <LateArrivalsModal courseId={courseId} />
                     <Sheet open={isOpen} onOpenChange={setIsOpen}>
                         <SheetTrigger asChild>
                             <Button className="w-full sm:w-auto"><UserPlus className="mr-2 h-4 w-4" /> Agregar Estudiante</Button>
@@ -540,6 +541,10 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                     <RadioGroupItem value="PRESENT" id="st-present" />
                                     <Label htmlFor="st-present" className="font-normal cursor-pointer">Presente</Label>
                                 </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="LATE" id="st-late" />
+                                    <Label htmlFor="st-late" className="font-normal cursor-pointer">Tarde</Label>
+                                </div>
                             </RadioGroup>
                         </div>
                     </div>
@@ -702,6 +707,110 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                 </Table>
             </div>
         </div >
+    );
+}
+
+function LateArrivalsModal({ courseId }: { courseId: string }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [students, setStudents] = useState<any[]>([]);
+
+    const fetchAbsentStudents = async () => {
+        setLoading(true);
+        try {
+            const data = await getAbsentStudentsForTodayAction(courseId);
+            setStudents(data);
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al cargar estudiantes ausentes");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchAbsentStudents();
+        }
+    }, [isOpen, courseId]);
+
+    const handleMarkAsLate = async (studentId: string, name: string) => {
+        try {
+            const today = format(new Date(), 'yyyy-MM-dd');
+            await recordAttendanceAction(courseId, studentId, today, "LATE");
+            toast.success(`${name} marcado como tarde`);
+            fetchAbsentStudents(); // Refresh list
+        } catch (error) {
+            toast.error("Error al registrar llegada tarde");
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                    <Clock className="mr-2 h-4 w-4 text-orange-500" />
+                    Llegadas Tardes
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Llegadas Tardes (Hoy)</DialogTitle>
+                    <DialogDescription>
+                        Estudiantes registrados como ausentes para el día de hoy.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="max-h-[400px] overflow-y-auto pr-2">
+                    {loading ? (
+                        <div className="flex justify-center p-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        </div>
+                    ) : students.length > 0 ? (
+                        <div className="space-y-3">
+                            {students.map((student) => (
+                                <div key={student.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-accent/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={student.image} />
+                                            <AvatarFallback>{student.name?.[0]}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-medium text-sm">
+                                                {student.profile?.nombres && student.profile?.apellido
+                                                    ? `${student.profile.nombres} ${student.profile.apellido}`
+                                                    : student.name}
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {student.profile?.identificacion || "Sin ID"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="h-8 text-xs bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 hover:text-orange-700"
+                                        onClick={() => handleMarkAsLate(student.id, student.name)}
+                                    >
+                                        Llegó Tarde
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 text-muted-foreground">
+                            <p className="text-sm">No hay estudiantes ausentes para el día de hoy.</p>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>
+                        Cerrar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

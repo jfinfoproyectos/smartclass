@@ -1104,7 +1104,7 @@ export async function recordAttendanceAction(
     courseId: string,
     userId: string,
     date: Date | string,
-    status: "PRESENT" | "ABSENT" | "EXCUSED"
+    status: "PRESENT" | "ABSENT" | "EXCUSED" | "LATE"
 ) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") {
@@ -2295,4 +2295,42 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
     });
 
     return studentsData;
+}
+
+export async function getAbsentStudentsForTodayAction(courseId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+
+    const todayUTC = toUTCStartOfDay(new Date());
+
+    const absentRecords = await prisma.attendance.findMany({
+        where: {
+            courseId,
+            date: todayUTC,
+            status: "ABSENT"
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    profile: {
+                        select: {
+                            identificacion: true,
+                            nombres: true,
+                            apellido: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    return absentRecords.map(record => ({
+        id: record.user.id,
+        name: record.user.name,
+        image: record.user.image,
+        profile: record.user.profile
+    }));
 }

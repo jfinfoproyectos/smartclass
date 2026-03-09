@@ -26,12 +26,14 @@ export const attendanceService = {
             },
             update: {
                 status,
+                arrivalTime: status === "LATE" ? new Date() : null,
             },
             create: {
                 courseId,
                 userId,
                 date: normalizedDate,
                 status,
+                arrivalTime: status === "LATE" ? new Date() : null,
             },
         });
     },
