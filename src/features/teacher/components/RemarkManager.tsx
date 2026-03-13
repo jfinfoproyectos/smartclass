@@ -33,6 +33,7 @@ export function RemarkManager({ courseId, userId, studentName, onRemarkCreated, 
     const [type, setType] = useState<"ATTENTION" | "COMMENDATION">(editingRemark?.type || "ATTENTION");
     const [title, setTitle] = useState(editingRemark?.title || "");
     const [description, setDescription] = useState(editingRemark?.description || "");
+    const [date, setDate] = useState(editingRemark ? new Date(editingRemark.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
     const [submitting, setSubmitting] = useState(false);
 
     // Update state when editingRemark changes
@@ -41,6 +42,7 @@ export function RemarkManager({ courseId, userId, studentName, onRemarkCreated, 
             setType(editingRemark.type);
             setTitle(editingRemark.title);
             setDescription(editingRemark.description);
+            setDate(new Date(editingRemark.date).toISOString().split('T')[0]);
             setIsOpen(true);
         }
     }, [editingRemark]);
@@ -55,7 +57,7 @@ export function RemarkManager({ courseId, userId, studentName, onRemarkCreated, 
             return;
         }
 
-        if (!title || !description) {
+        if (!title || !description || !date) {
             toast.error("Por favor completa todos los campos");
             return;
         }
@@ -64,11 +66,12 @@ export function RemarkManager({ courseId, userId, studentName, onRemarkCreated, 
         const toastId = toast.loading("Procesando...");
 
         try {
-            console.error("RemarkManager submitting:", { type, title, description, courseId, userId, editingRemark });
+            console.error("RemarkManager submitting:", { type, title, description, courseId, userId, date, editingRemark });
             const formData = new FormData();
             formData.append("type", type);
             formData.append("title", title);
             formData.append("description", description);
+            formData.append("date", date);
             formData.append("courseId", courseId);
 
             if (editingRemark) {
@@ -148,6 +151,17 @@ export function RemarkManager({ courseId, userId, studentName, onRemarkCreated, 
                                 </Label>
                             </div>
                         </RadioGroup>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="date">Fecha</Label>
+                        <Input
+                            id="date"
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            required
+                        />
                     </div>
 
                     <div className="space-y-2">

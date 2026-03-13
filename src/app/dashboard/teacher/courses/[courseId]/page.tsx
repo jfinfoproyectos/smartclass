@@ -7,13 +7,12 @@ import { activityService } from "@/services/activityService";
 import { courseService } from "@/services/courseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Dices, Users, Timer, List, QrCode } from "lucide-react";
+import { ExternalLink, Dices, Users } from "lucide-react";
 import Link from "next/link";
 import { Roulette } from "@/features/teacher/Roulette";
 import { GroupGenerator } from "@/features/teacher/GroupGenerator";
-import { VisualTimer } from "@/features/teacher/VisualTimer";
-import { VisualSchedule } from "@/features/teacher/VisualSchedule";
-import { QuickShare } from "@/features/teacher/QuickShare";
+import { GroupContentShare } from "@/features/teacher/components/GroupContentShare";
+import { sharedContentService } from "@/services/sharedContentService";
 
 import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
 
@@ -38,6 +37,7 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
 
     const activities = await activityService.getCourseActivities(courseId);
     const students = await courseService.getCourseStudents(courseId);
+    const sharedContents = await sharedContentService.getByCourse(courseId);
 
     return (
         <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-4 sm:pt-6">
@@ -61,18 +61,7 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                             <Users className="h-4 w-4" />
                             Grupos
                         </TabsTrigger>
-                        <TabsTrigger value="timer" className="gap-2">
-                            <Timer className="h-4 w-4" />
-                            Temporizador
-                        </TabsTrigger>
-                        <TabsTrigger value="schedule" className="gap-2">
-                            <List className="h-4 w-4" />
-                            Agenda
-                        </TabsTrigger>
-                        <TabsTrigger value="share" className="gap-2">
-                            <QrCode className="h-4 w-4" />
-                            Compartir
-                        </TabsTrigger>
+                        <TabsTrigger value="share">Compartir</TabsTrigger>
                     </TabsList>
                     {course.externalUrl && (
                         <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
@@ -87,7 +76,11 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                     <ActivityManager courseId={courseId} activities={activities} />
                 </TabsContent>
                 <TabsContent value="students" className="space-y-4">
-                    <StudentManager courseId={courseId} initialStudents={students} />
+                    <StudentManager 
+                        courseId={courseId} 
+                        initialStudents={students} 
+                        courseTitle={course.title}
+                    />
                 </TabsContent>
                 <TabsContent value="roulette" className="space-y-4">
                     <Roulette students={students} courseId={courseId} />
@@ -95,14 +88,8 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                 <TabsContent value="groups" className="space-y-4">
                     <GroupGenerator students={students} />
                 </TabsContent>
-                <TabsContent value="timer" className="space-y-4">
-                    <VisualTimer />
-                </TabsContent>
-                <TabsContent value="schedule" className="space-y-4">
-                    <VisualSchedule />
-                </TabsContent>
                 <TabsContent value="share" className="space-y-4">
-                    <QuickShare />
+                    <GroupContentShare courseId={courseId} initialContent={sharedContents} />
                 </TabsContent>
             </Tabs>
         </div>

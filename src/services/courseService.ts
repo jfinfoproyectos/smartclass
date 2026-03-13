@@ -305,6 +305,9 @@ export const courseService = {
                                     orderBy: { createdAt: "desc" }
                                 }
                             }
+                        },
+                        sharedContent: {
+                            orderBy: { createdAt: "asc" }
                         }
                     },
                 },
@@ -596,6 +599,9 @@ export const courseService = {
                                     orderBy: { createdAt: "desc" }
                                 }
                             }
+                        },
+                        sharedContent: {
+                            orderBy: { createdAt: "asc" }
                         }
                     },
                 },
@@ -1011,10 +1017,22 @@ export const courseService = {
             }
         });
 
-        // 4. Get all unique dates
-        const uniqueDates = Array.from(new Set(attendances.map(a => a.date.toISOString().split('T')[0]))).sort();
+        // 4. Fetch All Remarks for this course
+        const remarks = await prisma.remark.findMany({
+            where: {
+                courseId: courseId
+            },
+            orderBy: {
+                date: 'asc'
+            }
+        });
 
-        // 5. Process Data
+        // 5. Get all unique dates from both attendances and remarks
+        const attendanceDates = attendances.map(a => a.date.toISOString().split('T')[0]);
+        const remarkDates = remarks.map(r => r.date.toISOString().split('T')[0]);
+        const uniqueDates = Array.from(new Set([...attendanceDates, ...remarkDates])).sort();
+
+        // 6. Process Data
         const reportData = enrollments.map(enrollment => {
             const student = enrollment.user;
             const row: any = {
@@ -1031,17 +1049,36 @@ export const courseService = {
                     a.date.toISOString().split('T')[0] === dateStr
                 );
 
-                let status = '-';
-                if (attendance) {
-                    switch (attendance.status) {
-                        case 'PRESENT': status = 'P'; break;
-                        case 'ABSENT': status = 'A'; break;
-                        case 'EXCUSED': status = 'E'; break;
-                        case 'LATE': status = 'L'; break;
+                const studentRemarks = remarks.filter(r => 
+                    r.userId === student.id && 
+                    r.date.toISOString().split('T')[0] === dateStr
+                );
+
+                let attendanceData: any = '-';
+                if (attendance || studentRemarks.length > 0) {
+                    let status = '-';
+                    if (attendance) {
+                        switch (attendance.status) {
+                            case 'PRESENT': status = 'P'; break;
+                            case 'ABSENT': status = 'A'; break;
+                            case 'EXCUSED': status = 'E'; break;
+                            case 'LATE': status = 'L'; break;
+                        }
                     }
+                    
+                    attendanceData = {
+                        status: status,
+                        justification: attendance?.justification,
+                        arrivalTime: attendance?.arrivalTime,
+                        remarks: studentRemarks.map(r => ({
+                            type: r.type,
+                            title: r.title,
+                            description: r.description
+                        }))
+                    };
                 }
 
-                row[dateStr] = status;
+                row[dateStr] = attendanceData;
             });
 
             return row;

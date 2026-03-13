@@ -39,9 +39,7 @@ model User {
   attendances           Attendance[]
   remarks               Remark[]
   remarksCreated        Remark[]           @relation("TeacherRemarks")
-  notificationsCreated  Notification[]     @relation("TeacherNotifications")
-  notificationReads     NotificationRead[]
-  announcements         Announcement[]
+  sharedContentCreated  SharedContent[]    @relation("TeacherSharedContent")
   encryptedGeminiApiKey String?
 
   @@unique([email])
@@ -132,7 +130,7 @@ model Course {
   attendances   Attendance[]
   remarks       Remark[]
   schedules     CourseSchedule[]
-  notifications Notification[]
+  sharedContent SharedContent[]
 
   @@map("course")
 }
@@ -186,19 +184,19 @@ model Activity {
 }
 
 model Submission {
-  id              String   @id @default(cuid())
-  url             String
-  grade           Float?
-  feedback        String?
+  id               String   @id @default(cuid())
+  url              String
+  grade            Float?
+  feedback         String?
   apiRequestsCount Int?     @default(0)
-  attemptCount    Int      @default(1)
-  lastSubmittedAt DateTime @default(now())
-  activityId      String
-  activity        Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  attemptCount     Int      @default(1)
+  lastSubmittedAt  DateTime @default(now())
+  activityId       String
+  activity         Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([userId, activityId])
   @@map("submission")
@@ -275,41 +273,6 @@ model CourseSchedule {
   @@map("course_schedule")
 }
 
-enum NotificationTarget {
-  ALL_COURSES
-  SPECIFIC_COURSE
-  SPECIFIC_STUDENTS
-}
-
-model Notification {
-  id         String             @id @default(cuid())
-  title      String
-  message    String
-  target     NotificationTarget
-  courseId   String?
-  course     Course?            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  studentIds String[] // Array of user IDs for SPECIFIC_STUDENTS target
-  teacherId  String
-  teacher    User               @relation("TeacherNotifications", fields: [teacherId], references: [id], onDelete: Cascade)
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  reads      NotificationRead[] // Track which students have read this notification
-
-  @@map("notification")
-}
-
-model NotificationRead {
-  id             String       @id @default(cuid())
-  notificationId String
-  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  readAt         DateTime     @default(now())
-  createdAt      DateTime     @default(now())
-
-  @@unique([notificationId, userId])
-  @@map("notification_read")
-}
 
 enum GeminiApiKeyMode {
   GLOBAL
@@ -330,35 +293,6 @@ model SystemSettings {
   @@map("system_settings")
 }
 
-enum AnnouncementType {
-  INFO
-  URGENT
-  EVENT
-  MAINTENANCE
-  SUCCESS
-  WARNING
-  NEWSLETTER
-  CELEBRATION
-}
-
-model Announcement {
-  id            String           @id @default(cuid())
-  title         String
-  content       String
-  imageUrl      String?
-  showImage     Boolean          @default(true)
-  imagePosition String           @default("LEFT")
-  type          AnnouncementType @default(INFO)
-  visible       Boolean          @default(true)
-  startDate     DateTime?
-  endDate       DateTime?
-  authorId      String
-  author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-
-  @@map("announcement")
-}
 
 enum LogAction {
   CREATE
@@ -373,7 +307,6 @@ enum LogAction {
   UNENROLL
   ATTENDANCE_MARK
   REMARK_CREATE
-  NOTIFICATION_SEND
   OTHER
 }
 
@@ -385,7 +318,6 @@ enum LogEntity {
   ENROLLMENT
   ATTENDANCE
   REMARK
-  NOTIFICATION
   SYSTEM
   OTHER
 }
@@ -412,4 +344,20 @@ model AuditLog {
   @@index([createdAt])
   @@index([success])
   @@map("audit_log")
+}
+
+model SharedContent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  links       Json     @default("[]") // [{ label: string, url: string }]
+  files       Json     @default("[]") // [{ name: string, content: string, language: string }]
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     User     @relation("TeacherSharedContent", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("shared_content")
 }

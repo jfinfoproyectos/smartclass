@@ -9,234 +9,199 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Clock, AlertCircle, ExternalLink, ArrowRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, AlertCircle, ExternalLink, ArrowRight, BookOpen, ClipboardCheck, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-import { useRef, useState, useMemo } from "react";
-import { useReactToPrint } from "react-to-print";
-import { CourseReportTemplate } from "./CourseReportTemplate";
-import { Printer } from "lucide-react";
+import { useState } from "react";
 import { StudentAttendanceSummary } from "@/features/attendance/components/StudentAttendanceSummary";
 import { Badge } from "@/components/ui/badge";
 import { StudentRemarks } from "./StudentRemarks";
-import { ExportButton } from "@/components/ui/export-button";
-import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
+import { SharedContentList } from "./components/SharedContentList";
 
-export function MyEnrollments({ enrollments, studentName, selectedCourse }: { enrollments: any[], studentName: string, selectedCourse?: string }) {
-    const [selectedEnrollment, setSelectedEnrollment] = useState<any>(null);
-    const printRef = useRef<HTMLDivElement>(null);
-
+export function MyEnrollments({ enrollments, selectedCourse }: { enrollments: any[], selectedCourse?: string }) {
     // Filter enrollments by selected course
     const filteredEnrollments = selectedCourse
         ? enrollments.filter(e => e.course.id === selectedCourse)
         : enrollments;
 
-    const handlePrint = useReactToPrint({
-        contentRef: printRef,
-        documentTitle: `Reporte_${selectedEnrollment?.course.title || "Curso"}`,
-    });
-
-    const onPrintClick = (enrollment: any) => {
-        setSelectedEnrollment(enrollment);
-        // Small timeout to allow state to update and render the hidden template
-        setTimeout(() => {
-            handlePrint();
-        }, 100);
-    };
-
     return (
         <div className="space-y-6">
-            {/* Hidden Template for Printing */}
-            <div style={{ display: "none" }}>
-                {selectedEnrollment && (
-                    <CourseReportTemplate
-                        ref={printRef}
-                        studentName={studentName}
-                        courseName={selectedEnrollment.course.title}
-                        teacherName={selectedEnrollment.course.teacher.name}
-                        averageGrade={selectedEnrollment.averageGrade}
-                        activities={selectedEnrollment.course.activities}
-                        attendances={selectedEnrollment.attendances}
-                        remarks={selectedEnrollment.remarks}
-                    />
-                )}
-            </div>
 
             {filteredEnrollments.map((enrollment) => (
                 <Card key={enrollment.id} className="overflow-hidden border-muted">
-                    <CardHeader className="border-b bg-muted/30">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                            <div className="space-y-1">
+                    <CardHeader className="py-2 px-4 border-b bg-muted/30">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                            <div className="space-y-0.5">
                                 <CardTitle className="text-xl font-bold">{enrollment.course.title}</CardTitle>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground flex items-center">
                                     Profesor: {enrollment.course.teacher.name}
                                 </p>
                             </div>
-                            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-3">
+                            <div className="flex items-center gap-3">
                                 {enrollment.course.externalUrl && (
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         asChild
+                                        className="h-8"
                                     >
                                         <Link href={enrollment.course.externalUrl} target="_blank" rel="noopener noreferrer">
-                                            <ExternalLink className="mr-2 h-4 w-4" />
+                                            <ExternalLink className="mr-2 h-3.5 w-3.5" />
                                             Documentación
                                         </Link>
                                     </Button>
                                 )}
-                                <ExportButton
-                                    data={enrollment.course.activities.map((activity: any, index: number) => {
-                                        const submission = activity.submissions[0];
-                                        const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
-                                        return {
-                                            '#': index + 1,
-                                            'Actividad': activity.title,
-                                            'Peso': `${activity.weight.toFixed(1)}%`,
-                                            'Estado': !activity.openDate || new Date() >= new Date(activity.openDate)
-                                                ? (submission?.grade !== null ? 'Calificado' : isRejected ? 'Rechazado' : submission ? 'Enviado' : 'Pendiente')
-                                                : 'Bloqueado',
-                                            'Fecha de Entrega': submission ? formatDateForExport(submission.lastSubmittedAt || submission.createdAt) : '-',
-                                            'Calificación': submission?.grade !== null && submission?.grade !== undefined ? formatGradeForExport(submission.grade) : (!activity.openDate || new Date() >= new Date(activity.openDate)) && !submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? '0.0' : '-',
-                                            'Vencimiento': activity.type !== 'MANUAL' ? formatDateForExport(activity.deadline) : '-'
-                                        };
-                                    })}
-                                    filename={`${enrollment.course.title.replace(/\s+/g, '_')}_Mis_Calificaciones`}
-                                    sheetName="Mis Calificaciones"
-                                    variant="outline"
-                                    size="sm"
-                                />
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => onPrintClick(enrollment)}
-                                >
-                                    <Printer className="mr-2 h-4 w-4" />
-                                    Generar Reporte
-                                </Button>
-                                <div className="flex flex-col items-end bg-primary/10 px-4 py-2 rounded-lg border border-primary/20">
-                                    <div className="text-2xl font-bold text-primary">
-                                        {enrollment.averageGrade > 0 ? enrollment.averageGrade.toFixed(1) : "-"}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground whitespace-nowrap">Promedio Acumulado</p>
-                                </div>
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="pt-6 space-y-6">
-                        {/* Activities Section */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                                Actividades Pendientes y Entregas
-                            </h3>
-                            {enrollment.course.activities.length > 0 ? (
-                                <div className="w-full overflow-x-auto rounded-md border">
-                                    <Table className="min-w-[700px]">
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="w-[300px]">Actividad</TableHead>
-                                                <TableHead>Estado</TableHead>
-                                                <TableHead className="hidden sm:table-cell">Nota</TableHead>
-                                                <TableHead className="hidden md:table-cell">Vencimiento</TableHead>
-                                                <TableHead className="text-right">Acciones</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {enrollment.course.activities.map((activity: any, index: number) => {
-                                                const submission = activity.submissions[0];
-                                                const isSubmitted = !!submission;
-                                                const isGraded = submission && submission.grade !== null;
-                                                const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
-                                                const isOpen = !activity.openDate || new Date() >= new Date(activity.openDate);
+                    <CardContent className="pt-6 min-w-0">
+                        <Tabs defaultValue="activities" className="space-y-6">
+                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+                                <TabsTrigger value="activities" className="gap-2">
+                                    <ClipboardCheck className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Actividades Pendientes y Entregas</span>
+                                    <span className="sm:hidden text-xs">Actividades</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="attendance" className="gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Historial de Inasistencias</span>
+                                    <span className="sm:hidden text-xs">Asistencia</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="resources" className="gap-2">
+                                    <BookOpen className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Recursos Compartidos</span>
+                                    <span className="sm:hidden text-xs">Recursos</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="remarks" className="gap-2">
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Observaciones Estudiante</span>
+                                    <span className="sm:hidden text-xs">Obs.</span>
+                                </TabsTrigger>
+                            </TabsList>
 
-                                                return (
-                                                    <TableRow key={activity.id} suppressHydrationWarning>
-                                                        <TableCell className="font-medium">
-                                                            <div className="flex items-start gap-3">
-                                                                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold mt-0.5">
-                                                                    {index + 1}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="font-semibold">{activity.title}</div>
-                                                                    <div className="text-xs text-muted-foreground">
-                                                                        Peso: {activity.weight.toFixed(1)}%
-                                                                    </div>
-                                                                    {!isOpen && (
-                                                                        <div className="text-xs text-amber-600 font-medium mt-1 flex items-center">
-                                                                            <Clock className="mr-1 h-3 w-3" />
-                                                                            Disponible el: {format(new Date(activity.openDate), "PP p")}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell suppressHydrationWarning>
-                                                            {!isOpen ? (
-                                                                <Badge variant="secondary">Bloqueado</Badge>
-                                                            ) : isGraded ? (
-                                                                <Badge variant="success">Calificado</Badge>
-                                                            ) : isRejected ? (
-                                                                <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent gap-1">
-                                                                    <AlertCircle className="h-3 w-3" /> Rechazado
-                                                                </Badge>
-                                                            ) : isSubmitted ? (
-                                                                <Badge variant="warning" className="gap-1">
-                                                                    <Clock className="h-3 w-3" /> Enviado
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="destructive" className="gap-1">
-                                                                    <AlertCircle className="h-3 w-3" /> Pendiente
-                                                                </Badge>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="hidden sm:table-cell" suppressHydrationWarning>
-                                                            {isGraded ? (
-                                                                <span className="font-bold text-primary">
-                                                                    {submission.grade.toFixed(1)}
-                                                                </span>
-                                                            ) : !isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? (
-                                                                <span className="font-bold text-red-500">0.0</span>
-                                                            ) : (
-                                                                <span className="text-muted-foreground">-</span>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="hidden md:table-cell" suppressHydrationWarning>
-                                                            <div className="text-sm text-muted-foreground" suppressHydrationWarning>
-                                                                {activity.type === "MANUAL" ? "-" : format(new Date(activity.deadline), "PP")}
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button variant="ghost" size="sm" asChild disabled={!isOpen}>
-                                                                {isOpen ? (
-                                                                    <Link href={`/dashboard/student/activities/${activity.id}`}>
-                                                                        Ver Detalles
-                                                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                                                    </Link>
-                                                                ) : (
-                                                                    <span className="text-muted-foreground cursor-not-allowed flex items-center justify-end">
-                                                                        Bloqueado
-                                                                    </span>
-                                                                )}
-                                                            </Button>
-                                                        </TableCell>
+                            <TabsContent value="activities" className="space-y-4 pt-4">
+                                <div className="space-y-4">
+                                    <h3 className="text-2xl font-bold flex items-center gap-2">
+                                        Actividades Pendientes y Entregas
+                                    </h3>
+                                    {enrollment.course.activities.length > 0 ? (
+                                        <div className="w-full overflow-x-auto rounded-md border">
+                                            <Table className="min-w-[700px]">
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-[300px]">Actividad</TableHead>
+                                                        <TableHead>Estado</TableHead>
+                                                        <TableHead className="hidden sm:table-cell">Nota</TableHead>
+                                                        <TableHead className="hidden md:table-cell">Vencimiento</TableHead>
+                                                        <TableHead className="text-right">Acciones</TableHead>
                                                     </TableRow>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {enrollment.course.activities.map((activity: any, index: number) => {
+                                                        const submission = activity.submissions[0];
+                                                        const isSubmitted = !!submission;
+                                                        const isGraded = submission && submission.grade !== null;
+                                                        const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
+                                                        const isOpen = !activity.openDate || new Date() >= new Date(activity.openDate);
+
+                                                        return (
+                                                            <TableRow key={activity.id} suppressHydrationWarning>
+                                                                <TableCell className="font-medium">
+                                                                    <div className="flex items-start gap-3">
+                                                                        <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold mt-0.5">
+                                                                            {index + 1}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="font-semibold">{activity.title}</div>
+                                                                            <div className="text-xs text-muted-foreground">
+                                                                                Peso: {activity.weight.toFixed(1)}%
+                                                                            </div>
+                                                                            {!isOpen && (
+                                                                                <div className="text-xs text-amber-600 font-medium mt-1 flex items-center">
+                                                                                    <Clock className="mr-1 h-3 w-3" />
+                                                                                    Disponible el: {format(new Date(activity.openDate), "PP p")}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell suppressHydrationWarning>
+                                                                    {!isOpen ? (
+                                                                        <Badge variant="secondary">Bloqueado</Badge>
+                                                                    ) : isGraded ? (
+                                                                        <Badge variant="success">Calificado</Badge>
+                                                                    ) : isRejected ? (
+                                                                        <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent gap-1">
+                                                                            <AlertCircle className="h-3 w-3" /> Rechazado
+                                                                        </Badge>
+                                                                    ) : isSubmitted ? (
+                                                                        <Badge variant="warning" className="gap-1">
+                                                                            <Clock className="h-3 w-3" /> Enviado
+                                                                        </Badge>
+                                                                    ) : (
+                                                                        <Badge variant="destructive" className="gap-1">
+                                                                            <AlertCircle className="h-3 w-3" /> Pendiente
+                                                                        </Badge>
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell className="hidden sm:table-cell" suppressHydrationWarning>
+                                                                    {isGraded ? (
+                                                                        <span className="font-bold text-primary">
+                                                                            {submission.grade.toFixed(1)}
+                                                                        </span>
+                                                                    ) : !isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? (
+                                                                        <span className="font-bold text-red-500">0.0</span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground">-</span>
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell className="hidden md:table-cell" suppressHydrationWarning>
+                                                                    <div className="text-sm text-muted-foreground" suppressHydrationWarning>
+                                                                        {activity.type === "MANUAL" ? "-" : format(new Date(activity.deadline), "PP", { locale: es })}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button variant="ghost" size="sm" asChild disabled={!isOpen}>
+                                                                        {isOpen ? (
+                                                                            <Link href={`/dashboard/student/activities/${activity.id}`}>
+                                                                                Ver Detalles
+                                                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                                                            </Link>
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground cursor-not-allowed flex items-center justify-end">
+                                                                                Bloqueado
+                                                                            </span>
+                                                                        )}
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        );
+                                                    })}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No hay actividades en este curso.</p>
+                                    )}
                                 </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">No hay actividades en este curso.</p>
-                            )}
-                        </div>
+                            </TabsContent>
 
-                        {/* Attendance Section */}
-                        <StudentAttendanceSummary courseId={enrollment.course.id} userId={enrollment.userId} />
+                            <TabsContent value="attendance" className="space-y-4 pt-4">
+                                <StudentAttendanceSummary courseId={enrollment.course.id} userId={enrollment.userId} />
+                            </TabsContent>
 
-                        {/* Remarks Section */}
-                        <StudentRemarks courseId={enrollment.course.id} userId={enrollment.userId} />
+                            <TabsContent value="resources" className="space-y-4 pt-4 min-w-0 w-full overflow-hidden">
+                                <SharedContentList contents={enrollment.course.sharedContent || []} />
+                            </TabsContent>
+
+                            <TabsContent value="remarks" className="space-y-4 pt-4">
+                                <StudentRemarks courseId={enrollment.course.id} userId={enrollment.userId} />
+                            </TabsContent>
+                        </Tabs>
                     </CardContent>
                 </Card>
             ))}

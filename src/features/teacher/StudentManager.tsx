@@ -31,7 +31,7 @@ import {
     SheetTrigger,
     SheetFooter,
 } from "@/components/ui/sheet";
-import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX, Clock, ChevronDown } from "lucide-react";
+import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX, Clock, ChevronDown, Users } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -39,11 +39,13 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, updateStudentStatusAction, getStudentMissingActivitiesAction, getAbsentStudentsForTodayAction } from "@/app/actions";
+import { addStudentToCourseAction, searchStudentsAction, removeStudentFromCourseAction, getStudentCourseEnrollmentAction, recordAttendanceAction, deleteAttendanceAction, updateStudentStatusAction, getStudentMissingActivitiesAction, getAbsentStudentsForTodayAction } from "@/app/actions";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StudentActivityDetails } from "./components/StudentActivityDetails";
+import { AttendanceManagementSheet } from "./components/AttendanceManagementSheet";
+import { GroupAttendanceSheet } from "./components/GroupAttendanceSheet";
 import { CourseReportPDFDocument } from "./components/CourseReportPDFDocument";
 import { toast } from "sonner";
 import { pdf } from "@react-pdf/renderer";
@@ -57,7 +59,15 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function StudentManager({ courseId, initialStudents }: { courseId: string, initialStudents: any[] }) {
+export function StudentManager({ 
+    courseId, 
+    initialStudents,
+    courseTitle 
+}: { 
+    courseId: string, 
+    initialStudents: any[],
+    courseTitle: string
+}) {
     const [isOpen, setIsOpen] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -71,11 +81,10 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
     const [isExportingAttendance, setIsExportingAttendance] = useState(false);
     const [isExportingZip, setIsExportingZip] = useState(false);
 
-    // Absence Dialog State
-    const [isAbsenceDialogOpen, setIsAbsenceDialogOpen] = useState(false);
-    const [studentForAbsence, setStudentForAbsence] = useState<any | null>(null);
-    const [absenceDate, setAbsenceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-    const [attendanceStatus, setAttendanceStatus] = useState<"PRESENT" | "ABSENT" | "LATE">("ABSENT");
+    // Attendance Management Sheet State
+    const [isAttendanceSheetOpen, setIsAttendanceSheetOpen] = useState(false);
+    const [isGroupAttendanceOpen, setIsGroupAttendanceOpen] = useState(false);
+    const [studentForAttendance, setStudentForAttendance] = useState<any | null>(null);
 
     const handleExportReport = async () => {
         setIsExporting(true);
@@ -101,7 +110,20 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
             const { exportToExcel } = await import("@/lib/export-utils");
 
             const data = await getCourseAttendanceReportAction(courseId);
-            exportToExcel(data, `Reporte_Asistencias_${new Date().toISOString().split('T')[0]}`, "Asistencias");
+            
+            // Flatten data for Excel (extract only the status from objects)
+            const excelData = data.map(row => {
+                const newRow = { ...row };
+                Object.keys(newRow).forEach(key => {
+                    const value = newRow[key];
+                    if (value && typeof value === 'object' && 'status' in value) {
+                        newRow[key] = value.status;
+                    }
+                });
+                return newRow;
+            });
+
+            exportToExcel(excelData, `Reporte_Asistencias_${new Date().toISOString().split('T')[0]}`, "Asistencias");
             toast.success("Reporte generado exitosamente");
         } catch (error) {
             console.error(error);
@@ -188,26 +210,11 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
         }
     };
 
-    const handleOpenAbsenceDialog = (student: any) => {
-        setStudentForAbsence(student);
-        setAbsenceDate(format(new Date(), 'yyyy-MM-dd'));
-        setAttendanceStatus("ABSENT");
-        setIsAbsenceDialogOpen(true);
+    const handleOpenAttendanceSheet = (student: any) => {
+        setStudentForAttendance(student);
+        setIsAttendanceSheetOpen(true);
     };
 
-    const handleRecordAbsence = async () => {
-        if (!studentForAbsence || !absenceDate) return;
-
-        try {
-            // Pass the YYYY-MM-DD string directly to avoid timezone conversion issues
-            await recordAttendanceAction(courseId, studentForAbsence.id, absenceDate, attendanceStatus);
-            toast.success(`Asistencia registrada para ${studentForAbsence.name}`);
-            setIsAbsenceDialogOpen(false);
-            setStudentForAbsence(null);
-        } catch (error) {
-            toast.error("Error al registrar inasistencia");
-        }
-    };
 
     const handleStatusChange = async (enrollmentId: string, newStatus: 'APPROVED' | 'REJECTED') => {
         try {
@@ -424,6 +431,10 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                             </SheetContent>
                         </Sheet>
                         <LateArrivalsModal courseId={courseId} />
+                        <Button variant="outline" onClick={() => setIsGroupAttendanceOpen(true)}>
+                            <Users className="mr-2 h-4 w-4 text-primary" />
+                            Resumen de Asistencia
+                        </Button>
                     </div>
 
                     <DropdownMenu>
@@ -479,49 +490,22 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                 </div>
             </div>
 
-            {/* Absence Dialog */}
-            <Dialog open={isAbsenceDialogOpen} onOpenChange={setIsAbsenceDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Registrar Asistencia</DialogTitle>
-                        <DialogDescription>
-                            Registra el estado de asistencia de <strong>{studentForAbsence?.name}</strong>.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="absence-date">Fecha</Label>
-                            <Input
-                                id="absence-date"
-                                type="date"
-                                value={absenceDate}
-                                onChange={(e) => setAbsenceDate(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Estado</Label>
-                            <RadioGroup value={attendanceStatus} onValueChange={(val: any) => setAttendanceStatus(val)} className="flex flex-col space-y-1">
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="ABSENT" id="st-absent" />
-                                    <Label htmlFor="st-absent" className="font-normal cursor-pointer">Ausente</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="PRESENT" id="st-present" />
-                                    <Label htmlFor="st-present" className="font-normal cursor-pointer">Presente</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="LATE" id="st-late" />
-                                    <Label htmlFor="st-late" className="font-normal cursor-pointer">Tarde</Label>
-                                </div>
-                            </RadioGroup>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAbsenceDialogOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleRecordAbsence}>Guardar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Attendance Management Sheet */}
+            {studentForAttendance && (
+                <AttendanceManagementSheet
+                    isOpen={isAttendanceSheetOpen}
+                    onOpenChange={setIsAttendanceSheetOpen}
+                    courseId={courseId}
+                    student={studentForAttendance}
+                />
+            )}
+
+            <GroupAttendanceSheet
+                isOpen={isGroupAttendanceOpen}
+                onOpenChange={setIsGroupAttendanceOpen}
+                courseId={courseId}
+                courseTitle={courseTitle}
+            />
 
             <div className="w-full overflow-x-auto rounded-md border">
                 <Table className="min-w-[800px]">
@@ -564,14 +548,14 @@ export function StudentManager({ courseId, initialStudents }: { courseId: string
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => handleOpenAbsenceDialog(enrollment.user)}
+                                                        onClick={() => handleOpenAttendanceSheet(enrollment.user)}
                                                         className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                                                     >
                                                         <Calendar className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>Registrar Asistencia</p>
+                                                    <p>Gestionar Asistencias</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                             <Tooltip>
@@ -799,18 +783,18 @@ function MissingActivitiesDialog({ courseId, userId, studentName }: { courseId: 
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Tooltip>
-                    <TooltipTrigger asChild>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50">
                             <ClipboardX className="h-4 w-4" />
                         </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Ver actividades faltantes</p>
-                    </TooltipContent>
-                </Tooltip>
-            </DialogTrigger>
+                    </DialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Ver actividades faltantes</p>
+                </TooltipContent>
+            </Tooltip>
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>Actividades Pendientes</DialogTitle>

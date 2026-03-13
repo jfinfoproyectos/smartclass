@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { getStudentRemarksAction } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquareWarning, Award } from "lucide-react";
+import { MessageSquareWarning, Award, Search, Info } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
     Table,
     TableBody,
@@ -60,12 +62,12 @@ export function StudentRemarks({ courseId, userId }: StudentRemarksProps) {
     }
 
     return (
-        <div className="mt-6 border-t pt-6">
+        <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-semibold flex items-center gap-2">
+                <h3 className="text-2xl font-bold flex items-center gap-2">
                     <MessageSquareWarning className="h-4 w-4" />
                     Observaciones del Profesor
-                </h4>
+                </h3>
                 <div className="text-xs text-muted-foreground">
                     {remarks.filter(r => r.type === "ATTENTION").length} atenciones, {remarks.filter(r => r.type === "COMMENDATION").length} felicitaciones
                 </div>
@@ -85,7 +87,7 @@ export function StudentRemarks({ courseId, userId }: StudentRemarksProps) {
                         {remarks.map((remark) => (
                             <TableRow key={remark.id}>
                                 <TableCell className="text-sm">
-                                    {new Date(remark.date).toLocaleDateString()}
+                                    {format(new Date(remark.date), "PPP", { locale: es })}
                                 </TableCell>
                                 <TableCell>
                                     <Badge
@@ -121,7 +123,7 @@ export function StudentRemarks({ courseId, userId }: StudentRemarksProps) {
                     <DialogHeader>
                         <DialogTitle>Detalle de Observación</DialogTitle>
                         <DialogDescription>
-                            {viewingRemark && new Date(viewingRemark.date).toLocaleDateString()}
+                            {viewingRemark && format(new Date(viewingRemark.date), "PPP", { locale: es })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">

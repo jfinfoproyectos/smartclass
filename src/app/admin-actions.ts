@@ -253,7 +253,6 @@ export async function reassignCourseTeacherAction(courseId: string, newTeacherId
 
 
 
-// ============ NOTIFICATION MANAGEMENT ============
 
 
 // ============ BULK OPERATIONS ============
@@ -283,28 +282,6 @@ export async function bulkDeleteUsersAction(userIds: string[]) {
 
     revalidatePath("/dashboard/admin/users");
     return results;
-}
-
-// ============ SYSTEM MAINTENANCE ============
-export async function cleanupOldNotificationsAction(daysOld: number = 90) {
-    await requireAdmin();
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-
-
-    const result = await prisma.notification.deleteMany({
-        where: {
-            createdAt: { lt: cutoffDate },
-            reads: {
-                some: {}
-            }
-        }
-    });
-
-    revalidatePath("/dashboard/admin");
-    return result;
 }
 
 // ============ SYSTEM SETTINGS ============

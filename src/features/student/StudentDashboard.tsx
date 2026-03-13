@@ -128,7 +128,6 @@ export function StudentDashboard({
                 <TabsContent value="my-courses" className="space-y-6 mt-0">
                     <MyEnrollments
                         enrollments={myEnrollments}
-                        studentName={studentName}
                         selectedCourse={selectedCourse}
                     />
                 </TabsContent>

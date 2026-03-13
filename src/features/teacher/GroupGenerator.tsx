@@ -30,7 +30,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GripVertical, Plus, Shuffle, Trash2, RotateCcw, Users, Download } from "lucide-react";
+import { GripVertical, Plus, Shuffle, Trash2, RotateCcw, Users, Download, Upload, FileJson } from "lucide-react";
+import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 import { cn } from "@/lib/utils";
 
@@ -248,6 +249,51 @@ export function GroupGenerator({ students: initialStudents }: GroupGeneratorProp
         XLSX.writeFile(wb, `Grupos_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
+    const handleExportJSON = () => {
+        const state = {
+            groups,
+            ungrouped,
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Proyecto_Grupos_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Proyecto exportado correctamente");
+    };
+
+    const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const content = event.target?.result as string;
+                const state = JSON.parse(content);
+
+                if (!state.groups || !Array.isArray(state.groups) || !Array.isArray(state.ungrouped)) {
+                    throw new Error("Formato de archivo inválido");
+                }
+
+                setGroups(state.groups);
+                setUngrouped(state.ungrouped);
+                toast.success("Proyecto importado correctamente");
+            } catch (error) {
+                console.error("Error importing JSON:", error);
+                toast.error("Error al importar el archivo JSON");
+            }
+        };
+        reader.readAsText(file);
+        // Reset input
+        e.target.value = "";
+    };
+
     // --- DND Handlers ---
 
     const findContainer = (id: string): string | undefined => {
@@ -411,8 +457,41 @@ export function GroupGenerator({ students: initialStudents }: GroupGeneratorProp
                                 title="Exportar Grupos a Excel"
                             >
                                 <Download className="w-4 h-4 mr-2" />
-                                Exportar
+                                <span className="hidden sm:inline">Excel</span>
                             </Button>
+                            
+                            <div className="flex items-center gap-1 border-l pl-2 ml-2">
+                                <Button
+                                    onClick={handleExportJSON}
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={groups.length === 0 && ungrouped.length === 0}
+                                    className="gap-2"
+                                >
+                                    <FileJson className="w-4 h-4" />
+                                    <span className="hidden lg:inline">Guardar JSON</span>
+                                </Button>
+                                <div className="relative">
+                                    <Input
+                                        type="file"
+                                        accept=".json"
+                                        className="hidden"
+                                        id="import-json"
+                                        onChange={handleImportJSON}
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2"
+                                        asChild
+                                    >
+                                        <label htmlFor="import-json" className="cursor-pointer">
+                                            <Upload className="w-4 h-4" />
+                                            <span className="hidden lg:inline">Cargar JSON</span>
+                                        </label>
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-2 border-l pl-4">

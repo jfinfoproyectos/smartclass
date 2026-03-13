@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { createActivityAction, updateActivityAction, deleteActivityAction } from "@/app/actions";
 import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle, Sparkles, Upload, Download } from "lucide-react";
+import { toast } from "sonner";
 
 
 import { scanRepositoryAction, getMissingSubmissionsAction } from "@/app/actions";
@@ -342,7 +343,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                 setFormKey(k => k + 1);
             } catch (err) {
                 console.error("Error al importar", err);
-                alert("Archivo JSON inválido");
+                toast.error("Archivo JSON inválido");
             }
         };
         reader.readAsText(file);
@@ -796,7 +797,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                 setFormKey(k => k + 1);
             } catch (err) {
                 console.error("Error al importar", err);
-                alert("Archivo JSON inválido");
+                toast.error("Archivo JSON inválido");
             }
         };
         reader.readAsText(file);

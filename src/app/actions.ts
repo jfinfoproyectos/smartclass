@@ -1099,12 +1099,12 @@ export async function getGeminiApiKeyModeAction() {
         hasUserKey: !!user?.encryptedGeminiApiKey
     };
 }
-
 export async function recordAttendanceAction(
     courseId: string,
     userId: string,
     date: Date | string,
-    status: "PRESENT" | "ABSENT" | "EXCUSED" | "LATE"
+    status: "PRESENT" | "ABSENT" | "EXCUSED" | "LATE",
+    arrivalTime?: Date | string | null
 ) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") {
@@ -1112,7 +1112,11 @@ export async function recordAttendanceAction(
     }
 
     const { attendanceService } = await import("@/services/attendanceService");
-    const attendance = await attendanceService.recordAttendance(courseId, userId, date, status);
+    
+    // Convert arrivalTime to Date if it's a string
+    const finalArrivalTime = typeof arrivalTime === 'string' ? new Date(arrivalTime) : arrivalTime;
+
+    const attendance = await attendanceService.recordAttendance(courseId, userId, date, status, finalArrivalTime);
 
     // 🎯 AUDIT LOG
     const { auditLogger } = await import("@/services/auditLogger");
@@ -1129,6 +1133,45 @@ export async function recordAttendanceAction(
         session.user.id,
         session.user.name || "Profesor"
     );
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+}
+
+export async function deleteAttendanceAction(
+    courseId: string,
+    userId: string,
+    date: Date | string,
+    attendanceId?: string
+) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const { attendanceService } = await import("@/services/attendanceService");
+    
+    if (attendanceId) {
+        await attendanceService.deleteAttendanceRecord(attendanceId);
+    } else {
+        await attendanceService.deleteAttendanceByDetails(courseId, userId, date);
+    }
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    const [course, student] = await Promise.all([
+        prisma.course.findUnique({ where: { id: courseId }, select: { title: true } }),
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+    ]);
+
+    await auditLogger.log({
+        action: "DELETE",
+        entity: "ATTENDANCE",
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Registro de asistencia eliminado para ${student?.name || "Estudiante"} en el curso ${course?.title || "Curso"} para la fecha ${typeof date === 'string' ? date : date.toISOString().split('T')[0]}`,
+        success: true,
+    });
 
     revalidatePath(`/dashboard/teacher/courses/${courseId}`);
 }
@@ -1252,7 +1295,10 @@ export async function createRemarkAction(formData: FormData) {
     const courseId = formData.get("courseId") as string;
     const userId = formData.get("userId") as string;
 
-    console.log("SERVER ACTION: createRemarkAction received:", { type, title, description, courseId, userId });
+    const dateStr = formData.get("date") as string;
+    const date = dateStr ? parseISOAsUTC(dateStr) : undefined;
+
+    console.log("SERVER ACTION: createRemarkAction received:", { type, title, description, courseId, userId, date });
 
     const { remarkService } = await import("@/services/remarkService");
     const remark = await remarkService.createRemark({
@@ -1262,6 +1308,7 @@ export async function createRemarkAction(formData: FormData) {
         courseId,
         userId,
         teacherId: session.user.id,
+        date: date,
     });
 
     // 🎯 AUDIT LOG
@@ -1309,12 +1356,15 @@ export async function updateRemarkAction(formData: FormData) {
     const title = formData.get("title") as string | null;
     const description = formData.get("description") as string | null;
     const courseId = formData.get("courseId") as string;
+    const dateStr = formData.get("date") as string;
+    const date = dateStr ? parseISOAsUTC(dateStr) : undefined;
 
     const { remarkService } = await import("@/services/remarkService");
     await remarkService.updateRemark(remarkId, {
         ...(type && { type }),
         ...(title && { title }),
         ...(description && { description }),
+        ...(date && { date }),
     });
 
     // 🎯 AUDIT LOG
@@ -1410,205 +1460,6 @@ export async function getScheduleViewAction() {
     }
 }
 
-// Notification Actions
-export async function createNotificationAction(formData: FormData) {
-    const session = await getSession();
-    if (!session || session.user.role !== "teacher") {
-        throw new Error("Unauthorized");
-    }
-
-    const title = formData.get("title") as string;
-    const message = formData.get("message") as string;
-    const target = formData.get("target") as "ALL_COURSES" | "SPECIFIC_COURSE" | "SPECIFIC_STUDENTS";
-    const courseId = formData.get("courseId") as string | null;
-    const studentIdsStr = formData.get("studentIds") as string | null;
-
-    let studentIds: string[] = [];
-    if (studentIdsStr) {
-        try {
-            studentIds = JSON.parse(studentIdsStr);
-        } catch (e) {
-            console.error("Failed to parse studentIds", e);
-        }
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    const notification = await notificationService.createNotification({
-        title,
-        message,
-        target,
-        teacherId: session.user.id,
-        courseId: courseId || undefined,
-        studentIds,
-    });
-
-    // 🎯 AUDIT LOG
-    const { auditLogger } = await import("@/services/auditLogger");
-    // Calculate recipient count based on target
-    let recipientCount = 0;
-    if (target === "SPECIFIC_STUDENTS") {
-        recipientCount = studentIds.length;
-    } else if (target === "SPECIFIC_COURSE" && courseId) {
-        const enrollmentCount = await prisma.enrollment.count({
-            where: { courseId }
-        });
-        recipientCount = enrollmentCount;
-    } else if (target === "ALL_COURSES") {
-        const enrollmentCount = await prisma.enrollment.count({
-            where: {
-                course: { teacherId: session.user.id }
-            }
-        });
-        recipientCount = enrollmentCount;
-    }
-
-    await auditLogger.logNotification(
-        notification.id,
-        title,
-        target,
-        session.user.id,
-        session.user.name || "Profesor",
-        recipientCount
-    );
-
-    revalidatePath("/dashboard/teacher/notifications");
-    revalidatePath("/dashboard/student/notifications");
-}
-
-export async function updateNotificationAction(formData: FormData) {
-    const session = await getSession();
-    if (!session || session.user.role !== "teacher") {
-        throw new Error("Unauthorized");
-    }
-
-    const id = formData.get("notificationId") as string;
-    const title = formData.get("title") as string;
-    const message = formData.get("message") as string;
-    const target = formData.get("target") as "ALL_COURSES" | "SPECIFIC_COURSE" | "SPECIFIC_STUDENTS";
-    const courseId = formData.get("courseId") as string | null;
-    const studentIdsStr = formData.get("studentIds") as string | null;
-
-    let studentIds: string[] | undefined;
-    if (studentIdsStr) {
-        try {
-            studentIds = JSON.parse(studentIdsStr);
-        } catch (e) {
-            console.error("Failed to parse studentIds", e);
-        }
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    await notificationService.updateNotification(id, {
-        title,
-        message,
-        target,
-        courseId: courseId || undefined,
-        studentIds,
-    });
-
-    // 🎯 AUDIT LOG
-    const { auditLogger } = await import("@/services/auditLogger");
-    await auditLogger.log({
-        action: "UPDATE",
-        entity: "NOTIFICATION",
-        entityId: id,
-        userId: session.user.id,
-        userName: session.user.name || "Profesor",
-        userRole: session.user.role,
-        description: `Notificación actualizada: "${title}"`,
-        metadata: { target },
-        success: true,
-    });
-
-    revalidatePath("/dashboard/teacher/notifications");
-    revalidatePath("/dashboard/student/notifications");
-}
-
-export async function deleteNotificationAction(formData: FormData) {
-    const session = await getSession();
-    if (!session || session.user.role !== "teacher") {
-        throw new Error("Unauthorized");
-    }
-
-    const id = formData.get("notificationId") as string;
-
-    // Get notification info before deletion
-    const notification = await prisma.notification.findUnique({
-        where: { id },
-        select: { title: true }
-    });
-
-    const { notificationService } = await import("@/services/notificationService");
-    await notificationService.deleteNotification(id);
-
-    // 🎯 AUDIT LOG
-    const { auditLogger } = await import("@/services/auditLogger");
-    await auditLogger.log({
-        action: "DELETE",
-        entity: "NOTIFICATION",
-        entityId: id,
-        userId: session.user.id,
-        userName: session.user.name || "Profesor",
-        userRole: session.user.role,
-        description: `Notificación eliminada: "${notification?.title || "Sin título"}"`,
-        success: true,
-    });
-
-    revalidatePath("/dashboard/teacher/notifications");
-    revalidatePath("/dashboard/student/notifications");
-}
-
-export async function getTeacherNotificationsAction() {
-    const session = await getSession();
-    if (!session || session.user.role !== "teacher") {
-        throw new Error("Unauthorized");
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    return await notificationService.getTeacherNotifications(session.user.id);
-}
-
-export async function getStudentNotificationsAction() {
-    const session = await getSession();
-    if (!session || session.user.role !== "student") {
-        throw new Error("Unauthorized");
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    return await notificationService.getStudentNotificationsWithReadStatus(session.user.id);
-}
-
-export async function markNotificationAsReadAction(notificationId: string) {
-    const session = await getSession();
-    if (!session || session.user.role !== "student") {
-        throw new Error("Unauthorized");
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    await notificationService.markNotificationAsRead(notificationId, session.user.id);
-    revalidatePath("/dashboard/student/notifications");
-}
-
-export async function markAllNotificationsAsReadAction() {
-    const session = await getSession();
-    if (!session || session.user.role !== "student") {
-        throw new Error("Unauthorized");
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    await notificationService.markAllAsRead(session.user.id);
-    revalidatePath("/dashboard/student/notifications");
-}
-
-export async function getUnreadNotificationCountAction() {
-    const session = await getSession();
-    if (!session || session.user.role !== "student") {
-        return 0;
-    }
-
-    const { notificationService } = await import("@/services/notificationService");
-    return await notificationService.getUnreadNotificationCount(session.user.id);
-}
 
 export async function gradeGoogleColabAction(activityId: string, colabUrl: string, statement: string) {
     const session = await getSession();
@@ -1647,106 +1498,12 @@ export async function gradeGoogleColabAction(activityId: string, colabUrl: strin
     return result;
 }
 
+
 // -----------------------------------------------------------------------------
-// ANNOUNCEMENTS & SETTINGS ACTIONS
+// SETTINGS ACTIONS
 // -----------------------------------------------------------------------------
 
-import { announcementService } from "@/services/announcementService";
 import { settingsService } from "@/services/settingsService";
-
-export async function getAnnouncementsAction() {
-    const session = await getSession();
-    // Visible to everyone, but admin sees all
-    const isAdmin = session?.user?.role === "admin";
-    return await announcementService.getAnnouncements(!isAdmin);
-}
-
-export async function createAnnouncementAction(formData: FormData) {
-    const session = await getSession();
-    if (!session || session.user.role !== "admin") {
-        throw new Error("Unauthorized");
-    }
-
-    const title = formData.get("title") as string;
-    const content = formData.get("content") as string;
-    const imageUrl = formData.get("imageUrl") as string;
-    const visible = formData.get("visible") === "true";
-    const showImage = formData.get("showImage") === "true";
-    const imagePosition = formData.get("imagePosition") as string;
-    const type = formData.get("type") as "INFO" | "URGENT" | "EVENT" | "MAINTENANCE" | "SUCCESS" | "WARNING" | "NEWSLETTER" | "CELEBRATION";
-
-    // Extract and convert date fields
-    const startDateStr = formData.get("startDate") as string;
-    const endDateStr = formData.get("endDate") as string;
-    const startDate = startDateStr ? new Date(startDateStr) : undefined;
-    const endDate = endDateStr ? new Date(endDateStr) : undefined;
-
-    await announcementService.createAnnouncement({
-        title,
-        content,
-        imageUrl: imageUrl || undefined,
-        showImage,
-        imagePosition: imagePosition || "LEFT",
-        startDate,
-        endDate,
-        authorId: session.user.id,
-        visible,
-        type
-    });
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/admin/announcements");
-}
-
-export async function updateAnnouncementAction(formData: FormData) {
-    const session = await getSession();
-    if (!session || session.user.role !== "admin") {
-        throw new Error("Unauthorized");
-    }
-
-    const id = formData.get("id") as string;
-    const title = formData.get("title") as string;
-    const content = formData.get("content") as string;
-    const imageUrl = formData.get("imageUrl") as string;
-    const visible = formData.get("visible") === "true";
-    const showImage = formData.get("showImage") === "true";
-    const imagePosition = formData.get("imagePosition") as string;
-    const type = formData.get("type") as "INFO" | "URGENT" | "EVENT" | "MAINTENANCE" | "SUCCESS" | "WARNING" | "NEWSLETTER" | "CELEBRATION";
-
-    // Extract and convert date fields
-    const startDateStr = formData.get("startDate") as string;
-    const endDateStr = formData.get("endDate") as string;
-    const startDate = startDateStr ? new Date(startDateStr) : null;
-    const endDate = endDateStr ? new Date(endDateStr) : null;
-
-    await announcementService.updateAnnouncement(id, {
-        title,
-        content,
-        imageUrl: imageUrl || undefined,
-        showImage,
-        imagePosition: imagePosition || "LEFT",
-        startDate,
-        endDate,
-        visible,
-        type
-    });
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/admin/announcements");
-}
-
-export async function deleteAnnouncementAction(formData: FormData) {
-    const session = await getSession();
-    if (!session || session.user.role !== "admin") {
-        throw new Error("Unauthorized");
-    }
-
-    const id = formData.get("id") as string;
-    await announcementService.deleteAnnouncement(id);
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/admin/announcements");
-}
 
 export async function getSettingsAction() {
     // Publicly accessible for branding

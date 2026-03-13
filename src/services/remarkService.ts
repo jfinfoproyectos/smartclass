@@ -10,6 +10,7 @@ export const remarkService = {
         courseId: string;
         userId: string;
         teacherId: string;
+        date?: Date;
     }) {
         return await prisma.remark.create({
             data: {
@@ -19,6 +20,7 @@ export const remarkService = {
                 courseId: data.courseId,
                 userId: data.userId,
                 teacherId: data.teacherId,
+                ...(data.date && { date: data.date }),
             },
         });
     },
@@ -64,6 +66,7 @@ export const remarkService = {
         type?: RemarkType;
         title?: string;
         description?: string;
+        date?: Date;
     }) {
         return await prisma.remark.update({
             where: { id: remarkId },
@@ -71,6 +74,7 @@ export const remarkService = {
                 ...(data.type && { type: data.type }),
                 ...(data.title && { title: data.title }),
                 ...(data.description && { description: data.description }),
+                ...(data.date && { date: data.date }),
             },
         });
     },

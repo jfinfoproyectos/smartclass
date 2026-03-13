@@ -5,8 +5,8 @@ import { format } from "date-fns";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, X, UserCheck, Calendar } from "lucide-react";
-import { getCourseStudentsAction, recordAttendanceAction, getStudentAttendanceStatsAction } from "@/app/actions";
+import { getCourseStudentsAction, recordAttendanceAction, deleteAttendanceAction, getStudentAttendanceStatsAction } from "@/app/actions";
+import { Check, X, UserCheck, Calendar, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { formatCalendarDate } from "@/lib/dateUtils";
 
@@ -92,15 +92,39 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
         }
     }, [currentIndex]);
 
-    const handleMarkAttendance = async (status: "PRESENT" | "ABSENT" | "EXCUSED") => {
+    const handleResetAttendance = async () => {
         const student = students[currentIndex];
         if (!student) return;
 
         try {
-            // Format date as YYYY-MM-DD using local time (date-fns format uses local by default)
             const dateStr = format(attendanceDate, "yyyy-MM-dd");
-            await recordAttendanceAction(courseId, student.id, dateStr, status);
-            toast.success(`Marcado como ${status === "PRESENT" ? "Presente" : status === "ABSENT" ? "Ausente" : "Excusado"}`);
+            await deleteAttendanceAction(courseId, student.id, dateStr);
+            toast.success(`Registro eliminado para ${student.name}`);
+            
+            // Reload stats to reflect the change
+            loadStudentStats(student.id);
+        } catch (error) {
+            toast.error("Error al eliminar registro");
+        }
+    };
+
+    const handleMarkAttendance = async (status: "PRESENT" | "ABSENT" | "EXCUSED" | "LATE") => {
+        const student = students[currentIndex];
+        if (!student) return;
+
+        try {
+            // Format date as YYYY-MM-DD using local time
+            const dateStr = format(attendanceDate, "yyyy-MM-dd");
+            
+            // For AttendanceTaker (sequential), we use current time for LATE by default
+            const arrivalTime = status === "LATE" ? new Date() : undefined;
+            
+            await recordAttendanceAction(courseId, student.id, dateStr, status, arrivalTime);
+            toast.success(`Marcado como ${
+                status === "PRESENT" ? "Presente" : 
+                status === "ABSENT" ? "Ausente" : 
+                status === "LATE" ? "Tarde" : "Excusado"
+            }`);
 
             // Auto advance if not the last student
             if (currentIndex < students.length - 1) {
@@ -133,6 +157,18 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                 case "a":
                 case "A":
                     handleMarkAttendance("ABSENT");
+                    break;
+                case "t":
+                case "T":
+                case "l":
+                case "L":
+                    handleMarkAttendance("LATE");
+                    break;
+                case "r":
+                case "R":
+                case "Backspace":
+                case "Delete":
+                    handleResetAttendance();
                     break;
             }
         };
@@ -243,6 +279,26 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
                                 >
                                     <Check className="mr-2 h-5 w-5 md:h-6 md:w-6" />
                                     Presente
+                                </Button>
+
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="h-16 md:h-20 w-32 md:w-40 text-lg md:text-xl border-yellow-200 hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300 dark:hover:bg-yellow-950/30"
+                                    onClick={() => handleMarkAttendance("LATE")}
+                                >
+                                    <Clock className="mr-2 h-5 w-5 md:h-6 md:w-6" />
+                                    Tarde
+                                </Button>
+
+                                <Button
+                                    size="lg"
+                                    variant="ghost"
+                                    className="h-16 md:h-20 w-16 md:w-20 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={handleResetAttendance}
+                                    title="Eliminar registro (Reset)"
+                                >
+                                    <RotateCcw className="h-6 w-6 md:h-8 md:w-8" />
                                 </Button>
                             </div>
                         </div>

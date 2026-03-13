@@ -20,6 +20,8 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { formatCalendarDate, fromUTC, toUTCStartOfDay } from "@/lib/dateUtils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -170,12 +172,12 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
     }
 
     return (
-        <div className="mt-6 border-t pt-6">
+        <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-semibold flex items-center gap-2">
+                <h3 className="text-2xl font-bold flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     Historial de Inasistencias
-                </h4>
+                </h3>
             </div>
 
             <div className="w-full overflow-x-auto rounded-md border">
@@ -217,7 +219,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
                                             {record.status === "LATE" && record.arrivalTime ? (
-                                                <span>Llegada: {new Date(record.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span>Llegada: {format(new Date(record.arrivalTime), "p", { locale: es })}</span>
                                             ) : record.status === "EXCUSED" ? (
                                                 <span className="font-medium">
                                                     {record.justificationUrl ? "Justificado con soporte" : "Justificado sin soporte"}

@@ -8,13 +8,19 @@ export const attendanceService = {
         courseId: string,
         userId: string,
         date: Date | string,
-        status: AttendanceStatus
+        status: AttendanceStatus,
+        arrivalTime?: Date | null
     ) {
         // Normalize date to start of day in UTC to avoid timezone shifts
-        // We use the utility to create a Date that represents O0:00 UTC of the given date
         const normalizedDate = typeof date === 'string'
             ? new Date(date)
             : toUTCStartOfDay(date);
+
+        // If status is LATE and no arrivalTime is provided, use current time
+        // If status is NOT LATE, arrivalTime should be null
+        const finalArrivalTime = status === "LATE" 
+            ? (arrivalTime || new Date()) 
+            : null;
 
         return await prisma.attendance.upsert({
             where: {
@@ -26,14 +32,14 @@ export const attendanceService = {
             },
             update: {
                 status,
-                arrivalTime: status === "LATE" ? new Date() : null,
+                arrivalTime: finalArrivalTime,
             },
             create: {
                 courseId,
                 userId,
                 date: normalizedDate,
                 status,
-                arrivalTime: status === "LATE" ? new Date() : null,
+                arrivalTime: finalArrivalTime,
             },
         });
     },
@@ -214,6 +220,27 @@ export const attendanceService = {
         return await prisma.attendance.delete({
             where: { id: attendanceId },
         });
+    },
+
+    async deleteAttendanceByDetails(courseId: string, userId: string, date: Date | string) {
+        const normalizedDate = typeof date === 'string'
+            ? new Date(date)
+            : toUTCStartOfDay(date);
+
+        try {
+            return await prisma.attendance.delete({
+                where: {
+                    courseId_userId_date: {
+                        courseId,
+                        userId,
+                        date: normalizedDate,
+                    },
+                },
+            });
+        } catch (error) {
+            // If it doesn't exist, we don't need to do anything
+            return null;
+        }
     },
 
     async getCourseAttendance(courseId: string) {

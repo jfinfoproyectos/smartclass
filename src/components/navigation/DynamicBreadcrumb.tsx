@@ -54,7 +54,6 @@ export function DynamicBreadcrumb() {
                     admin: "Administración",
                     courses: "Cursos",
                     activities: "Actividades",
-                    notifications: "Notificaciones",
                     attendance: "Asistencia",
                     schedule: "Horario",
                     statistics: "Estadísticas",

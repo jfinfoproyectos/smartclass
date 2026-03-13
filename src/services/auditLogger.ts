@@ -237,21 +237,6 @@ export const auditLogger = {
         });
     },
 
-    /**
-     * Log notification send
-     */
-    async logNotification(notificationId: string, title: string, target: string, teacherId: string, teacherName: string, recipientCount: number) {
-        await this.log({
-            action: "NOTIFICATION_SEND",
-            entity: "NOTIFICATION",
-            entityId: notificationId,
-            userId: teacherId,
-            userName: teacherName,
-            userRole: "teacher",
-            description: `${teacherName} envió notificación "${title}" a ${recipientCount} destinatario(s)`,
-            metadata: { title, target, recipientCount },
-        });
-    },
 
     /**
      * Log data export

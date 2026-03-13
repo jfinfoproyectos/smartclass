@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BookOpen, Settings2, Bell, Calendar, CalendarClock, BarChart, Users, FileText, Activity, ScrollText, Home } from "lucide-react"
+import { BookOpen, Settings2, Calendar, CalendarClock, BarChart, Users, FileText, Activity, ScrollText, Home, Wrench } from "lucide-react"
 
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -16,12 +16,10 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { AppIdentity } from "./app-identity"
-import { getUnreadNotificationCountAction } from "@/app/actions"
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session, isPending } = authClient.useSession()
-  const [unreadCount, setUnreadCount] = React.useState(0)
   const [mounted, setMounted] = React.useState(false)
 
   const role = getRoleFromUser(session?.user)
@@ -31,16 +29,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setMounted(true)
   }, [])
 
-  // Fetch unread count for students
-  React.useEffect(() => {
-    if (role === "student") {
-      getUnreadNotificationCountAction().then(count => {
-        setUnreadCount(count)
-      }).catch(() => {
-        setUnreadCount(0)
-      })
-    }
-  }, [role])
 
   // Prevent hydration mismatch by not rendering on server
   if (!mounted) {
@@ -90,12 +78,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           isActive: false,
         },
         {
-          title: "Anuncios",
-          url: "/dashboard/admin/announcements",
-          icon: Bell,
-          isActive: false,
-        },
-        {
           title: "Sistema",
           url: "/dashboard/admin/system",
           icon: Activity,
@@ -129,12 +111,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             isActive: true,
           },
           {
-            title: "Notificaciones",
-            url: "/dashboard/teacher/notifications",
-            icon: Bell,
-            isActive: false,
-          },
-          {
             title: "Calendario",
             url: "/dashboard/calendar",
             icon: Calendar,
@@ -144,6 +120,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             title: "Horario",
             url: "/dashboard/teacher/schedule",
             icon: CalendarClock,
+            isActive: false,
+          },
+          {
+            title: "Herramientas",
+            url: "/dashboard/teacher/tools",
+            icon: Wrench,
             isActive: false,
           },
           {
@@ -166,13 +148,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               url: "/dashboard/student",
               icon: BookOpen,
               isActive: true,
-            },
-            {
-              title: "Notificaciones",
-              url: "/dashboard/student/notifications",
-              icon: Bell,
-              isActive: false,
-              badge: unreadCount,
             },
             {
               title: "Calendario",

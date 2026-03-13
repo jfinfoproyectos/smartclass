@@ -9,7 +9,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Clock, AlertCircle, Printer, X, Eye, Pencil } from "lucide-react";
+import { Clock, AlertCircle, Printer, X, Eye, Pencil, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { useRef, useState, useEffect } from "react";
 import { useReactToPrint } from "react-to-print";
@@ -23,9 +23,26 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquareWarning, Award, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+    Tooltip, 
+    TooltipContent, 
+    TooltipProvider, 
+    TooltipTrigger 
+} from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { ExportButton } from "@/components/ui/export-button";
 import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
+import { AttendanceManagementSheet } from "./AttendanceManagementSheet";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface StudentActivityDetailsProps {
     enrollment: any;
@@ -39,6 +56,9 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
     const [viewingRemark, setViewingRemark] = useState<any | null>(null);
     const [isViewRemarkDialogOpen, setIsViewRemarkDialogOpen] = useState(false);
     const [editingRemark, setEditingRemark] = useState<any | null>(null);
+    const [isAttendanceSheetOpen, setIsAttendanceSheetOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [remarkToDelete, setRemarkToDelete] = useState<string | null>(null);
 
     const handlePrint = useReactToPrint({
         contentRef: printRef,
@@ -90,15 +110,22 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
         fetchAttendance();
     }, [enrollment.course.id, enrollment.user.id]);
 
-    const handleDeleteRemark = async (remarkId: string) => {
-        if (confirm("¿Estás seguro de que deseas eliminar esta observación?")) {
-            try {
-                await deleteRemarkAction(remarkId, enrollment.course.id);
-                toast.success("Observación eliminada");
-                fetchRemarks();
-            } catch (error: any) {
-                toast.error(error.message || "Error al eliminar");
-            }
+    const handleDeleteRemark = (remarkId: string) => {
+        setRemarkToDelete(remarkId);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteRemark = async () => {
+        if (!remarkToDelete) return;
+        try {
+            await deleteRemarkAction(remarkToDelete, enrollment.course.id);
+            toast.success("Observación eliminada");
+            fetchRemarks();
+        } catch (error: any) {
+            toast.error(error.message || "Error al eliminar");
+        } finally {
+            setIsDeleteDialogOpen(false);
+            setRemarkToDelete(null);
         }
     };
 
@@ -179,6 +206,27 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                             {enrollment.averageGrade > 0 ? enrollment.averageGrade.toFixed(1) : "-"}
                         </p>
                     </div>
+                </div>
+
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-semibold">Actividades del Curso</h3>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    className="text-orange-600 border-orange-200 hover:bg-orange-50 h-8 w-8"
+                                    onClick={() => setIsAttendanceSheetOpen(true)}
+                                >
+                                    <Calendar className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Ver historial completo y gestionar asistencias</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
 
                 <div className="rounded-md border">
@@ -269,6 +317,15 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                         courseId={enrollment.course.id}
                         userId={enrollment.user.id}
                         readonly={true}
+                    />
+                    <AttendanceManagementSheet
+                        isOpen={isAttendanceSheetOpen}
+                        onOpenChange={(open) => {
+                            setIsAttendanceSheetOpen(open);
+                            if (!open) fetchAttendance(); // Refresh table when sheet closes
+                        }}
+                        courseId={enrollment.course.id}
+                        student={enrollment.user}
                     />
                 </div>
 
@@ -437,6 +494,24 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                     remarks={remarks}
                 />
             </div>
+
+            {/* Deletion Confirmation */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción eliminará permanentemente la observación del registro del estudiante.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteRemark} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
