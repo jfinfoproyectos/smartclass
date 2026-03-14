@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
     Table,
     TableBody,
@@ -10,7 +10,21 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, AlertCircle, ExternalLink, ArrowRight, BookOpen, ClipboardCheck, MessageSquare } from "lucide-react";
+import { 
+    Clock, 
+    AlertCircle, 
+    ExternalLink, 
+    ArrowRight, 
+    BookOpen, 
+    ClipboardCheck, 
+    MessageSquare, 
+    Users, 
+    ArrowLeft, 
+    Calendar,
+    GraduationCap,
+    BookMarked,
+    Laptop
+} from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
@@ -21,15 +35,92 @@ import { StudentAttendanceSummary } from "@/features/attendance/components/Stude
 import { Badge } from "@/components/ui/badge";
 import { StudentRemarks } from "./StudentRemarks";
 import { SharedContentList } from "./components/SharedContentList";
+import { GlareCard } from "@/components/ui/aceternity/glare-card";
 
-export function MyEnrollments({ enrollments, selectedCourse }: { enrollments: any[], selectedCourse?: string }) {
+export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: { enrollments: any[], selectedCourse?: string, onSelectCourse?: (id: string | null) => void }) {
     // Filter enrollments by selected course
     const filteredEnrollments = selectedCourse
         ? enrollments.filter(e => e.course.id === selectedCourse)
         : enrollments;
 
+    if (!selectedCourse) {
+        if (enrollments.length === 0) {
+            return (
+                <div className="text-center py-10 text-muted-foreground border rounded-lg border-dashed">
+                    No estás inscrito en ningún curso. Ve al catálogo para inscribirte.
+                </div>
+            );
+        }
+
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {enrollments.map((enrollment, index) => {
+                    // Seleccionar un color o gradiente aleatorio/predefinido según el índice
+                    const gradients = [
+                        "from-blue-500/10 to-transparent",
+                        "from-purple-500/10 to-transparent",
+                        "from-emerald-500/10 to-transparent",
+                        "from-amber-500/10 to-transparent",
+                        "from-rose-500/10 to-transparent",
+                        "from-cyan-500/10 to-transparent",
+                    ];
+                    
+                    const icons = [
+                        <GraduationCap className="h-8 w-8 text-primary/70" key="cap" />,
+                        <BookOpen className="h-8 w-8 text-primary/70" key="book1" />,
+                        <BookMarked className="h-8 w-8 text-primary/70" key="book2" />,
+                        <Laptop className="h-8 w-8 text-primary/70" key="lap" />,
+                        <ClipboardCheck className="h-8 w-8 text-primary/70" key="clip" />
+                    ];
+
+                    const bgGradient = gradients[index % gradients.length];
+                    const Icon = icons[index % icons.length];
+
+                    return (
+                        <GlareCard key={enrollment.id} className="flex flex-col relative overflow-hidden group hover:shadow-lg transition-all rounded-xl border border-muted/50 h-[220px]">
+                            <div 
+                                onClick={() => onSelectCourse?.(enrollment.course.id)}
+                                className={`flex-grow flex flex-col z-10 cursor-pointer h-full bg-gradient-to-br ${bgGradient}`}
+                            >
+                                <CardHeader className="pb-2 pt-6 px-6">
+                                    <div className="mb-4 bg-background/50 w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-sm border shadow-sm">
+                                        {Icon}
+                                    </div>
+                                    <CardTitle className="text-lg line-clamp-2 leading-tight group-hover:text-primary transition-colors" title={enrollment.course.title}>
+                                        {enrollment.course.title}
+                                    </CardTitle>
+                                </CardHeader>
+                                
+                                <CardContent className="flex-grow space-y-3 pb-6 px-6 mt-auto">
+                                    <div className="flex flex-col gap-2 text-sm">
+                                        <CardDescription className="line-clamp-2 h-10" title={enrollment.course.description || ""}>
+                                            {enrollment.course.description || "Sin descripción"}
+                                        </CardDescription>
+
+                                        <div className="pt-2 mt-2 border-t flex items-center gap-2 text-muted-foreground font-medium">
+                                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <Users className="h-3.5 w-3.5 text-primary" />
+                                            </div>
+                                            <span className="truncate">Prof: {enrollment.course.teacher.name}</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </div>
+                        </GlareCard>
+                    );
+                })}
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
+            {onSelectCourse && (
+                <Button variant="ghost" className="mb-2 -ml-2" onClick={() => onSelectCourse(null)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver a mis cursos
+                </Button>
+            )}
 
             {filteredEnrollments.map((enrollment) => (
                 <Card key={enrollment.id} className="overflow-hidden border-muted">
@@ -205,11 +296,6 @@ export function MyEnrollments({ enrollments, selectedCourse }: { enrollments: an
                     </CardContent>
                 </Card>
             ))}
-            {filteredEnrollments.length === 0 && enrollments.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground">
-                    No estás inscrito en ningún curso. Ve al catálogo para inscribirte.
-                </div>
-            )}
         </div>
     );
 }

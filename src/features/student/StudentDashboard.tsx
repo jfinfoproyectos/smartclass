@@ -1,25 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCatalog } from "./CourseCatalog";
 import { MyEnrollments } from "./MyEnrollments";
-import { Button } from "@/components/ui/button";
-import { ChevronsUpDown, Check } from "lucide-react";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 export function StudentDashboard({
     availableCourses,
@@ -33,24 +17,9 @@ export function StudentDashboard({
     pendingEnrollments?: string[]
 }) {
     const [selectedCourse, setSelectedCourse] = useState<string>("");
-    const [openCombobox, setOpenCombobox] = useState(false);
 
-    // Set first course or saved course as default
-    useEffect(() => {
-        if (myEnrollments.length > 0 && !selectedCourse) {
-            const savedCourse = localStorage.getItem("student_selected_course");
-            if (savedCourse && myEnrollments.some(e => e.course.id === savedCourse)) {
-                setSelectedCourse(savedCourse);
-            } else {
-                setSelectedCourse(myEnrollments[0].course.id);
-            }
-        }
-    }, [myEnrollments, selectedCourse]);
-
-    const handleSelectCourse = (courseId: string) => {
-        setSelectedCourse(courseId);
-        localStorage.setItem("student_selected_course", courseId);
-        setOpenCombobox(false);
+    const handleSelectCourse = (courseId: string | null) => {
+        setSelectedCourse(courseId || "");
     };
 
     return (
@@ -76,59 +45,13 @@ export function StudentDashboard({
                         <TabsTrigger value="my-courses">Mis Cursos</TabsTrigger>
                         <TabsTrigger value="catalog">Catálogo de Cursos</TabsTrigger>
                     </TabsList>
-
-                    {myEnrollments.length > 0 && (
-                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={openCombobox}
-                                    className="w-full sm:w-[300px] justify-between"
-                                >
-                                    <span className="truncate">
-                                        {selectedCourse
-                                            ? myEnrollments.find((e) => e.course.id === selectedCourse)?.course.title
-                                            : "Seleccionar curso"}
-                                    </span>
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-full sm:w-[300px] p-0">
-                                <Command>
-                                    <CommandInput placeholder="Buscar curso..." />
-                                    <CommandList>
-                                        <CommandEmpty>No se encontró el curso.</CommandEmpty>
-                                        <CommandGroup>
-                                            {myEnrollments.map((enrollment) => (
-                                                <CommandItem
-                                                    key={enrollment.course.id}
-                                                    value={enrollment.course.id}
-                                                    onSelect={(currentValue) => {
-                                                        handleSelectCourse(currentValue);
-                                                    }}
-                                                >
-                                                    <Check
-                                                        className={cn(
-                                                            "mr-2 h-4 w-4",
-                                                            selectedCourse === enrollment.course.id ? "opacity-100" : "opacity-0"
-                                                        )}
-                                                    />
-                                                    {enrollment.course.title}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                    )}
                 </div>
 
                 <TabsContent value="my-courses" className="space-y-6 mt-0">
                     <MyEnrollments
                         enrollments={myEnrollments}
                         selectedCourse={selectedCourse}
+                        onSelectCourse={handleSelectCourse}
                     />
                 </TabsContent>
                 <TabsContent value="catalog" className="space-y-6 mt-0">

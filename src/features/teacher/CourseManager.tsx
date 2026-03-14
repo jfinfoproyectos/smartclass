@@ -23,7 +23,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { createCourseAction, deleteCourseAction, updateRegistrationSettingsAction, cloneCourseAction, getCourseCompleteDataAction } from "@/app/actions";
-import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning, Download } from "lucide-react";
+import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning, Download, Users } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -34,6 +34,14 @@ import {
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { updateCourseAction } from "@/app/actions";
 import { Pencil } from "lucide-react";
 import {
@@ -49,6 +57,7 @@ import { getMultiCourseGradesReportAction } from "@/app/actions";
 import { exportMultiSheetExcel } from "@/lib/export-utils";
 import { FileSpreadsheet } from "lucide-react";
 import { format } from "date-fns";
+import { GlareCard } from "@/components/ui/aceternity/glare-card";
 
 // Helper function to format date consistently on server and client
 function formatDateTime(date: Date | string): string {
@@ -385,164 +394,163 @@ export function CourseManager({ initialCourses, pendingEnrollments = [], current
         return labels[day] || day;
     };
 
-    const CourseTable = ({ courses }: { courses: Course[] }) => (
-        <div className="w-full overflow-x-auto rounded-md border">
-            <Table className="min-w-[800px]">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[50px]">
-                            <Checkbox
-                                checked={selectedCourses.length === activeCourses.length && activeCourses.length > 0}
-                                onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                            />
-                        </TableHead>
-                        <TableHead>Título</TableHead>
-                        <TableHead className="hidden md:table-cell">Descripción</TableHead>
-                        <TableHead className="hidden sm:table-cell">Fechas</TableHead>
-                        <TableHead>Estudiantes</TableHead>
-                        <TableHead className="hidden lg:table-cell">Inscripción</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
+    const CourseTable = ({ courses }: { courses: Course[] }) => {
+        const areAllSelected = courses.length > 0 && courses.every(c => selectedCourses.includes(c.id));
+        
+        return (
+            <div className="space-y-4">
+                {courses.length > 0 && (
+                    <div className="flex items-center space-x-2 py-2">
+                        <Checkbox
+                            id="select-all"
+                            checked={areAllSelected}
+                            onCheckedChange={(checked) => {
+                                if (checked) {
+                                    const idsToAdd = courses.map(c => c.id).filter(id => !selectedCourses.includes(id));
+                                    setSelectedCourses(prev => [...prev, ...idsToAdd]);
+                                } else {
+                                    const idsToRemove = courses.map(c => c.id);
+                                    setSelectedCourses(prev => prev.filter(id => !idsToRemove.includes(id)));
+                                }
+                            }}
+                        />
+                        <Label htmlFor="select-all" className="text-sm cursor-pointer text-muted-foreground">
+                            Seleccionar todos en esta vista
+                        </Label>
+                    </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {courses.map((course) => (
-                        <TableRow key={course.id}>
-                            <TableCell>
+                        <GlareCard key={course.id} className="flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                            <div className="absolute top-2 left-2 z-20">
                                 <Checkbox
                                     checked={selectedCourses.includes(course.id)}
                                     onCheckedChange={(checked) => handleSelectCourse(course.id, checked as boolean)}
+                                    className="bg-background/80 backdrop-blur-sm shadow-sm opacity-60 group-hover:opacity-100 transition-opacity"
                                 />
-                            </TableCell>
-                            <TableCell className="font-medium">{course.title}</TableCell>
-                            <TableCell className="hidden md:table-cell max-w-md truncate" title={course.description || ""}>
-                                {course.description || "Sin descripción"}
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell text-sm">
-                                <div className="flex flex-col gap-1">
-                                    {course.startDate && (
-                                        <span className="text-muted-foreground">
-                                            Inicio: {new Date(course.startDate).toLocaleDateString()}
-                                        </span>
-                                    )}
-                                    {course.endDate && (
-                                        <span className={new Date(course.endDate) < now ? "text-destructive" : "text-muted-foreground"}>
-                                            Fin: {new Date(course.endDate).toLocaleDateString()}
-                                        </span>
-                                    )}
-                                    {!course.startDate && !course.endDate && (
-                                        <span className="text-muted-foreground italic">Sin fechas</span>
-                                    )}
-                                </div>
-                            </TableCell>
-                            <TableCell>{course._count.enrollments}</TableCell>
-                            <TableCell className="hidden lg:table-cell">
+                            </div>
+                            
+                            <div className="absolute top-2 right-2 z-20">
                                 <RegistrationSettingsDialog course={course} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <TooltipProvider>
-                                    <div className="flex justify-end gap-1 flex-wrap">
-                                        <Link href={`/dashboard/teacher/courses/${course.id}`}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Ver Detalles</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </Link>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setEditCourse(course);
-                                                        // Load course schedules if available
-                                                        setSchedules(course.schedules || []);
-                                                        setIsOpen(true);
-                                                    }}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Editar</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setEditCourse({
-                                                            ...course,
-                                                            title: `Copia de ${course.title}`,
-                                                            id: course.id // Keep ID for reference but flag as cloning
-                                                        });
-                                                        setIsCloning(true);
-                                                        setSchedules(course.schedules || []);
-                                                        setIsOpen(true);
-                                                    }}
-                                                >
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Clonar Curso</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <Link href={`/dashboard/teacher/courses/${course.id}/duplicates`}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
-                                                    >
-                                                        <FileWarning className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Reporte de Duplicados</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </Link>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                    onClick={() => handleExportComplete(course.id, course.title)}
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Exportar Datos Completos</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <DeleteCourseDialog courseId={course.id} courseTitle={course.title} />
+                            </div>
+
+                            <Link href={`/dashboard/teacher/courses/${course.id}`} className="flex-grow flex flex-col z-10 cursor-pointer">
+                                <CardHeader className="pb-2 pt-8 px-4">
+                                    <CardTitle className="text-base line-clamp-1 leading-tight hover:underline decoration-primary underline-offset-2" title={course.title}>
+                                        {course.title}
+                                    </CardTitle>
+                                    <CardDescription className="line-clamp-1 h-5 mt-0.5 text-xs" title={course.description || ""}>
+                                        {course.description || "Sin descripción"}
+                                    </CardDescription>
+                                </CardHeader>
+                                
+                                <CardContent className="flex-grow space-y-2 pb-3 px-4">
+                                    <div className="flex flex-col gap-1.5 text-xs">
+                                        <div className="flex items-start gap-1.5 text-muted-foreground">
+                                            <Calendar className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                            <div className="flex flex-col">
+                                                {course.startDate ? (
+                                                    <span>{new Date(course.startDate).toLocaleDateString()} {course.endDate ? `- ${new Date(course.endDate).toLocaleDateString()}` : ''}</span>
+                                                ) : (
+                                                    <span className="italic opacity-70">Sin fechas configuradas</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                                            <Users className="h-3.5 w-3.5 shrink-0" />
+                                            <span>{course._count.enrollments} Estudiantes</span>
+                                        </div>
                                     </div>
+                                </CardContent>
+                            </Link>
+
+                            <CardFooter className="pt-0 flex justify-end gap-0.5 flex-wrap border-t bg-muted/10 p-1.5 mt-auto relative z-20">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => {
+                                                    setEditCourse(course);
+                                                    setSchedules(course.schedules || []);
+                                                    setIsOpen(true);
+                                                }}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Editar</p></TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => {
+                                                    setEditCourse({
+                                                        ...course,
+                                                        title: `Copia de ${course.title}`,
+                                                        id: course.id
+                                                    });
+                                                    setIsCloning(true);
+                                                    setSchedules(course.schedules || []);
+                                                    setIsOpen(true);
+                                                }}
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Clonar Curso</p></TooltipContent>
+                                    </Tooltip>
+
+                                    <Link href={`/dashboard/teacher/courses/${course.id}/duplicates`}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                                >
+                                                    <FileWarning className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Reporte de Duplicados</p></TooltipContent>
+                                        </Tooltip>
+                                    </Link>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                onClick={() => handleExportComplete(course.id, course.title)}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Exportar Datos Completos</p></TooltipContent>
+                                    </Tooltip>
+
+                                    <DeleteCourseDialog courseId={course.id} courseTitle={course.title} />
                                 </TooltipProvider>
-                            </TableCell>
-                        </TableRow>
+                            </CardFooter>
+                        </GlareCard>
                     ))}
                     {courses.length === 0 && (
-                        <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                                No hay cursos en esta sección.
-                            </TableCell>
-                        </TableRow>
+                        <div className="col-span-full py-12 text-center text-muted-foreground border rounded-lg border-dashed">
+                            No hay cursos en esta sección.
+                        </div>
                     )}
-                </TableBody>
-            </Table>
-        </div>
-    );
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-4">
