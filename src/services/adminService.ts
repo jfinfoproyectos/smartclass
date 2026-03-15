@@ -3,6 +3,56 @@ import prisma from "@/lib/prisma";
 
 export const adminService = {
     // ============ DASHBOARD METRICS ============
+    async getSystemStats() {
+        const [
+            userCounts,
+            courseCounts,
+            totalSubmissions,
+            activeCourses,
+            systemHealth
+        ] = await Promise.all([
+            // Usuarios por rol
+            prisma.user.groupBy({
+                by: ['role'],
+                _count: true
+            }),
+            // Cursos totales
+            prisma.course.count(),
+            // Entregas totales
+            prisma.submission.count(),
+            // Cursos activos (sin fecha de fin o fecha gte a hoy)
+            prisma.course.count({
+                where: {
+                    OR: [
+                        { endDate: null },
+                        { endDate: { gte: new Date() } }
+                    ]
+                }
+            }),
+            // Salud básica (si llegamos aquí, la DB responde)
+            { connected: true }
+        ]);
+
+        const roleCounts = {
+            admin: userCounts.find(u => u.role === 'admin')?._count || 0,
+            teacher: userCounts.find(u => u.role === 'teacher')?._count || 0,
+            student: userCounts.find(u => u.role === 'student')?._count || 0,
+            total: userCounts.reduce((acc, curr) => acc + curr._count, 0)
+        };
+
+        return {
+            users: roleCounts,
+            courses: {
+                total: courseCounts,
+                active: activeCourses,
+                archived: courseCounts - activeCourses
+            },
+            activity: {
+                submissions: totalSubmissions
+            },
+            health: systemHealth
+        };
+    },
 
 
     // ============ USER MANAGEMENT ============

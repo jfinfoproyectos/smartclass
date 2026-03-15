@@ -1086,4 +1086,78 @@ export const courseService = {
 
         return reportData;
     },
+
+    async getTeacherDashboardStats(teacherId: string) {
+        const [
+            pendingEnrollmentsCount,
+            courses,
+            pendingGradingSubmissions
+        ] = await Promise.all([
+            prisma.enrollment.count({
+                where: {
+                    status: 'PENDING',
+                    course: { teacherId }
+                }
+            }),
+            prisma.course.findMany({
+                where: { teacherId },
+                include: {
+                    _count: {
+                        select: { enrollments: true }
+                    }
+                }
+            }),
+            prisma.submission.findMany({
+                where: {
+                    grade: null,
+                    activity: {
+                        course: { teacherId }
+                    }
+                },
+                include: {
+                    activity: {
+                        select: {
+                            id: true,
+                            title: true,
+                            courseId: true,
+                            course: { select: { title: true } }
+                        }
+                    },
+                    user: {
+                        select: { name: true }
+                    }
+                },
+                take: 5,
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
+
+        const totalStudents = courses.reduce((acc, course) => acc + course._count.enrollments, 0);
+        
+        // Count total pending grading (not just the top 5)
+        const pendingGradingCount = await prisma.submission.count({
+            where: {
+                grade: null,
+                activity: {
+                    course: { teacherId }
+                }
+            }
+        });
+
+        return {
+            pendingEnrollmentsCount,
+            pendingGradingCount,
+            activeCoursesCount: courses.length,
+            totalStudentsCount: totalStudents,
+            recentPendingGrading: pendingGradingSubmissions.map(s => ({
+                id: s.id,
+                studentName: s.user.name,
+                activityTitle: s.activity.title,
+                courseTitle: s.activity.course.title,
+                activityId: s.activity.id,
+                courseId: s.activity.courseId,
+                submittedAt: s.createdAt
+            }))
+        };
+    },
 };

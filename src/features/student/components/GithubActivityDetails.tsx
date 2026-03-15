@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, ExternalLink, CheckCircle, Download, Send } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, CheckCircle, Download, Send, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { FeedbackViewer } from "../FeedbackViewer";
 import { Badge } from "@/components/ui/badge";
@@ -69,11 +69,20 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
 
     return (
         <div className="space-y-6 w-full p-4 sm:p-6">
-            <div className="flex flex-col gap-2">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{activity.title}</h1>
-                    <p className="text-sm sm:text-base text-muted-foreground">{activity.course.title}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/20 p-4 rounded-xl border">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-extrabold tracking-tight">{activity.title}</h1>
+                    <p className="text-muted-foreground font-medium flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-primary" />
+                        {activity.course.title}
+                    </p>
                 </div>
+                {isGraded && (
+                    <div className="flex flex-col items-end bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg">
+                        <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">Tu Calificación</span>
+                        <span className="text-3xl font-black">{submission.grade.toFixed(1)}</span>
+                    </div>
+                )}
             </div>
 
             <div className="space-y-6">
@@ -85,13 +94,17 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium">Estado:</span>
+                                    <span className="text-sm font-semibold">Tu Estado:</span>
                                     {isGraded ? (
-                                        <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Calificado</Badge>
+                                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-3 py-1 font-bold">Completado</Badge>
                                     ) : isSubmitted ? (
-                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Enviado — Pendiente de calificación</Badge>
+                                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1 font-bold gap-1">
+                                            <Clock className="h-3.5 w-3.5" /> En Revisión
+                                        </Badge>
                                     ) : (
-                                        <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100">Pendiente</Badge>
+                                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-3 py-1 font-bold gap-1">
+                                            <AlertCircle className="h-3.5 w-3.5" /> Pendiente de Entrega
+                                        </Badge>
                                     )}
                                 </div>
 
@@ -278,21 +291,26 @@ export function GithubActivityDetails({ activity, userId, studentName }: GithubA
                     </TabsContent>
 
                     <TabsContent value="feedback" className="mt-4">
-                        <Card className="w-full">
-                            <CardHeader>
-                                <CardTitle>Resultado de la Evaluación</CardTitle>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Aquí encontrarás los comentarios detallados y la calificación asignada a tu entrega por el profesor.
-                                </p>
+                        <Card className="w-full border-primary/20 shadow-sm">
+                            <CardHeader className="bg-primary/5 border-b py-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-primary" />
+                                    Resultado de la Evaluación
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pt-6">
                                 {isSubmitted && submission.feedback ? (
-                                    <FeedbackViewer feedback={submission.feedback} />
+                                    <div className="bg-card rounded-lg p-2">
+                                        <FeedbackViewer feedback={submission.feedback} />
+                                    </div>
                                 ) : (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        <p>Aún no hay retroalimentación disponible para esta actividad.</p>
-                                        {!isSubmitted && <p className="text-sm mt-2">Debes realizar una entrega para recibir retroalimentación.</p>}
-                                        {isSubmitted && !isGraded && <p className="text-sm mt-2">Tu entrega está siendo revisada por el profesor.</p>}
+                                    <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                                        <div className="flex justify-center mb-3 text-muted-foreground/30">
+                                            <AlertCircle className="h-10 w-10" />
+                                        </div>
+                                        <p className="font-medium text-base">Aún no hay retroalimentación disponible.</p>
+                                        {!isSubmitted && <p className="text-sm mt-1">Debes realizar una entrega para recibir retroalimentación.</p>}
+                                        {isSubmitted && !isGraded && <p className="text-sm mt-1">Tu entrega está siendo revisada por el profesor.</p>}
                                     </div>
                                 )}
                             </CardContent>

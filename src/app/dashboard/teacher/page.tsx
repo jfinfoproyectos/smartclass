@@ -12,7 +12,15 @@ export default async function Page() {
 
   const courses = await courseService.getTeacherCourses(session.user.id);
   const pendingEnrollments = await courseService.getPendingEnrollments(session.user.id);
+  const stats = await courseService.getTeacherDashboardStats(session.user.id);
 
   const currentDate = new Date().toISOString();
-  return <TeacherDashboard courses={courses} pendingEnrollments={pendingEnrollments} currentDate={currentDate} />;
+  return (
+    <TeacherDashboard 
+      courses={courses} 
+      pendingEnrollments={pendingEnrollments} 
+      stats={stats}
+      currentDate={currentDate} 
+    />
+  );
 }

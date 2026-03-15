@@ -3,6 +3,7 @@
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { usePathname } from "next/navigation"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 import {
@@ -43,33 +44,28 @@ export function NavMain({
       <SidebarGroupLabel>Navegación</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          // Solo resaltar si la ruta coincide exactamente
-          const isActive = pathname === item.url
+          // Usar la propiedad isActive del item o comparar con el pathname actual
+          const active = item.isActive || pathname === item.url
 
           // Si no hay items anidados, renderizar como enlace directo
           if (!item.items || item.items.length === 0) {
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
-                  asChild
                   tooltip={item.title}
+                  asChild
+                  isActive={active}
                   className={cn(
-                    "transition-colors",
-                    isActive && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                    "h-11 rounded-xl transition-all duration-300",
+                    active
+                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 font-bold scale-[1.02]"
+                      : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <a href={item.url}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <Badge
-                        variant={isActive ? "secondary" : "default"}
-                        className="ml-auto"
-                      >
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </a>
+                  <Link href={item.url}>
+                    {item.icon && <item.icon className={cn("h-5 w-5", active && "scale-110")} />}
+                    <span className="ml-2 font-medium">{item.title}</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )
@@ -80,14 +76,14 @@ export function NavMain({
             <Collapsible
               key={item.title}
               asChild
-              defaultOpen={item.isActive}
+              defaultOpen={active}
               className="group/collapsible"
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip={item.title}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
+                  <SidebarMenuButton tooltip={item.title} isActive={active}>
+                    {item.icon && <item.icon className="h-5 w-5" />}
+                    <span className="ml-2 font-medium">{item.title}</span>
                     <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
@@ -95,10 +91,10 @@ export function NavMain({
                   <SidebarMenuSub>
                     {item.items?.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <a href={subItem.url}>
+                        <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
+                          <Link href={subItem.url}>
                             <span>{subItem.title}</span>
-                          </a>
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}

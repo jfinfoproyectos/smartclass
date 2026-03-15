@@ -1018,6 +1018,15 @@ export async function updateStudentStatusAction(enrollmentId: string, status: 'A
     revalidatePath("/dashboard/teacher/courses/[courseId]", "page");
 }
 
+export async function getTeacherDashboardStatsAction() {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    return await courseService.getTeacherDashboardStats(session.user.id);
+}
+
 
 
 export async function improveFeedbackAction(text: string) {

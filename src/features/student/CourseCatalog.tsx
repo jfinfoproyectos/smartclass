@@ -14,21 +14,18 @@ export function CourseCatalog({ courses, pendingEnrollments = [] }: { courses: a
                 const isRegistrationClosed = !course.registrationOpen || (course.registrationDeadline && new Date() > new Date(course.registrationDeadline));
 
                 return (
-                    <Card key={course.id}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
+                    <Card key={course.id} className="h-full flex flex-col hover:shadow-md transition-shadow">
+                        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">
                                 {course.title}
                             </CardTitle>
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <BookOpen className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center text-sm text-muted-foreground mb-2">
+                        <CardContent className="flex flex-col flex-grow">
+                            <div className="flex items-center text-sm text-muted-foreground mb-2 mt-auto">
                                 <User className="mr-1 h-3 w-3" />
                                 Profesor: {course.teacher.name}
                             </div>
-                            <p className="text-xs text-muted-foreground mb-4 line-clamp-2">
-                                {course.description || "Sin descripción"}
-                            </p>
                             {course.registrationDeadline && (
                                 <div className="mb-3 text-xs text-center">
                                     <span className={new Date() > new Date(course.registrationDeadline) ? "text-destructive font-medium" : "text-muted-foreground"}>
@@ -44,7 +41,7 @@ export function CourseCatalog({ courses, pendingEnrollments = [] }: { courses: a
                             )}
                             <form action={enrollStudentAction.bind(null, course.id)}>
                                 <Button
-                                    className="w-full"
+                                    className="w-full mt-auto"
                                     size="sm"
                                     disabled={isRegistrationClosed || isPending}
                                     variant={isPending ? "secondary" : "default"}

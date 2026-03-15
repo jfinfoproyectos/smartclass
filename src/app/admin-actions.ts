@@ -20,7 +20,10 @@ async function requireAdmin() {
 }
 
 // ============ DASHBOARD ============
-
+export async function getAdminDashboardStatsAction() {
+    await requireAdmin();
+    return await adminService.getSystemStats();
+}
 
 export async function getRecentActivityAction(limit?: number) {
     await requireAdmin();

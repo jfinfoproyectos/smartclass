@@ -156,7 +156,29 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Premium Page Transitions */
+  main, .container {
+    animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Soft Glassmorphism Utility */
+  .glass {
+    @apply bg-background/60 backdrop-blur-md border border-white/10;
   }
 
   /* Markdown inline code - using primary color from theme */

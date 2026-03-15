@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ExternalLink, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { ExternalLink, Link as LinkIcon, AlertCircle, Clock } from "lucide-react";
 import { FeedbackViewer } from "../FeedbackViewer";
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
@@ -60,11 +60,20 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
 
     return (
         <div className="space-y-6 w-full p-6">
-            <div className="flex items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">{activity.title}</h1>
-                    <p className="text-muted-foreground">{activity.course.title}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/20 p-4 rounded-xl border">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-extrabold tracking-tight">{activity.title}</h1>
+                    <p className="text-muted-foreground font-medium flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-primary" />
+                        {activity.course.title}
+                    </p>
                 </div>
+                {isGraded && (
+                    <div className="flex flex-col items-end bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg">
+                        <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">Tu Calificación</span>
+                        <span className="text-3xl font-black">{submission.grade.toFixed(1)}</span>
+                    </div>
+                )}
             </div>
 
             <div className="space-y-6">
@@ -75,15 +84,21 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                     <CardContent className="space-y-4">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Estado:</span>
+                                <span className="text-sm font-semibold">Tu Estado:</span>
                                 {isGraded ? (
-                                    <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Calificado</Badge>
+                                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-3 py-1 font-bold">Completado</Badge>
                                 ) : isRejected ? (
-                                    <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent">Rechazado - Vuelve a entregar</Badge>
+                                    <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-3 py-1 font-bold gap-1">
+                                        <AlertCircle className="h-3.5 w-3.5" /> Acción Requerida
+                                    </Badge>
                                 ) : submission ? (
-                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Entregado - Pendiente de Calificación</Badge>
+                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1 font-bold gap-1">
+                                        <Clock className="h-3.5 w-3.5" /> En Revisión
+                                    </Badge>
                                 ) : (
-                                    <Badge variant="outline" className="bg-blue-50 text-blue-800 hover:bg-blue-50">Sin Entregar</Badge>
+                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-3 py-1 font-bold gap-1">
+                                        <AlertCircle className="h-3.5 w-3.5" /> Pendiente de Entrega
+                                    </Badge>
                                 )}
                             </div>
 
@@ -216,17 +231,25 @@ export function ManualActivityDetails({ activity, userId, studentName }: ManualA
                     </TabsContent>
 
                     <TabsContent value="feedback" className="mt-4">
-                        <Card className="w-full">
-                            <CardHeader>
-                                <CardTitle>Retroalimentación</CardTitle>
+                        <Card className="w-full border-primary/20 shadow-sm">
+                            <CardHeader className="bg-primary/5 border-b py-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-primary" />
+                                    Retroalimentación del Profesor
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pt-6">
                                 {(isGraded || isRejected) && submission?.feedback ? (
-                                    <FeedbackViewer feedback={submission.feedback} />
+                                    <div className="bg-card rounded-lg p-2">
+                                        <FeedbackViewer feedback={submission.feedback} />
+                                    </div>
                                 ) : (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        <p>Aún no hay retroalimentación disponible para esta actividad.</p>
-                                        {!isGraded && !isRejected && <p className="text-sm mt-2">El profesor aún no ha evaluado esta actividad.</p>}
+                                    <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                                        <div className="flex justify-center mb-3 text-muted-foreground/30">
+                                            <AlertCircle className="h-10 w-10" />
+                                        </div>
+                                        <p className="font-medium text-base">Aún no hay retroalimentación disponible.</p>
+                                        {!isGraded && !isRejected && <p className="text-sm mt-1">Tu profesor te responderá una vez califique tu entrega.</p>}
                                     </div>
                                 )}
                             </CardContent>

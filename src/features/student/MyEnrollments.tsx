@@ -77,7 +77,7 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                     const Icon = icons[index % icons.length];
 
                     return (
-                        <GlareCard key={enrollment.id} className="flex flex-col relative overflow-hidden group hover:shadow-lg transition-all rounded-xl border border-muted/50 h-[220px]">
+                        <GlareCard key={enrollment.id} className="flex flex-col relative overflow-hidden group hover:shadow-lg transition-all rounded-xl border border-muted/50 h-[210px]">
                             <div 
                                 onClick={() => onSelectCourse?.(enrollment.course.id)}
                                 className={`flex-grow flex flex-col z-10 cursor-pointer h-full bg-gradient-to-br ${bgGradient}`}
@@ -86,17 +86,13 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                     <div className="mb-4 bg-background/50 w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-sm border shadow-sm">
                                         {Icon}
                                     </div>
-                                    <CardTitle className="text-lg line-clamp-2 leading-tight group-hover:text-primary transition-colors" title={enrollment.course.title}>
+                                    <CardTitle className="text-lg line-clamp-2 leading-tight group-hover:text-primary transition-colors min-h-[3rem]" title={enrollment.course.title}>
                                         {enrollment.course.title}
                                     </CardTitle>
                                 </CardHeader>
                                 
-                                <CardContent className="flex-grow space-y-3 pb-6 px-6 mt-auto">
-                                    <div className="flex flex-col gap-2 text-sm">
-                                        <CardDescription className="line-clamp-2 h-10" title={enrollment.course.description || ""}>
-                                            {enrollment.course.description || "Sin descripción"}
-                                        </CardDescription>
-
+                                <CardContent className="flex-grow flex flex-col justify-between pb-6 px-6">
+                                    <div className="flex flex-col gap-2 text-sm flex-grow">
                                         <div className="pt-2 mt-2 border-t flex items-center gap-2 text-muted-foreground font-medium">
                                             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                                                 <Users className="h-3.5 w-3.5 text-primary" />
@@ -116,39 +112,71 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
     return (
         <div className="space-y-6">
             {onSelectCourse && (
-                <Button variant="ghost" className="mb-2 -ml-2" onClick={() => onSelectCourse(null)}>
+                <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="mb-2 hover:bg-primary hover:text-primary-foreground transition-all shadow-sm" 
+                    onClick={() => onSelectCourse(null)}
+                >
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver a mis cursos
                 </Button>
             )}
 
-            {filteredEnrollments.map((enrollment) => (
-                <Card key={enrollment.id} className="overflow-hidden border-muted">
-                    <CardHeader className="py-2 px-4 border-b bg-muted/30">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                            <div className="space-y-0.5">
-                                <CardTitle className="text-xl font-bold">{enrollment.course.title}</CardTitle>
-                                <p className="text-sm text-muted-foreground flex items-center">
-                                    Profesor: {enrollment.course.teacher.name}
-                                </p>
+            {filteredEnrollments.map((enrollment) => {
+                const totalActivities = enrollment.course.activities.length;
+                const submittedActivities = enrollment.course.activities.filter((a: any) => a.submissions.length > 0).length;
+                const progressPercentage = totalActivities > 0 ? Math.round((submittedActivities / totalActivities) * 100) : 0;
+
+                return (
+                    <Card key={enrollment.id} className="overflow-hidden border-muted shadow-sm">
+                        <CardHeader className="py-4 px-6 border-b bg-muted/30">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="space-y-1.5 flex-grow">
+                                    <div className="flex items-center gap-3">
+                                        <CardTitle className="text-2xl font-bold">{enrollment.course.title}</CardTitle>
+                                        <Badge variant="secondary" className="font-semibold px-2 py-0 h-6">
+                                            {progressPercentage}% completado
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center text-sm text-muted-foreground gap-3">
+                                        <span className="flex items-center gap-1">
+                                            <Users className="h-3.5 w-3.5" />
+                                            Prof: {enrollment.course.teacher.name}
+                                        </span>
+                                        {enrollment.course.activities.length > 0 && (
+                                            <span className="flex items-center gap-1">
+                                                <ClipboardCheck className="h-3.5 w-3.5" />
+                                                {submittedActivities}/{totalActivities} actividades
+                                            </span>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Progress Bar */}
+                                    <div className="w-full max-w-md h-1.5 bg-muted rounded-full mt-3 overflow-hidden">
+                                        <div 
+                                            className="h-full bg-primary transition-all duration-500 ease-out" 
+                                            style={{ width: `${progressPercentage}%` }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    {enrollment.course.externalUrl && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            asChild
+                                            className="h-9 shadow-sm"
+                                        >
+                                            <Link href={enrollment.course.externalUrl} target="_blank" rel="noopener noreferrer">
+                                                <ExternalLink className="mr-2 h-4 w-4" />
+                                                Documentación
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                {enrollment.course.externalUrl && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        asChild
-                                        className="h-8"
-                                    >
-                                        <Link href={enrollment.course.externalUrl} target="_blank" rel="noopener noreferrer">
-                                            <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                                            Documentación
-                                        </Link>
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </CardHeader>
+                        </CardHeader>
                     <CardContent className="pt-6 min-w-0">
                         <Tabs defaultValue="activities" className="space-y-6">
                             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
@@ -200,19 +228,22 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                                         const isOpen = !activity.openDate || new Date() >= new Date(activity.openDate);
 
                                                         return (
-                                                            <TableRow key={activity.id} suppressHydrationWarning>
-                                                                <TableCell className="font-medium">
+                                                            <TableRow key={activity.id} suppressHydrationWarning className="hover:bg-muted/30 transition-colors">
+                                                                <TableCell className="font-medium py-4">
                                                                     <div className="flex items-start gap-3">
-                                                                        <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold mt-0.5">
+                                                                        <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-bold">
                                                                             {index + 1}
                                                                         </div>
-                                                                        <div>
-                                                                            <div className="font-semibold">{activity.title}</div>
-                                                                            <div className="text-xs text-muted-foreground">
-                                                                                Peso: {activity.weight.toFixed(1)}%
+                                                                        <div className="space-y-1">
+                                                                            <div className="font-bold text-sm sm:text-base">{activity.title}</div>
+                                                                            <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-2">
+                                                                                <Badge variant="secondary" className="px-1 py-0 h-4 text-[9px] font-normal">
+                                                                                    Peso: {activity.weight.toFixed(1)}%
+                                                                                </Badge>
+                                                                                {activity.type === "MANUAL" && <span>• Manual</span>}
                                                                             </div>
                                                                             {!isOpen && (
-                                                                                <div className="text-xs text-amber-600 font-medium mt-1 flex items-center">
+                                                                                <div className="text-[10px] text-amber-600 font-medium mt-1 flex items-center">
                                                                                     <Clock className="mr-1 h-3 w-3" />
                                                                                     Disponible el: {format(new Date(activity.openDate), "PP p")}
                                                                                 </div>
@@ -222,48 +253,62 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                                                 </TableCell>
                                                                 <TableCell suppressHydrationWarning>
                                                                     {!isOpen ? (
-                                                                        <Badge variant="secondary">Bloqueado</Badge>
+                                                                        <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none">Bloqueado</Badge>
                                                                     ) : isGraded ? (
-                                                                        <Badge variant="success">Calificado</Badge>
+                                                                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none">Completado</Badge>
                                                                     ) : isRejected ? (
-                                                                        <Badge className="bg-rose-600 hover:bg-rose-700 text-white border-transparent gap-1">
-                                                                            <AlertCircle className="h-3 w-3" /> Rechazado
+                                                                        <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none gap-1">
+                                                                            <AlertCircle className="h-3 w-3" /> Corregir
                                                                         </Badge>
                                                                     ) : isSubmitted ? (
-                                                                        <Badge variant="warning" className="gap-1">
-                                                                            <Clock className="h-3 w-3" /> Enviado
+                                                                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none gap-1">
+                                                                            <Clock className="h-3 w-3" /> En Revisión
                                                                         </Badge>
                                                                     ) : (
-                                                                        <Badge variant="destructive" className="gap-1">
+                                                                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none gap-1">
                                                                             <AlertCircle className="h-3 w-3" /> Pendiente
                                                                         </Badge>
                                                                     )}
                                                                 </TableCell>
                                                                 <TableCell className="hidden sm:table-cell" suppressHydrationWarning>
                                                                     {isGraded ? (
-                                                                        <span className="font-bold text-primary">
-                                                                            {submission.grade.toFixed(1)}
-                                                                        </span>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-bold text-lg text-primary">
+                                                                                {submission.grade.toFixed(1)}
+                                                                            </span>
+                                                                        </div>
                                                                     ) : !isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL' ? (
-                                                                        <span className="font-bold text-red-500">0.0</span>
+                                                                        <span className="font-bold text-rose-500">0.0</span>
                                                                     ) : (
                                                                         <span className="text-muted-foreground">-</span>
                                                                     )}
                                                                 </TableCell>
                                                                 <TableCell className="hidden md:table-cell" suppressHydrationWarning>
-                                                                    <div className="text-sm text-muted-foreground" suppressHydrationWarning>
-                                                                        {activity.type === "MANUAL" ? "-" : format(new Date(activity.deadline), "PP", { locale: es })}
+                                                                    <div className="text-xs text-muted-foreground font-medium" suppressHydrationWarning>
+                                                                        {activity.type === "MANUAL" ? (
+                                                                            <span className="italic">Sin fecha límite</span>
+                                                                        ) : (
+                                                                            <span className={new Date(activity.deadline) < new Date() ? "text-rose-500" : ""}>
+                                                                                {format(new Date(activity.deadline), "PP", { locale: es })}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </TableCell>
                                                                 <TableCell className="text-right">
-                                                                    <Button variant="ghost" size="sm" asChild disabled={!isOpen}>
+                                                                    <Button 
+                                                                        variant={!isOpen ? "ghost" : isSubmitted ? "secondary" : "default"} 
+                                                                        size="sm" 
+                                                                        asChild 
+                                                                        disabled={!isOpen}
+                                                                        className="shadow-sm"
+                                                                    >
                                                                         {isOpen ? (
                                                                             <Link href={`/dashboard/student/activities/${activity.id}`}>
-                                                                                Ver Detalles
+                                                                                {isSubmitted ? "Revisar" : "Abrir"}
                                                                                 <ArrowRight className="ml-2 h-4 w-4" />
                                                                             </Link>
                                                                         ) : (
-                                                                            <span className="text-muted-foreground cursor-not-allowed flex items-center justify-end">
+                                                                            <span className="text-muted-foreground cursor-not-allowed flex items-center justify-end text-xs">
                                                                                 Bloqueado
                                                                             </span>
                                                                         )}
@@ -295,7 +340,8 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                         </Tabs>
                     </CardContent>
                 </Card>
-            ))}
+                );
+            })}
         </div>
     );
 }

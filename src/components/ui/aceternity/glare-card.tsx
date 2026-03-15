@@ -71,7 +71,7 @@ export const GlareCard = ({
       className="relative isolate [contain:layout_style] [perspective:600px] transition-transform duration-[var(--duration)] ease-[var(--easing)] delay-[var(--delay)] will-change-transform w-full h-full aspect-auto"
       ref={refElement}
       onPointerMove={(event) => {
-        const rotateFactor = 0.4;
+        const rotateFactor = 0.05;
         const rect = event.currentTarget.getBoundingClientRect();
         const position = {
           x: event.clientX - rect.left,
