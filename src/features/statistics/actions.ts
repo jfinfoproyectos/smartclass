@@ -78,12 +78,32 @@ export async function getStatisticsData(courseId?: string) {
     ]);
 
     // --- Data Aggregation ---
+    
+    // Index data by userId for O(n) lookup
+    const submissionsByUser = new Map<string, typeof submissions>();
+    const attendanceByUser = new Map<string, typeof attendance>();
+    const remarksByUser = new Map<string, typeof remarks>();
+
+    submissions.forEach(s => {
+        if (!submissionsByUser.has(s.userId)) submissionsByUser.set(s.userId, []);
+        submissionsByUser.get(s.userId)!.push(s);
+    });
+
+    attendance.forEach(a => {
+        if (!attendanceByUser.has(a.userId)) attendanceByUser.set(a.userId, []);
+        attendanceByUser.get(a.userId)!.push(a);
+    });
+
+    remarks.forEach(r => {
+        if (!remarksByUser.has(r.userId)) remarksByUser.set(r.userId, []);
+        remarksByUser.get(r.userId)!.push(r);
+    });
 
     // A. Student Metrics
     const studentMetrics = students.map(student => {
-        const studentSubmissions = submissions.filter(s => s.userId === student.id);
-        const studentAttendance = attendance.filter(a => a.userId === student.id);
-        const studentRemarks = remarks.filter(r => r.userId === student.id);
+        const studentSubmissions = submissionsByUser.get(student.id) || [];
+        const studentAttendance = attendanceByUser.get(student.id) || [];
+        const studentRemarks = remarksByUser.get(student.id) || [];
 
         // Average Grade
         const totalGrade = studentSubmissions.reduce((acc, curr) => acc + (curr.grade || 0), 0);
@@ -91,11 +111,11 @@ export async function getStatisticsData(courseId?: string) {
 
         // Attendance %
         const totalSessions = studentAttendance.length;
-        const presentSessions = studentAttendance.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length; // Late counts as present-ish? Or maybe just PRESENT. Let's count PRESENT + LATE as attended.
-        const attendancePercentage = totalSessions > 0 ? (presentSessions / totalSessions) * 100 : 0;
+        // Late and Excused also count as attended in this context
+        const attendedSessions = studentAttendance.filter(a => a.status === 'PRESENT' || a.status === 'LATE' || a.status === 'EXCUSED').length;
+        const attendancePercentage = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
 
         // Missing Activities
-        // This is a rough estimate. Ideally we check against all activities.
         const submittedActivityIds = new Set(studentSubmissions.map(s => s.activityId));
         const missingActivities = activities.length - submittedActivityIds.size;
 

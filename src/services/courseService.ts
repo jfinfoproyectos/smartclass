@@ -324,8 +324,28 @@ export const courseService = {
         // Given the scale, iterating is fine for now, or we can use the relation on User if we included User.
         // But we didn't include User in the findMany above.
 
-        // Let's fetch additional data for each enrollment
-        const enrichedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
+        // Fetch all additional data for all enrollments in bulk to avoid N+1 problem
+        const courseIds = enrollments.map(e => e.courseId);
+        
+        const [allRemarks, allAttendances] = await Promise.all([
+            prisma.remark.findMany({
+                where: {
+                    courseId: { in: courseIds },
+                    userId: userId
+                },
+                orderBy: { date: "desc" }
+            }),
+            prisma.attendance.findMany({
+                where: {
+                    courseId: { in: courseIds },
+                    userId: userId
+                },
+                orderBy: { date: "desc" }
+            })
+        ]);
+
+        // Map remarks and attendances to their respective courses
+        const enrichedEnrollments = enrollments.map((enrollment) => {
             const activities = enrollment.course.activities;
             let totalWeightedGrade = 0;
             let totalWeight = 0;
@@ -336,19 +356,6 @@ export const courseService = {
                     totalWeightedGrade += submission.grade * activity.weight;
                     totalWeight += activity.weight;
                 } else if (!submission && activity.deadline && activity.deadline < now && activity.type !== 'MANUAL') {
-                    // Missed deadline (and not manual without submission, assuming manual requires submission to be graded or marked?
-                    // actually for MANUAL if teacher hasn't graded it might just be pending.
-                    // But requirement says "actividades no entregadas".
-                    // If it's manual and the teacher hasn't graded it, it might not be "submitted" in the system if it's purely offline.
-                    // But usually "no entregadas" refers to things the student HAD to do.
-                    // Safest bet for "no entregadas" implies the system knows it was expected.
-                    // For GITHUB/COLAB/FILE it requires a submission record.
-                    // For MANUAL with allowLinkSubmission=false, maybe the teacher grades directly.
-                    // The prompt says "actividades no entregadas".
-                    // Let's stick to: if no submission record AND deadline passed -> 0.0.
-                    // This covers online submissions. For manual activities without online submission, it depends if the teacher creates a submission record or not.
-                    // If the teacher just enters a grade, a submission record is created/upserted.
-                    // So if no submission record exists and deadline passed, it counts as 0.
                     totalWeightedGrade += 0.0; // 0 * weight
                     totalWeight += activity.weight;
                 }
@@ -356,22 +363,8 @@ export const courseService = {
 
             const average = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
 
-            // Fetch remarks and attendance for this course/user
-            const remarks = await prisma.remark.findMany({
-                where: {
-                    courseId: enrollment.courseId,
-                    userId: userId
-                },
-                orderBy: { date: "desc" }
-            });
-
-            const attendances = await prisma.attendance.findMany({
-                where: {
-                    courseId: enrollment.courseId,
-                    userId: userId
-                },
-                orderBy: { date: "desc" }
-            });
+            const remarks = allRemarks.filter(r => r.courseId === enrollment.courseId);
+            const attendances = allAttendances.filter(a => a.courseId === enrollment.courseId);
 
             return {
                 ...enrollment,
@@ -379,7 +372,7 @@ export const courseService = {
                 remarks,
                 attendances
             };
-        }));
+        });
 
         return enrichedEnrollments;
     },

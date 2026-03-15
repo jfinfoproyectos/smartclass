@@ -128,7 +128,7 @@ export function SharedContentList({ contents }: SharedContentProps) {
             </div>
 
             <Sheet open={isViewOpen} onOpenChange={setIsViewOpen}>
-                <SheetContent side="right" className="w-screen max-w-none sm:max-w-[80vw] p-0">
+                <SheetContent side="right" className="w-full max-w-none sm:max-w-[80vw] p-0">
                     {selectedContent && (
                         <div className="flex flex-col h-full bg-background overflow-hidden">
                             <SheetHeader className="px-6 py-4 border-b shrink-0 bg-muted/30">

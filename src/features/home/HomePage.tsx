@@ -65,7 +65,7 @@ export default function HomePage() {
 
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] h-auto -ml-4 -mr-4 -mb-4 w-[calc(100%+2rem)] rounded-none overflow-hidden">
+        <div className="min-h-[calc(100vh-4rem)] h-auto -mx-2 sm:-mx-4 -mb-4 w-[calc(100%+1rem)] sm:w-[calc(100%+2rem)] rounded-none overflow-hidden">
             <div className="relative flex flex-col w-full">
                 <div className="w-full relative min-h-[300px] md:min-h-[400px] flex flex-col justify-center overflow-hidden">
                     {settings.institutionHeroImage ? (

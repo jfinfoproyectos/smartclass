@@ -30,7 +30,7 @@ export function StudentDashboard({
     };
 
     return (
-        <div className="flex-1 space-y-6 p-6 md:p-8">
+        <div className="flex-1 w-full space-y-6 p-4 sm:p-6 md:p-8">
             {/* Header */}
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight">¡Hola, {studentName.split(' ')[0]}!</h1>
@@ -40,7 +40,7 @@ export function StudentDashboard({
             </div>
 
             {/* Resumen Semanal / Widgets Rápidos */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                 {/* Próximos Vencimientos */}
                 <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -66,7 +66,7 @@ export function StudentDashboard({
                                     {upcomingTasks.map(task => (
                                         <div key={task.id} className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between gap-2">
-                                                <span className="text-xs font-medium truncate max-w-[150px]">{task.title}</span>
+                                                <span className="text-xs font-medium truncate flex-1 min-w-0">{task.title}</span>
                                                 <Badge variant="outline" className="text-[10px] py-0 border-amber-200 text-amber-700 bg-amber-50 shrink-0">
                                                     {format(new Date(task.deadline), "eeee", { locale: es })}
                                                 </Badge>

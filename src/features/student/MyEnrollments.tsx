@@ -179,7 +179,7 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                         </CardHeader>
                     <CardContent className="pt-6 min-w-0">
                         <Tabs defaultValue="activities" className="space-y-6">
-                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1">
                                 <TabsTrigger value="activities" className="gap-2">
                                     <ClipboardCheck className="h-4 w-4" />
                                     <span className="hidden sm:inline">Actividades Pendientes y Entregas</span>

@@ -251,47 +251,42 @@ export const attendanceService = {
     },
 
     async getStudentAttendanceStats(courseId: string, userId: string) {
-        // Get all attendance records for this student in this course
-        const studentRecords = await prisma.attendance.findMany({
-            where: { courseId, userId },
-            orderBy: { date: "desc" },
-        });
+        // Parallelize fetching student records and course sessions
+        const [studentRecords, sessionCount] = await Promise.all([
+            prisma.attendance.findMany({
+                where: { courseId, userId },
+                orderBy: { date: "desc" },
+            }),
+            prisma.attendance.groupBy({
+                by: ["date"],
+                where: { courseId },
+            }).then(groups => groups.length)
+        ]);
 
-        // Get all unique dates recorded for this course to calculate total sessions
-        // This assumes that if attendance was taken for ANY student on a date, it counts as a session
-        const allCourseRecords = await prisma.attendance.findMany({
-            where: { courseId },
-            select: { date: true },
-            distinct: ["date"],
-        });
+        const counts = {
+            ABSENT: 0,
+            PRESENT: 0,
+            EXCUSED: 0,
+            LATE: 0
+        };
 
-        const totalSessions = allCourseRecords.length;
-        const absences = studentRecords.filter(
-            (r) => r.status === AttendanceStatus.ABSENT
-        ).length;
-        const presents = studentRecords.filter(
-            (r) => r.status === AttendanceStatus.PRESENT
-        ).length;
-        const excused = studentRecords.filter(
-            (r) => r.status === AttendanceStatus.EXCUSED
-        ).length;
-        const late = studentRecords.filter(
-            (r) => r.status === "LATE"
-        ).length;
+        studentRecords.forEach(r => {
+            if (r.status in counts) {
+                counts[r.status as keyof typeof counts]++;
+            }
+        });
 
         // Calculate percentage: (Present + Excused + Late) / Total Sessions
-        // Assuming Late counts as present for percentage purposes, or maybe partial? 
-        // Usually Late is better than Absent. Let's count it as present for now or just separate.
-        // The user didn't specify, but usually Late is not Absent.
-        const attendancePercentage =
-            totalSessions > 0 ? ((presents + excused + late) / totalSessions) * 100 : 100;
+        const totalSessions = sessionCount;
+        const attendedSessions = counts.PRESENT + counts.EXCUSED + counts.LATE;
+        const attendancePercentage = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 100;
 
         return {
             totalSessions,
-            absences,
-            presents,
-            excused,
-            late,
+            absences: counts.ABSENT,
+            presents: counts.PRESENT,
+            excused: counts.EXCUSED,
+            late: counts.LATE,
             attendancePercentage,
             records: studentRecords,
         };

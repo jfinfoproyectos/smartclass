@@ -349,7 +349,7 @@ export function GroupContentShare({ courseId, initialContent = [] }: { courseId:
                     <SheetTrigger asChild>
                         <Button><Plus className="mr-2 h-4 w-4" /> Compartir Contenido</Button>
                     </SheetTrigger>
-                    <SheetContent side="right" className="w-screen max-w-none sm:max-w-[80vw] p-0">
+                    <SheetContent side="right" className="w-full max-w-none sm:max-w-[80vw] p-0">
                         <div className="flex flex-col h-full bg-background">
                             <SheetHeader className="px-6 py-4 border-b shrink-0">
                                 <SheetTitle>{editId ? "Editar" : "Compartir Nuevo"} Contenido</SheetTitle>

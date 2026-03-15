@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useEffect, useState, useRef } from "react";
 import { getCourseTitle, getActivityTitle } from "@/app/actions/breadcrumb-actions";
+import { cn } from "@/lib/utils";
 
 interface BreadcrumbSegment {
     label: string;
@@ -85,27 +86,30 @@ export function DynamicBreadcrumb() {
     }
 
     return (
-        <div ref={breadcrumbRef} className="overflow-hidden hidden md:block">
+        <div ref={breadcrumbRef} className="overflow-hidden">
             <Breadcrumb>
                 <BreadcrumbList>
-                    {segments.map((segment, index) => (
-                        <div key={index} className="flex items-center">
-                            <BreadcrumbItem>
-                                {segment.href ? (
-                                    <BreadcrumbLink asChild>
-                                        <Link href={segment.href} className="transition-colors hover:text-primary">
+                    {segments.map((segment, index) => {
+                        const isLast = index === segments.length - 1;
+                        return (
+                            <div key={index} className={cn("flex items-center", !isLast && "hidden sm:flex")}>
+                                <BreadcrumbItem>
+                                    {segment.href ? (
+                                        <BreadcrumbLink asChild>
+                                            <Link href={segment.href} className="transition-colors hover:text-primary">
+                                                {segment.label}
+                                            </Link>
+                                        </BreadcrumbLink>
+                                    ) : (
+                                        <BreadcrumbPage className="font-semibold text-foreground">
                                             {segment.label}
-                                        </Link>
-                                    </BreadcrumbLink>
-                                ) : (
-                                    <BreadcrumbPage className="font-semibold text-foreground">
-                                        {segment.label}
-                                    </BreadcrumbPage>
-                                )}
-                            </BreadcrumbItem>
-                            {index < segments.length - 1 && <BreadcrumbSeparator />}
-                        </div>
-                    ))}
+                                        </BreadcrumbPage>
+                                    )}
+                                </BreadcrumbItem>
+                                {index < segments.length - 1 && <BreadcrumbSeparator className="hidden sm:block" />}
+                            </div>
+                        );
+                    })}
                 </BreadcrumbList>
             </Breadcrumb>
         </div>

@@ -265,7 +265,7 @@ export function StudentManager({
                             <SheetTrigger asChild>
                                 <Button className="flex-1 sm:flex-none"><UserPlus className="mr-2 h-4 w-4" /> Agregar Estudiante</Button>
                             </SheetTrigger>
-                            <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
+                            <SheetContent side="right" className="w-full max-w-none sm:max-w-none p-0">
                                 <SheetHeader className="px-6 py-4 border-b">
                                     <SheetTitle>Agregar Estudiante al Curso</SheetTitle>
                                     <SheetDescription>
@@ -466,7 +466,7 @@ export function StudentManager({
 
                     {/* Sheet for Viewing Student Activities */}
                     <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                        <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
+                        <SheetContent side="right" className="w-full max-w-none sm:max-w-none p-0">
                             <SheetHeader className="sr-only">
                                 <SheetTitle>Detalles del Estudiante</SheetTitle>
                                 <SheetDescription>

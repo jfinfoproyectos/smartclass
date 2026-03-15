@@ -66,12 +66,24 @@ export function NavUser({
     avatar: string
   }
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
   const [loading, setLoading] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const router = useRouter()
   const { data: session, refetch } = authClient.useSession()
+
+  const handleOpenAccount = () => {
+    setFirstName((displayedUser.name || "").split(/\s+/)[0] || "")
+    const parts = (displayedUser.name || "").split(/\s+/)
+    setLastName(parts.length > 1 ? parts[parts.length - 1] || "" : "")
+    setMenuOpen(false)
+    setAccountOpen(true)
+    loadProfile() // Load profile data
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
 
   const su = session?.user as { name?: string; email?: string; image?: string } | null | undefined
   const rawImage = su?.image ?? (su as unknown as { avatar?: string })?.avatar ?? (su as unknown as { picture?: string })?.picture ?? (su as unknown as { photoURL?: string })?.photoURL ?? null
@@ -169,6 +181,9 @@ export function NavUser({
   const handleLogout = async () => {
     setLoading(true)
     try {
+      if (isMobile) {
+        setOpenMobile(false)
+      }
       await signOut()
       router.push(getPostLogoutRedirect())
     } catch (error) {
@@ -220,14 +235,7 @@ export function NavUser({
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem
-                  onSelect={() => {
-                    setFirstName((displayedUser.name || "").split(/\s+/)[0] || "")
-                    const parts = (displayedUser.name || "").split(/\s+/)
-                    setLastName(parts.length > 1 ? parts[parts.length - 1] || "" : "")
-                    setMenuOpen(false)
-                    setAccountOpen(true)
-                    loadProfile() // Load profile data
-                  }}
+                  onSelect={handleOpenAccount}
                 >
                   <BadgeCheck />
                   Cuenta

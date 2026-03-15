@@ -409,7 +409,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                     <SheetTrigger asChild>
                         <Button><Plus className="mr-2 h-4 w-4" /> Nueva Actividad</Button>
                     </SheetTrigger>
-                    <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
+                    <SheetContent side="right" className="w-full max-w-none sm:max-w-none p-0">
                         <form key={formKey} ref={formRef} action={async (formData) => {
                             await createActivityAction(formData);
                             setIsOpen(false);

@@ -660,7 +660,7 @@ export function ActivityDetail({
 
                 return (
                     <Sheet open={selectedStudentIndex !== null} onOpenChange={open => { if (!open) setSelectedStudentIndex(null); }}>
-                        <SheetContent side="right" className="w-screen max-w-none sm:max-w-none p-0">
+                        <SheetContent side="right" className="w-full max-w-none sm:max-w-none p-0">
                             <SheetHeader className="px-6 py-4 border-b">
                                 <div className="flex items-center justify-between gap-4">
                                     <div className="min-w-0">

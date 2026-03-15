@@ -721,7 +721,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                 setDetailsSheetOpen(open);
                 if (!open) setFullUserDetails(null);
             }}>
-                <SheetContent className="w-screen! max-w-none! h-full p-0 overflow-hidden" side="right">
+                <SheetContent className="w-full! max-w-none! h-full p-0 overflow-hidden" side="right">
                     <SheetTitle className="sr-only">Detalles del Usuario</SheetTitle>
                     {selectedUser && (
                         <div className="flex flex-col h-full bg-background">
