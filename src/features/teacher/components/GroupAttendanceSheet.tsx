@@ -260,7 +260,7 @@ export function GroupAttendanceSheet({
 
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="h-[95vh] sm:h-[95vh] p-0 flex flex-col gap-0 max-w-full">
+            <SheetContent side="bottom" className="h-[100dvh] sm:h-[100dvh] p-0 flex flex-col gap-0 max-w-full">
                 <Tabs defaultValue="matrix" className="flex-1 flex flex-col overflow-hidden">
                     <SheetHeader className="p-6 border-b shrink-0">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
