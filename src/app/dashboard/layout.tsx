@@ -30,7 +30,9 @@ export default function DashboardLayout({
             />
             <div className="flex items-center gap-2">
               <BackButton />
-              <DynamicBreadcrumb />
+              <div className="hidden md:block">
+                <DynamicBreadcrumb />
+              </div>
             </div>
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
               <CreditsModal />

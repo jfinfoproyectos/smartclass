@@ -50,7 +50,7 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
 
             <Tabs defaultValue="activities" className="space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex">
+                    <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-5 sm:inline-flex h-auto p-1">
                         <TabsTrigger value="activities">Actividades</TabsTrigger>
                         <TabsTrigger value="students">Estudiantes</TabsTrigger>
                         <TabsTrigger value="roulette" className="gap-2">
