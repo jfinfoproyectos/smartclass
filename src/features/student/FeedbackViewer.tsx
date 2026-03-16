@@ -41,10 +41,10 @@ export function FeedbackViewer({ feedback }: FeedbackViewerProps) {
                 
                 /* Inline code - using primary color from theme */
                 .wmde-markdown code {
-                    background-color: var(--primary) !important;
+                    background-color: var(--primary, var(--primary-fallback)) !important;
                     background-color: oklch(from var(--primary) l c h / 0.15) !important;
-                    color: var(--primary) !important;
-                    border: 1px solid var(--primary) !important;
+                    color: var(--primary, var(--primary-fallback)) !important;
+                    border: 1px solid var(--primary, var(--primary-fallback)) !important;
                     border: 1px solid oklch(from var(--primary) l c h / 0.3) !important;
                     border-radius: 0.25rem !important;
                     padding: 0.1rem 0.4rem !important;
@@ -55,15 +55,15 @@ export function FeedbackViewer({ feedback }: FeedbackViewerProps) {
                 
                 /* Code blocks - using muted colors */
                 .wmde-markdown pre {
-                    background-color: var(--muted) !important;
-                    border: 1px solid var(--border) !important;
+                    background-color: var(--muted, var(--muted-fallback)) !important;
+                    border: 1px solid var(--border, var(--border-fallback)) !important;
                     border-radius: 0.5rem !important;
                     padding: 1rem !important;
                 }
                 
                 .wmde-markdown pre code {
                     background-color: transparent !important;
-                    color: var(--foreground) !important;
+                    color: var(--foreground, var(--foreground-fallback)) !important;
                     border: none !important;
                     padding: 0 !important;
                     font-weight: 400 !important;
