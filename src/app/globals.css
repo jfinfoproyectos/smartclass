@@ -183,8 +183,10 @@
 
   /* Markdown inline code - using primary color from theme */
   .wmde-markdown code {
+    background-color: var(--primary) !important;
     background-color: oklch(from var(--primary) l c h / 0.15) !important;
     color: var(--primary) !important;
+    border: 1px solid var(--primary) !important;
     border: 1px solid oklch(from var(--primary) l c h / 0.3) !important;
     border-radius: 0.25rem !important;
     padding: 0.1rem 0.4rem !important;
@@ -195,15 +197,15 @@
 
   /* Markdown code blocks - using muted colors */
   .wmde-markdown pre {
-    background-color: hsl(var(--muted)) !important;
-    border: 1px solid hsl(var(--border)) !important;
+    background-color: var(--muted) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 0.5rem !important;
     padding: 1rem !important;
   }
 
   .wmde-markdown pre code {
     background-color: transparent !important;
-    color: hsl(var(--foreground)) !important;
+    color: var(--foreground) !important;
     border: none !important;
     padding: 0 !important;
     font-weight: 400 !important;
