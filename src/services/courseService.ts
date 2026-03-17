@@ -308,6 +308,17 @@ export const courseService = {
                         },
                         sharedContent: {
                             orderBy: { createdAt: "asc" }
+                        },
+                        evaluationAttempts: {
+                            orderBy: { createdAt: "desc" },
+                            include: {
+                                evaluation: {
+                                    select: { title: true }
+                                },
+                                submissions: {
+                                    where: { userId }
+                                }
+                            }
                         }
                     },
                 },
@@ -595,6 +606,17 @@ export const courseService = {
                         },
                         sharedContent: {
                             orderBy: { createdAt: "asc" }
+                        },
+                        evaluationAttempts: {
+                            orderBy: { createdAt: "desc" },
+                            include: {
+                                evaluation: {
+                                    select: { title: true }
+                                },
+                                submissions: {
+                                    where: { userId }
+                                }
+                            }
                         }
                     },
                 },

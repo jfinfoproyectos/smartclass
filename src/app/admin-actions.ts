@@ -323,6 +323,7 @@ export async function updateSystemSettingsAction(data: {
     globalApiKey?: string;
     githubToken?: string;
     footerText?: string;
+    auditLogEnabled?: boolean;
 }) {
     const session = await requireAdmin();
 
@@ -332,6 +333,10 @@ export async function updateSystemSettingsAction(data: {
         geminiApiKeyMode: data.geminiApiKeyMode,
         footerText: data.footerText,
     };
+
+    if (data.auditLogEnabled !== undefined) {
+        updateData.auditLogEnabled = data.auditLogEnabled;
+    }
 
     if (data.globalApiKey) {
         updateData.encryptedGlobalApiKey = await encrypt(data.globalApiKey);
@@ -351,7 +356,11 @@ export async function updateSystemSettingsAction(data: {
     });
 
     // 🎯 AUDIT LOG
-    const { auditLogger } = await import("@/services/auditLogger");
+    const { auditLogger, clearAuditCache } = await import("@/services/auditLogger");
+    
+    // Clear the memory cache since settings just changed
+    clearAuditCache();
+
     await auditLogger.log({
         action: "UPDATE",
         entity: "OTHER",
@@ -360,7 +369,7 @@ export async function updateSystemSettingsAction(data: {
         userName: session.user.name || "Admin",
         userRole: "admin",
         description: `Configuración del sistema actualizada: Modo API Key = ${data.geminiApiKeyMode}`,
-        metadata: { geminiApiKeyMode: data.geminiApiKeyMode, hasGlobalKey: !!data.globalApiKey },
+        metadata: { geminiApiKeyMode: data.geminiApiKeyMode, hasGlobalKey: !!data.globalApiKey, auditLogEnabled: data.auditLogEnabled },
         success: true,
     });
 

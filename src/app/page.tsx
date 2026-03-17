@@ -2,10 +2,14 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GraduationCap, BookOpen, Github, FileCheck, BarChart3, Users, Settings2, BrainCircuit, CalendarCheck } from "lucide-react"
+import { ModeToggle } from "@/components/theme/ModeToggle"
 
 export default function Page() {
   return (
     <main className="bg-background text-foreground">
+      <div className="absolute top-4 right-6 z-50">
+        <ModeToggle />
+      </div>
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="bg-primary/10 blur-3xl absolute -top-40 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full" />

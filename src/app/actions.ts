@@ -1755,6 +1755,44 @@ export async function getStudentMissingActivitiesAction(courseId: string, userId
 }
 
 
+
+export async function getAbsentStudentsForTodayAction(courseId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const absents = await prisma.attendance.findMany({
+        where: {
+            courseId,
+            date: today,
+            status: "ABSENT"
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    profile: {
+                        select: {
+                            identificacion: true,
+                            nombres: true,
+                            apellido: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    return absents.map(a => a.user);
+}
+
+
 export async function getCourseCompleteDataAction(courseId: string) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") {
@@ -2063,40 +2101,793 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
     return studentsData;
 }
 
-export async function getAbsentStudentsForTodayAction(courseId: string) {
+// ==========================================
+// EVALUATION ACTIONS
+// ==========================================
+
+export async function createEvaluationAction(formData: FormData) {
     const session = await getSession();
-    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
 
-    const todayUTC = toUTCStartOfDay(new Date());
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
+    const helpUrl = formData.get("helpUrl") as string;
+    const maxSupportAttemptsStr = formData.get("maxSupportAttempts") as string;
+    const aiSupportDelaySecondsStr = formData.get("aiSupportDelaySeconds") as string;
+    const expulsionPenaltyStr = formData.get("expulsionPenalty") as string;
+    const wildcardAiHintsStr = formData.get("wildcardAiHints") as string;
+    const wildcardSecondChanceStr = formData.get("wildcardSecondChance") as string;
 
-    const absentRecords = await prisma.attendance.findMany({
-        where: {
-            courseId,
-            date: todayUTC,
-            status: "ABSENT"
-        },
+    const maxSupportAttempts = maxSupportAttemptsStr ? parseInt(maxSupportAttemptsStr, 10) : 3;
+    const aiSupportDelaySeconds = aiSupportDelaySecondsStr ? parseInt(aiSupportDelaySecondsStr, 10) : 60;
+    const expulsionPenalty = expulsionPenaltyStr ? parseFloat(expulsionPenaltyStr) : 0;
+    const wildcardAiHints = wildcardAiHintsStr ? parseInt(wildcardAiHintsStr, 10) : 0;
+    const wildcardSecondChance = wildcardSecondChanceStr ? parseInt(wildcardSecondChanceStr, 10) : 0;
+
+    const { evaluationService } = await import("@/services/evaluationService");
+
+    const evaluation = await evaluationService.createEvaluation({
+        title,
+        description,
+        helpUrl,
+        authorId: session.user.id,
+        maxSupportAttempts,
+        aiSupportDelaySeconds,
+        expulsionPenalty,
+        wildcardAiHints,
+        wildcardSecondChance
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "CREATE",
+        entity: "EVALUATION",
+        entityId: evaluation.id,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Evaluación creada: ${title}`,
+        success: true,
+    });
+
+    revalidatePath("/dashboard/teacher/evaluations");
+}
+
+export async function updateEvaluationAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const evaluationId = formData.get("evaluationId") as string;
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
+    const helpUrl = formData.get("helpUrl") as string;
+    const maxSupportAttemptsStr = formData.get("maxSupportAttempts") as string;
+    const aiSupportDelaySecondsStr = formData.get("aiSupportDelaySeconds") as string;
+    const expulsionPenaltyStr = formData.get("expulsionPenalty") as string;
+    const wildcardAiHintsStr = formData.get("wildcardAiHints") as string;
+    const wildcardSecondChanceStr = formData.get("wildcardSecondChance") as string;
+
+    const maxSupportAttempts = maxSupportAttemptsStr ? parseInt(maxSupportAttemptsStr, 10) : undefined;
+    const aiSupportDelaySeconds = aiSupportDelaySecondsStr ? parseInt(aiSupportDelaySecondsStr, 10) : undefined;
+    const expulsionPenalty = (expulsionPenaltyStr !== null && expulsionPenaltyStr !== "") ? parseFloat(expulsionPenaltyStr) : undefined;
+    const wildcardAiHints = (wildcardAiHintsStr !== null && wildcardAiHintsStr !== "") ? parseInt(wildcardAiHintsStr, 10) : undefined;
+    const wildcardSecondChance = (wildcardSecondChanceStr !== null && wildcardSecondChanceStr !== "") ? parseInt(wildcardSecondChanceStr, 10) : undefined;
+
+    const { evaluationService } = await import("@/services/evaluationService");
+
+    await evaluationService.updateEvaluation(evaluationId, session.user.id, {
+        title: title || undefined,
+        description: description || undefined,
+        helpUrl: helpUrl || undefined,
+        maxSupportAttempts,
+        aiSupportDelaySeconds,
+        expulsionPenalty,
+        wildcardAiHints,
+        wildcardSecondChance
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "EVALUATION",
+        entityId: evaluationId,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Evaluación actualizada: ${title || "ID: " + evaluationId}`,
+        success: true,
+    });
+
+    revalidatePath("/dashboard/teacher/evaluations");
+}
+
+export async function deleteEvaluationAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const evaluationId = formData.get("evaluationId") as string;
+    const confirmText = formData.get("confirmText") as string;
+
+    if (confirmText !== "ELIMINAR") {
+        throw new Error("Confirmación incorrecta");
+    }
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    
+    // Get info before deletion for audit log
+    const evaluation = await prisma.evaluation.findUnique({
+        where: { id: evaluationId },
+        select: { title: true }
+    });
+
+    await evaluationService.deleteEvaluation(evaluationId, session.user.id);
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "DELETE",
+        entity: "EVALUATION",
+        entityId: evaluationId,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Evaluación eliminada: ${evaluation?.title || "ID: " + evaluationId}`,
+        success: true,
+    });
+
+    revalidatePath("/dashboard/teacher/evaluations");
+}
+
+export async function createQuestionAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const evaluationId = formData.get("evaluationId") as string;
+    const text = formData.get("text") as string;
+    const type = formData.get("type") as string; // "Text" or "Code"
+    const language = formData.get("language") as string;
+
+    const { evaluationService } = await import("@/services/evaluationService");
+
+    await evaluationService.createQuestion({
+        evaluationId,
+        text,
+        type,
+        language: type === "Code" ? language : undefined
+    });
+
+    revalidatePath(`/dashboard/teacher/evaluations/${evaluationId}`);
+}
+
+export async function updateQuestionAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const questionId = formData.get("questionId") as string;
+    const evaluationId = formData.get("evaluationId") as string;
+    const text = formData.get("text") as string;
+    const type = formData.get("type") as string;
+    const language = formData.get("language") as string;
+
+    const { evaluationService } = await import("@/services/evaluationService");
+
+    await evaluationService.updateQuestion(questionId, evaluationId, session.user.id, {
+        text,
+        type,
+        language: type === "Code" ? language : undefined
+    });
+
+    revalidatePath(`/dashboard/teacher/evaluations/${evaluationId}`);
+}
+
+export async function deleteQuestionAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const questionId = formData.get("questionId") as string;
+    const evaluationId = formData.get("evaluationId") as string;
+    const confirmText = formData.get("confirmText") as string;
+
+    if (confirmText !== "ELIMINAR") {
+        throw new Error("Confirmación incorrecta");
+    }
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    await evaluationService.deleteQuestion(questionId, evaluationId, session.user.id);
+
+    revalidatePath(`/dashboard/teacher/evaluations/${evaluationId}`);
+}
+
+export async function assignEvaluationAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const evaluationId = formData.get("evaluationId") as string;
+    const courseId = formData.get("courseId") as string;
+    const startTimeStr = formData.get("startTime") as string;
+    const endTimeStr = formData.get("endTime") as string;
+
+    if (!evaluationId || !courseId || !startTimeStr || !endTimeStr) {
+        throw new Error("Faltan datos requeridos");
+    }
+
+    const { evaluationService } = await import("@/services/evaluationService");
+
+    const attempt = await evaluationService.assignEvaluationToCourse({
+        evaluationId,
+        courseId,
+        startTime: new Date(startTimeStr),
+        endTime: new Date(endTimeStr),
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    const [evalInfo, courseInfo] = await Promise.all([
+        prisma.evaluation.findUnique({ where: { id: evaluationId }, select: { title: true } }),
+        prisma.course.findUnique({ where: { id: courseId }, select: { title: true } })
+    ]);
+
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "COURSE",
+        entityId: courseId,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Evaluación '${evalInfo?.title}' asignada al curso '${courseInfo?.title}'`,
+        success: true,
+    });
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+}
+
+export async function unassignEvaluationAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const attemptId = formData.get("attemptId") as string;
+    const courseId = formData.get("courseId") as string;
+
+    const { evaluationService } = await import("@/services/evaluationService");
+
+    await evaluationService.unassignEvaluationAttempt(attemptId);
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+}
+
+export async function registerExpulsionAction(submissionId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const submission = await prisma.evaluationSubmission.findUnique({
+        where: { id: submissionId },
         include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    image: true,
-                    profile: {
-                        select: {
-                            identificacion: true,
-                            nombres: true,
-                            apellido: true
-                        }
-                    }
+            attempt: {
+                include: {
+                    evaluation: { select: { expulsionPenalty: true, questions: { select: { id: true } } } }
+                }
+            },
+            answersList: { select: { score: true } }
+        }
+    });
+
+    if (!submission || submission.userId !== session.user.id) {
+        throw new Error("Unauthorized or submission not found");
+    }
+
+    const newExpulsions = (submission.expulsions || 0) + 1;
+    const expulsionPenalty = submission.attempt.evaluation.expulsionPenalty || 0;
+    const totalQuestionsCount = submission.attempt.evaluation.questions.length || 1;
+    const totalScoreSum = submission.answersList.reduce((acc, curr) => acc + (curr.score || 0), 0);
+    const rawScore = totalScoreSum / totalQuestionsCount;
+    const penaltyTotal = newExpulsions * expulsionPenalty;
+    const finalScore = Math.max(0, rawScore - penaltyTotal);
+
+    await prisma.evaluationSubmission.update({
+        where: { id: submissionId },
+        data: {
+            expulsions: newExpulsions,
+            ...(submission.score !== null ? { score: Number(finalScore.toFixed(2)) } : {})
+        }
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "EVALUATION_SUBMISSION",
+        entityId: submissionId,
+        userId: session.user.id,
+        userName: session.user.name || "Estudiante",
+        userRole: session.user.role,
+        description: `Expulsión registrada (Total: ${newExpulsions}) en entrega ${submissionId}`,
+        success: true,
+    });
+
+    return { success: true, expulsions: newExpulsions };
+}
+
+export async function saveAnswerAction(submissionId: string, questionId: string, content: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const existing = await prisma.evaluationAnswer.findFirst({
+        where: { submissionId, questionId }
+    });
+
+    if (existing) {
+        await prisma.evaluationAnswer.update({
+            where: { id: existing.id },
+            data: { answer: content }
+        });
+    } else {
+        await prisma.evaluationAnswer.create({
+            data: { submissionId, questionId, answer: content }
+        });
+    }
+
+    return { success: true };
+}
+
+export async function submitEvaluationAction(submissionId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const submission = await prisma.evaluationSubmission.findUnique({
+        where: { id: submissionId },
+        include: { attempt: { select: { courseId: true } } }
+    });
+
+    if (!submission || submission.userId !== session.user.id) {
+        throw new Error("Unauthorized or submission not found");
+    }
+
+    await prisma.evaluationSubmission.update({
+        where: { id: submissionId },
+        data: { submittedAt: new Date() }
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "EVALUATION_SUBMISSION",
+        entityId: submissionId,
+        userId: session.user.id,
+        userName: session.user.name || "Estudiante",
+        userRole: session.user.role,
+        description: `Evaluación enviada: ${submissionId}`,
+        success: true,
+    });
+
+    revalidatePath(`/dashboard/student`);
+    return { success: true };
+}
+
+export async function evaluateAnswerWithAIAction(submissionId: string, questionId: string, currentAnswer: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        include: { evaluation: true }
+    });
+
+    if (!question) throw new Error("Question not found");
+    const maxAttempts = question.evaluation.maxSupportAttempts;
+
+    let answerRecord = await prisma.evaluationAnswer.findFirst({
+        where: { submissionId, questionId }
+    });
+
+    if (!answerRecord) {
+        answerRecord = await prisma.evaluationAnswer.create({
+            data: { submissionId, questionId, answer: currentAnswer }
+        });
+    }
+
+    if (answerRecord.supportAttempts >= maxAttempts) {
+        throw new Error(`Has alcanzado el límite máximo de ${maxAttempts} ayudas de IA para esta pregunta.`);
+    }
+
+    if (answerRecord.answer !== currentAnswer) {
+        answerRecord = await prisma.evaluationAnswer.update({
+            where: { id: answerRecord.id },
+            data: { answer: currentAnswer }
+        });
+    }
+
+    const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
+    const aiResult = await evaluateStudentAnswer(question.text, question.type, currentAnswer);
+
+    let feedbackHistory: any[] = [];
+    if (answerRecord.aiFeedback) {
+        feedbackHistory = Array.isArray(answerRecord.aiFeedback) 
+            ? answerRecord.aiFeedback 
+            : JSON.parse(answerRecord.aiFeedback as string);
+    }
+
+    const currentAttemptNumber = answerRecord.supportAttempts + 1;
+    const now = new Date().toISOString();
+    feedbackHistory.push({
+        attempt: currentAttemptNumber,
+        feedback: aiResult.feedback,
+        score: aiResult.scoreContribution,
+        isCorrect: aiResult.isCorrect,
+        requestedAt: now
+    });
+
+    const maxScore = Math.max(...feedbackHistory.map(f => f.score));
+
+    await prisma.evaluationAnswer.update({
+        where: { id: answerRecord.id },
+        data: {
+            supportAttempts: currentAttemptNumber,
+            score: maxScore,
+            aiFeedback: feedbackHistory as any
+        }
+    });
+
+    const evaluation = await prisma.evaluation.findUnique({
+        where: { id: question.evaluationId },
+        include: { questions: { select: { id: true } } }
+    });
+
+    const totalQuestionsCount = evaluation?.questions.length || 1;
+    const allAnswers = await prisma.evaluationAnswer.findMany({
+        where: { submissionId }
+    });
+
+    const totalScoreSum = allAnswers.reduce((acc, curr) => acc + (curr.score || 0), 0);
+    const finalSubmissionScore = Number((totalScoreSum / totalQuestionsCount).toFixed(2));
+
+    await prisma.evaluationSubmission.update({
+        where: { id: submissionId },
+        data: { score: finalSubmissionScore }
+    });
+
+    return {
+        success: true,
+        feedback: aiResult.feedback,
+        isCorrect: aiResult.isCorrect,
+        scoreContribution: aiResult.scoreContribution,
+        accumulatedScore: finalSubmissionScore,
+        attemptsRemaining: maxAttempts - currentAttemptNumber,
+        requestedAt: now
+    };
+}
+
+export async function useAiHintAction(submissionId: string, questionId: string, currentAnswer: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const submission = await prisma.evaluationSubmission.findUnique({
+        where: { id: submissionId },
+        include: {
+            attempt: {
+                include: {
+                    evaluation: { select: { wildcardAiHints: true } }
                 }
             }
         }
     });
 
-    return absentRecords.map(record => ({
-        id: record.user.id,
-        name: record.user.name,
-        image: record.user.image,
-        profile: record.user.profile
-    }));
+    if (!submission) throw new Error("Submission not found");
+
+    const maxHints = submission.attempt.evaluation.wildcardAiHints || 0;
+    const wildcardsUsed: any = submission.wildcardsUsed || {};
+    const hintsUsed = wildcardsUsed.aiHintsUsed || 0;
+
+    if (hintsUsed >= maxHints) {
+        throw new Error(`Has agotado tus ${maxHints} pistas de IA disponibles.`);
+    }
+
+    const question = await prisma.question.findUnique({ where: { id: questionId } });
+    if (!question) throw new Error("Question not found");
+
+    const { getAiHint } = await import("../services/gemini/evaluationAnalysisService");
+    const hint = await getAiHint(question.text, question.type, currentAnswer);
+
+    wildcardsUsed.aiHintsUsed = hintsUsed + 1;
+    if (!wildcardsUsed.aiHintQuestions) wildcardsUsed.aiHintQuestions = [];
+    wildcardsUsed.aiHintQuestions.push({ questionId, usedAt: new Date().toISOString() });
+
+    await prisma.evaluationSubmission.update({
+        where: { id: submissionId },
+        data: { wildcardsUsed }
+    });
+
+    return {
+        success: true,
+        hint,
+        hintsRemaining: maxHints - (hintsUsed + 1)
+    };
 }
+
+export async function useSecondChanceAction(submissionId: string, questionId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const submission = await prisma.evaluationSubmission.findUnique({
+        where: { id: submissionId },
+        include: {
+            attempt: {
+                include: {
+                    evaluation: { select: { wildcardSecondChance: true, questions: { select: { id: true } } } }
+                }
+            }
+        }
+    });
+
+    if (!submission) throw new Error("Submission not found");
+
+    const maxSecondChances = submission.attempt.evaluation.wildcardSecondChance || 0;
+    const wildcardsUsed: any = submission.wildcardsUsed || {};
+    const secondChanceUsed = wildcardsUsed.secondChanceUsed || 0;
+
+    if (secondChanceUsed >= maxSecondChances) {
+        throw new Error(`Has agotado tus ${maxSecondChances} segundas oportunidades disponibles.`);
+    }
+
+    const existingAnswer = await prisma.evaluationAnswer.findFirst({
+        where: { submissionId, questionId }
+    });
+
+    if (existingAnswer) {
+        await prisma.evaluationAnswer.update({
+            where: { id: existingAnswer.id },
+            data: {
+                answer: "",
+                score: null,
+                aiFeedback: [],
+                supportAttempts: 0
+            }
+        });
+    }
+
+    const totalQuestionsCount = submission.attempt.evaluation.questions.length || 1;
+    const allAnswers = await prisma.evaluationAnswer.findMany({
+        where: { submissionId }
+    });
+    const totalScoreSum = allAnswers.reduce((acc, curr) => {
+        if (curr.questionId === questionId) return acc;
+        return acc + (curr.score || 0);
+    }, 0);
+    const finalSubmissionScore = Number((totalScoreSum / totalQuestionsCount).toFixed(2));
+
+    wildcardsUsed.secondChanceUsed = secondChanceUsed + 1;
+    if (!wildcardsUsed.secondChanceQuestions) wildcardsUsed.secondChanceQuestions = [];
+    wildcardsUsed.secondChanceQuestions.push({ questionId, usedAt: new Date().toISOString() });
+
+    await prisma.evaluationSubmission.update({
+        where: { id: submissionId },
+        data: {
+            wildcardsUsed,
+            score: finalSubmissionScore
+        }
+    });
+
+    return {
+        success: true,
+        secondChancesRemaining: maxSecondChances - (secondChanceUsed + 1)
+    };
+}
+
+export async function testQuestionWithAIAction(questionText: string, type: string, answerText: string) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+        throw new Error("Unauthorized");
+    }
+
+    const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
+    return await evaluateStudentAnswer(questionText, type, answerText);
+}
+
+export async function generateQuestionAction(
+    topic: string,
+    type: string,
+    language?: string,
+    customPrompt?: string,
+    size: "short" | "medium" | "long" = "medium",
+    openness: "concrete" | "balanced" | "open" = "balanced",
+    includeCode: boolean = false,
+    difficulty: "easy" | "medium" | "hard" | "expert" = "medium",
+    bloomTaxonomy: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create" = "apply",
+    includeBoilerplate: boolean = false,
+    includeTestCases: boolean = false
+) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+        throw new Error("Unauthorized");
+    }
+
+    const { generateQuestion } = await import("../services/gemini/questionGenerationService");
+    return await generateQuestion(topic, type, language, customPrompt, size, openness, includeCode, difficulty, bloomTaxonomy, includeBoilerplate, includeTestCases);
+}
+
+export async function generateAnswerAction(questionText: string, type: string, language?: string) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+        throw new Error("Unauthorized");
+    }
+
+    const { generateSampleAnswer } = await import("../services/gemini/questionGenerationService");
+    return await generateSampleAnswer(questionText, type, language);
+}
+
+export async function getGroupAIInsightsAction(evaluationId: string, attemptId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    const { getGroupAIInsights } = await import("../services/gemini/evaluationAnalysisService");
+
+    const evaluation = await prisma.evaluation.findUnique({
+        where: { id: evaluationId },
+        include: { questions: true }
+    });
+    if (!evaluation) throw new Error("Evaluation not found");
+
+    const submissions = await evaluationService.getSubmissionsByAttempt(attemptId);
+
+    const stats = evaluation.questions.map((q, index) => {
+        const answersForQ = submissions
+            .flatMap(s => (s.answersList || []))
+            .filter((a: any) => a.questionId === q.id && a.score !== null);
+
+        const avg = answersForQ.length > 0
+            ? answersForQ.reduce((acc: number, a: any) => acc + Number(a.score), 0) / answersForQ.length
+            : 0;
+
+        const successCount = answersForQ.filter((a: any) => Number(a.score) >= 3.0).length;
+
+        return {
+            questionIndex: index,
+            averageScore: Number(avg.toFixed(2)),
+            maxScore: 5.0,
+            successRate: answersForQ.length > 0 ? successCount / answersForQ.length : 0
+        };
+    });
+
+    const sampleFeedbackList = submissions
+        .flatMap(s => (s.answersList || []))
+        .filter((a: any) => a.score !== null && Number(a.score) < 3.0 && a.aiFeedback && a.aiFeedback.length > 0)
+        .map((a: any) => {
+            const history = Array.isArray(a.aiFeedback) ? a.aiFeedback : JSON.parse(a.aiFeedback as string);
+            return history[history.length - 1].feedback;
+        })
+        .filter((val, index, self) => self.indexOf(val) === index)
+        .slice(0, 15);
+
+    return await getGroupAIInsights(
+        evaluation.title,
+        evaluation.questions.map(q => ({ text: q.text, type: q.type })),
+        stats,
+        sampleFeedbackList
+    );
+}
+
+export async function getPlagiarismAnalysisAction(attemptId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+
+    const { analyzePlagiarism } = await import("../services/gemini/plagiarismService");
+
+    const attempt = await prisma.evaluationAttempt.findUnique({
+        where: { id: attemptId },
+        include: { evaluation: true }
+    });
+    if (!attempt) throw new Error("Attempt not found");
+
+    const submissions = await prisma.evaluationSubmission.findMany({
+        where: { attemptId },
+        include: {
+            user: { select: { id: true, name: true } },
+            answersList: { select: { questionId: true, answer: true } }
+        }
+    });
+
+    if (submissions.length < 2) return [];
+
+    const formattedSubmissions = submissions.map(s => ({
+        userId: s.user.id,
+        userName: s.user.name,
+        answers: s.answersList.map(a => ({ questionId: a.questionId, content: a.answer }))
+    }));
+
+    return await analyzePlagiarism(attempt.evaluation.title, formattedSubmissions);
+}
+
+export async function exportEvaluationAction(evaluationId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    return await evaluationService.getFullEvaluationData(evaluationId, session.user.id);
+}
+
+export async function importEvaluationAction(data: any) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    const evaluation = await evaluationService.createFullEvaluation(session.user.id, data);
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "CREATE",
+        entity: "EVALUATION",
+        entityId: evaluation.id,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Evaluación importada: ${evaluation.title}`,
+        success: true,
+    });
+
+    revalidatePath("/dashboard/teacher/evaluations");
+}
+export async function updateEvaluationAssignmentAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
+
+    const attemptId = formData.get("attemptId") as string;
+    const evaluationId = formData.get("evaluationId") as string;
+    const startTime = new Date(formData.get("startTime") as string);
+    const endTime = new Date(formData.get("endTime") as string);
+    const courseId = formData.get("courseId") as string;
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    const attempt = await evaluationService.updateEvaluationAssignment(attemptId, {
+        evaluationId,
+        startTime,
+        endTime
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "UPDATE",
+        entity: "EVALUATION",
+        entityId: attempt.id,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Asignación de evaluación actualizada: ${attempt.evaluation.title}`,
+        success: true,
+    });
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}/evaluations`);
+}
+

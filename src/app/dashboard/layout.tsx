@@ -1,6 +1,7 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { CreditsModal } from "@/components/CreditsModal";
+import { ModeToggle } from "@/components/theme/ModeToggle";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DynamicBreadcrumb } from "@/components/navigation/DynamicBreadcrumb";
@@ -35,6 +36,7 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
+              <ModeToggle />
               <CreditsModal />
             </div>
           </div>

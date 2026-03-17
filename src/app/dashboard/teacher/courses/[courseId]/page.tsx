@@ -13,6 +13,8 @@ import { Roulette } from "@/features/teacher/Roulette";
 import { GroupGenerator } from "@/features/teacher/GroupGenerator";
 import { GroupContentShare } from "@/features/teacher/components/GroupContentShare";
 import { sharedContentService } from "@/services/sharedContentService";
+import { evaluationService } from "@/services/evaluationService";
+import { EvaluationAssignmentManager } from "@/features/teacher/EvaluationAssignmentManager";
 
 import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
 
@@ -38,6 +40,10 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
     const activities = await activityService.getCourseActivities(courseId);
     const students = await courseService.getCourseStudents(courseId);
     const sharedContents = await sharedContentService.getByCourse(courseId);
+    
+    // Evaluaciones
+    const evaluationAssignments = await evaluationService.getCourseEvaluationAttempts(courseId);
+    const teacherEvaluations = await evaluationService.getTeacherEvaluations(session.user.id);
 
     return (
         <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-4 sm:pt-6">
@@ -61,6 +67,7 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                             <Users className="h-4 w-4" />
                             Grupos
                         </TabsTrigger>
+                        <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
                         <TabsTrigger value="share">Compartir</TabsTrigger>
                     </TabsList>
                     {course.externalUrl && (
@@ -87,6 +94,13 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                 </TabsContent>
                 <TabsContent value="groups" className="space-y-4">
                     <GroupGenerator students={students} />
+                </TabsContent>
+                <TabsContent value="evaluations" className="space-y-4">
+                    <EvaluationAssignmentManager 
+                        courseId={courseId}
+                        attempts={evaluationAssignments}
+                        teacherEvaluations={teacherEvaluations}
+                    />
                 </TabsContent>
                 <TabsContent value="share" className="space-y-4">
                     <GroupContentShare courseId={courseId} initialContent={sharedContents} />

@@ -129,6 +129,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             isActive: false,
           },
           {
+            title: "Evaluaciones",
+            url: "/dashboard/teacher/evaluations",
+            icon: FileText,
+            isActive: false,
+          },
+          {
             title: "Estadísticas",
             url: "/dashboard/teacher/statistics",
             icon: BarChart,

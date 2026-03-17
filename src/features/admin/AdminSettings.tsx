@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { updateSystemSettingsAction } from "@/app/admin-actions";
-import { Key, Save, ShieldCheck, User } from "lucide-react";
+import { Key, Save, ShieldCheck, User, ActivitySquare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface AdminSettingsProps {
     initialSettings: {
@@ -19,6 +20,7 @@ interface AdminSettingsProps {
         institutionLogo?: string | null;
         institutionHeroImage?: string | null;
         footerText?: string | null;
+        auditLogEnabled: boolean;
     };
 }
 
@@ -26,6 +28,7 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
     const [mode, setMode] = useState<"GLOBAL" | "USER">(initialSettings.geminiApiKeyMode);
     const [apiKey, setApiKey] = useState("");
     const [githubToken, setGithubToken] = useState("");
+    const [auditLogEnabled, setAuditLogEnabled] = useState(initialSettings.auditLogEnabled);
     const [isPending, startTransition] = useTransition();
 
     const handleSave = () => {
@@ -41,7 +44,8 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
                 await updateSystemSettingsAction({
                     geminiApiKeyMode: mode,
                     globalApiKey: apiKey || undefined,
-                    githubToken: githubToken || undefined
+                    githubToken: githubToken || undefined,
+                    auditLogEnabled: auditLogEnabled,
                 });
 
                 toast.success("Configuración guardada", {
@@ -192,6 +196,39 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
                         </p>
                     </div>
 
+                    <div className="flex justify-end pt-4">
+                        <Button onClick={handleSave} disabled={isPending}>
+                            <Save className="mr-2 h-4 w-4" />
+                            {isPending ? "Guardando..." : "Guardar Cambios"}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ActivitySquare className="h-5 w-5" />
+                        Registro de Auditoría
+                    </CardTitle>
+                    <CardDescription>
+                        Controla si el sistema registra todas las acciones de los usuarios.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Monitoreo de Acciones (Audit Logs)</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Si desactivas esta opción, el sistema dejará de guardar nuevos registros de auditoría para optimizar el rendimiento. Las acciones previas se mantendrán.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={auditLogEnabled}
+                            onCheckedChange={setAuditLogEnabled}
+                            disabled={isPending}
+                        />
+                    </div>
                     <div className="flex justify-end pt-4">
                         <Button onClick={handleSave} disabled={isPending}>
                             <Save className="mr-2 h-4 w-4" />

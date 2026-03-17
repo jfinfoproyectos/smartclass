@@ -64,3 +64,11 @@ export function parseISOAsUTC(dateString: string): Date {
     // Aseguramos que sea tratado así.
     return new Date(dateString);
 }
+/**
+ * Formatea una fecha con hora.
+ */
+export function formatDateTime(date: Date | string, formatStr: string = "dd/MM/yyyy HH:mm"): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return "Fecha inválida";
+    return format(d, formatStr, { locale: es });
+}

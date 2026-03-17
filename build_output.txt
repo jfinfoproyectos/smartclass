@@ -1,0 +1,42 @@
+
+> smartclass@0.1.0 build
+> next build
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Ôû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env
+
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+Turbopack build encountered 1 warnings:
+./node_modules/fstream/lib
+Package rimraf can't be external
+The request rimraf matches serverExternalPackages (or the default list).
+The package.json of the package has no name or version.
+
+
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/features/teacher/EvaluationStats.tsx:36:1
+Module not found: Can't resolve './AIInsightsPDF'
+  34 | import { getGroupAIInsightsAction, getPlagiarismAnalysisAction } from "@/app/actions";
+  35 | import { pdf } from "@react-pdf/renderer";
+> 36 | import { AIInsightsPDF } from "./AIInsightsPDF";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  37 |
+  38 | ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend);
+  39 |
+
+
+
+Import trace:
+  Server Component:
+    ./src/features/teacher/EvaluationStats.tsx
+    ./src/app/dashboard/teacher/courses/[courseId]/evaluations/[attemptId]/page.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./src/features/teacher/EvaluationStats.tsx:36:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)

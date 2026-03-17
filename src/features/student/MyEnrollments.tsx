@@ -23,9 +23,10 @@ import {
     Calendar,
     GraduationCap,
     BookMarked,
-    Laptop
+    Laptop,
+    FileText
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isAfter, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -179,11 +180,16 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                         </CardHeader>
                     <CardContent className="pt-6 min-w-0">
                         <Tabs defaultValue="activities" className="space-y-6">
-                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1">
+                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1">
                                 <TabsTrigger value="activities" className="gap-2">
                                     <ClipboardCheck className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Actividades Pendientes y Entregas</span>
+                                    <span className="hidden sm:inline">Actividades</span>
                                     <span className="sm:hidden text-xs">Actividades</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="evaluations" className="gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Evaluaciones</span>
+                                    <span className="sm:hidden text-xs">Eval.</span>
                                 </TabsTrigger>
                                 <TabsTrigger value="attendance" className="gap-2">
                                     <Clock className="h-4 w-4" />
@@ -322,6 +328,79 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                         </div>
                                     ) : (
                                         <p className="text-sm text-muted-foreground">No hay actividades en este curso.</p>
+                                    )}
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="evaluations" className="space-y-4 pt-4">
+                                <div className="space-y-4">
+                                    <h3 className="text-2xl font-bold flex items-center gap-2">
+                                        Evaluaciones del Curso
+                                    </h3>
+                                    {enrollment.course.evaluationAttempts?.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {enrollment.course.evaluationAttempts.map((attempt: any) => {
+                                                const submission = attempt.submissions[0];
+                                                const isSubmitted = !!submission?.submittedAt;
+                                                const now = new Date();
+                                                const startTime = new Date(attempt.startTime);
+                                                const endTime = new Date(attempt.endTime);
+                                                const isOpen = now >= startTime && now <= endTime;
+                                                const isUpcoming = now < startTime;
+                                                const isExpired = now > endTime && !isSubmitted;
+
+                                                return (
+                                                    <Card key={attempt.id} className="overflow-hidden border-muted shadow-sm hover:shadow-md transition-shadow">
+                                                        <CardHeader className="pb-3 border-b bg-muted/10">
+                                                            <CardTitle className="text-lg">{attempt.evaluation.title}</CardTitle>
+                                                            <CardDescription className="flex items-center gap-1.5 text-xs font-medium">
+                                                                <Clock className="h-3.5 w-3.5 text-primary" />
+                                                                <span suppressHydrationWarning>
+                                                                    {format(startTime, "PP p", { locale: es })}
+                                                                </span>
+                                                            </CardDescription>
+                                                        </CardHeader>
+                                                        <CardContent className="pt-4 flex flex-col gap-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Estado</span>
+                                                                    {isSubmitted ? (
+                                                                        <Badge className="bg-emerald-100 text-emerald-700 border-none">Completado</Badge>
+                                                                    ) : isExpired ? (
+                                                                        <Badge variant="destructive">Expirado</Badge>
+                                                                    ) : isUpcoming ? (
+                                                                        <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50">Próximamente</Badge>
+                                                                    ) : isOpen ? (
+                                                                        <Badge className="bg-blue-100 text-blue-700 border-none animate-pulse">Abierto</Badge>
+                                                                    ) : null}
+                                                                </div>
+                                                                {isSubmitted && submission.score !== null && (
+                                                                    <div className="flex flex-col items-end gap-1">
+                                                                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Nota</span>
+                                                                        <span className="text-xl font-bold text-primary">{submission.score.toFixed(1)}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <Button 
+                                                                className="w-full font-bold shadow-sm" 
+                                                                variant={isSubmitted ? "outline" : isOpen ? "default" : "secondary"}
+                                                                disabled={!isOpen && !isSubmitted}
+                                                                asChild
+                                                            >
+                                                                <Link href={`/evaluations/${attempt.id}`}>
+                                                                    {isSubmitted ? "Ver Resultados" : isOpen ? "Realizar Evaluación" : "No disponible"}
+                                                                </Link>
+                                                            </Button>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-xl bg-muted/5">
+                                            <FileText className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                                            <p className="text-muted-foreground font-medium">No hay evaluaciones programadas para este curso.</p>
+                                        </div>
                                     )}
                                 </div>
                             </TabsContent>

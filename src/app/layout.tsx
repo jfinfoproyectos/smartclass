@@ -22,8 +22,8 @@ export default function RootLayout({
       <body>
         <ThemeProvider
           attribute="class"
-          forcedTheme="dark"
-          enableSystem={false}
+          defaultTheme="system"
+          enableSystem
           disableTransitionOnChange
         >
           <ScrollRestorer />

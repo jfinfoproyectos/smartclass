@@ -18,12 +18,44 @@ interface LogOptions {
     errorMessage?: string;
 }
 
+let cachedAuditEnabled: boolean | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
+async function isAuditEnabled(): Promise<boolean> {
+    const now = Date.now();
+    if (cachedAuditEnabled !== null && (now - lastCacheTime) < CACHE_TTL) {
+        return cachedAuditEnabled;
+    }
+
+    try {
+        const settings = await prisma.systemSettings.findUnique({
+            where: { id: "settings" },
+            select: { auditLogEnabled: true }
+        });
+        
+        cachedAuditEnabled = settings?.auditLogEnabled ?? true;
+        lastCacheTime = now;
+        return cachedAuditEnabled;
+    } catch (e) {
+        console.error("[AuditLogger] Error checking if audit is enabled", e);
+        return true; // Default to true on error
+    }
+}
+
+export function clearAuditCache() {
+    cachedAuditEnabled = null;
+    lastCacheTime = 0;
+}
+
 export const auditLogger = {
     /**
      * Log an audit event
      */
     async log(options: LogOptions) {
         try {
+            const enabled = await isAuditEnabled();
+            if (!enabled) return;
             await prisma.auditLog.create({
                 data: {
                     action: options.action,
