@@ -13,7 +13,8 @@ export async function evaluateStudentAnswer(
     questionText: string,
     questionType: string,
     studentAnswer: string,
-    maxScore: number = 5.0
+    maxScore: number = 5.0,
+    referenceAnswer?: string
 ): Promise<AIAnswerEvaluation> {
     try {
         const ai = await getGeminiClient();
@@ -24,6 +25,10 @@ export async function evaluateStudentAnswer(
         } else {
             focusCriteria = "Evalúa la coherencia, argumentación y dominio del tema. Penaliza si el estudiante simplemente parafrasea el enunciado sin aportar conceptos reales o si la respuesta es demasiado superficial.";
         }
+
+        const referenceContext = referenceAnswer 
+            ? `\n**Respuesta de Referencia (Estándar de Oro)**:\n"""\n${referenceAnswer}\n"""\n\nUsa esta respuesta como la solución ideal para comparar y calificar. Si el estudiante se desvía significativamente de los conceptos o lógica aquí presentados, califica en consecuencia.`
+            : "\n(No se ha proporcionado una respuesta de referencia específica. Usa tu conocimiento general para evaluar la exactitud de la respuesta).";
 
         const prompt = `
         Actúa como un profesor experto, evaluador imparcial y con enfoque pedagógico socrático.
@@ -38,6 +43,7 @@ export async function evaluateStudentAnswer(
         """
 
         **Tipo de Pregunta**: ${questionType === "Code" ? "Código de Programación" : "Texto / Teórica"}
+        ${referenceContext}
         
         **Respuesta del Estudiante**:
         """

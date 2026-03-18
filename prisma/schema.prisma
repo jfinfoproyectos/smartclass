@@ -397,6 +397,8 @@ model Question {
   text         String             @db.Text // Contenido del editor markdown
   type         String //"Code", "Text"
   language     String? // Lenguaje de programación para preguntas de tipo CODE
+  referenceAnswer String? @db.Text // Respuesta ideal de referencia suministrada por el profesor
+  order        Int                @default(0)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
   answers      EvaluationAnswer[] @relation("QuestionAnswers")

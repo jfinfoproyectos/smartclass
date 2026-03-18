@@ -9,7 +9,7 @@ export default async function EvaluationsPage() {
         headers: await headers(),
     });
 
-    if (!session || session.user.role !== "teacher") {
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
         redirect("/login");
     }
 

@@ -2256,6 +2256,7 @@ export async function createQuestionAction(formData: FormData) {
     const text = formData.get("text") as string;
     const type = formData.get("type") as string; // "Text" or "Code"
     const language = formData.get("language") as string;
+    const referenceAnswer = (formData.get("referenceAnswer") as string) || "";
 
     const { evaluationService } = await import("@/services/evaluationService");
 
@@ -2263,7 +2264,8 @@ export async function createQuestionAction(formData: FormData) {
         evaluationId,
         text,
         type,
-        language: type === "Code" ? language : undefined
+        language: type === "Code" ? language : undefined,
+        referenceAnswer: referenceAnswer
     });
 
     revalidatePath(`/dashboard/teacher/evaluations/${evaluationId}`);
@@ -2280,14 +2282,28 @@ export async function updateQuestionAction(formData: FormData) {
     const text = formData.get("text") as string;
     const type = formData.get("type") as string;
     const language = formData.get("language") as string;
+    const referenceAnswer = (formData.get("referenceAnswer") as string) || "";
 
     const { evaluationService } = await import("@/services/evaluationService");
 
     await evaluationService.updateQuestion(questionId, evaluationId, session.user.id, {
         text,
         type,
-        language: type === "Code" ? language : undefined
+        language: type === "Code" ? language : undefined,
+        referenceAnswer: referenceAnswer
     });
+
+    revalidatePath(`/dashboard/teacher/evaluations/${evaluationId}`);
+}
+
+export async function updateQuestionsOrderAction(evaluationId: string, questionOrders: { id: string, order: number }[]) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+        throw new Error("Unauthorized");
+    }
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    await evaluationService.updateQuestionsOrder(evaluationId, session.user.id, questionOrders);
 
     revalidatePath(`/dashboard/teacher/evaluations/${evaluationId}`);
 }
@@ -2524,7 +2540,7 @@ export async function evaluateAnswerWithAIAction(submissionId: string, questionI
     }
 
     const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
-    const aiResult = await evaluateStudentAnswer(question.text, question.type, currentAnswer);
+    const aiResult = await evaluateStudentAnswer(question.text, question.type, currentAnswer, 5.0, question.referenceAnswer || undefined);
 
     let feedbackHistory: any[] = [];
     if (answerRecord.aiFeedback) {
@@ -2703,14 +2719,14 @@ export async function useSecondChanceAction(submissionId: string, questionId: st
     };
 }
 
-export async function testQuestionWithAIAction(questionText: string, type: string, answerText: string) {
+export async function testQuestionWithAIAction(questionText: string, type: string, answerText: string, referenceAnswer?: string) {
     const session = await getSession();
     if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
         throw new Error("Unauthorized");
     }
 
     const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
-    return await evaluateStudentAnswer(questionText, type, answerText);
+    return await evaluateStudentAnswer(questionText, type, answerText, 5.0, referenceAnswer);
 }
 
 export async function generateQuestionAction(

@@ -1,8 +1,27 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef } from "react";
 import { format } from "date-fns";
-import { Plus, Trash2, Edit, AlertCircle, Type, Code2, ArrowLeft, Loader2, Zap, MessageSquare, Sparkles, CheckCircle2, XCircle, Info, Eye } from "lucide-react";
+import { Plus, Trash2, Edit, AlertCircle, Type, Code2, ArrowLeft, Loader2, Zap, MessageSquare, Sparkles, CheckCircle2, XCircle, Info, Eye, GripVertical } from "lucide-react";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragStartEvent,
+    DragEndEvent,
+    DragOverlay,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,7 +66,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { createQuestionAction, deleteQuestionAction, updateQuestionAction, testQuestionWithAIAction, generateQuestionAction, generateAnswerAction } from "@/app/actions";
+import { createQuestionAction, deleteQuestionAction, updateQuestionAction, testQuestionWithAIAction, generateQuestionAction, generateAnswerAction, updateQuestionsOrderAction } from "@/app/actions";
 
 // Text Editor
 import MDEditor from "@uiw/react-md-editor";
@@ -66,6 +85,7 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
     const [language, setLanguage] = useState("javascript");
     const [text, setText] = useState("**Enunciado de la Pregunta**\n\nEscribe aquí...");
     const [codeValue, setCodeValue] = useState("// Escribe el código aquí...");
+    const [referenceAnswer, setReferenceAnswer] = useState("");
 
     // AI Status
     const [testAnswer, setTestAnswer] = useState("");
@@ -89,9 +109,11 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
     // Edit mode state
     const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
     const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState("design");
     const { resolvedTheme } = useTheme();
     const mode = resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto";
     const formRef = useRef<HTMLFormElement>(null);
+    const [activeId, setActiveId] = useState<string | null>(null);
 
     const handleOpenForm = (question?: any, index?: number) => {
         if (question) {
@@ -100,7 +122,9 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
             setType(question.type);
             setLanguage(question.language || "javascript");
             setText(question.text);
-            setCodeValue("// Escribe el código aquí...");
+            // No reset codeValue here to preserve what might be there, 
+            // although Code questions should ideally have their content in 'text' or a specific field.
+            // For now, let's just avoid hardcoding the instructional string if we are editing.
         } else {
             setEditingQuestionId(null);
             setEditingQuestionIndex(null);
@@ -108,9 +132,14 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
             setLanguage("javascript");
             setText("**Enunciado de la Pregunta**\n\nEscribe aquí...");
             setCodeValue("// Escribe el código aquí...");
+            setReferenceAnswer("");
+        }
+        if (question) {
+            setReferenceAnswer(question.referenceAnswer || "");
         }
         setTestAnswer("");
         setAiTestResult(null);
+        setActiveTab("design");
         setIsFormSheetOpen(true);
     };
 
@@ -127,12 +156,49 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
         try {
             setActiveTestTab("result");
             const answerToTest = testAnswer || (type === "Code" ? codeValue : "");
-            const result = await testQuestionWithAIAction(text, type, answerToTest);
+            const result = await testQuestionWithAIAction(text, type, answerToTest, referenceAnswer);
             setAiTestResult(result);
         } catch (error) {
             console.error("Error testing with AI:", error);
         } finally {
             setIsTestingAI(false);
+        }
+    };
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        setActiveId(null);
+
+        if (over && active.id !== over.id) {
+            const oldIndex = evaluation.questions.findIndex((q: any) => q.id === active.id);
+            const newIndex = evaluation.questions.findIndex((q: any) => q.id === over.id);
+
+            const newQuestions = arrayMove(evaluation.questions, oldIndex, newIndex);
+            const questionOrders = newQuestions.map((q: any, i) => ({
+                id: q.id,
+                order: i + 1
+            }));
+
+            try {
+                await updateQuestionsOrderAction(evaluation.id, questionOrders);
+            } catch (error) {
+                console.error("Error al reordenar:", error);
+            }
         }
     };
 
@@ -158,12 +224,16 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
         }
     };
 
-    const handleGenerateAnswer = async () => {
+    const handleGenerateAnswer = async (target: "test" | "reference" = "test") => {
         if (!text) return;
         setIsGeneratingAnswer(true);
         try {
             const generatedAnswer = await generateAnswerAction(text, type, language);
-            setTestAnswer(generatedAnswer);
+            if (target === "reference") {
+                setReferenceAnswer(generatedAnswer);
+            } else {
+                setTestAnswer(generatedAnswer);
+            }
         } catch (error) {
             console.error("Error generating answer:", error);
         } finally {
@@ -216,11 +286,6 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
                         }}
                         className="flex-1 flex flex-col gap-4 overflow-hidden"
                     >
-                        {editingQuestionId && <input type="hidden" name="questionId" value={editingQuestionId} />}
-                        <input type="hidden" name="evaluationId" value={evaluation.id} />
-                        <input type="hidden" name="text" value={text} />
-                        <input type="hidden" name="type" value={type} />
-                        <input type="hidden" name="language" value={language} />
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
                             {/* Left: Editor */}
@@ -374,13 +439,76 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
                                 </div>
 
                                 <div className="flex-1 flex flex-col pt-1 min-h-0" data-color-mode={mode}>
-                                    <MDEditor
-                                        value={text}
-                                        onChange={(val) => setText(val || "")}
-                                        height="100%"
-                                        preview="edit"
-                                        className="flex-1 border-none shadow-none"
-                                    />
+                                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                                        <TabsList className="grid w-full grid-cols-2 h-9 flex-shrink-0 mb-2">
+                                            <TabsTrigger value="design" className="text-xs font-bold uppercase gap-2">
+                                                <Edit className="h-3 w-3" /> Diseño y Enunciado
+                                            </TabsTrigger>
+                                            <TabsTrigger value="reference" className="text-xs font-bold uppercase gap-2">
+                                                <CheckCircle2 className="h-3 w-3 text-green-500" /> Respuesta de Referencia
+                                            </TabsTrigger>
+                                        </TabsList>
+
+                                        <TabsContent value="design" className="flex-1 flex flex-col overflow-hidden m-0 focus-visible:outline-none focus-visible:ring-0">
+                                            <MDEditor
+                                                value={text}
+                                                onChange={(val) => setText(val || "")}
+                                                height="100%"
+                                                preview="edit"
+                                                className="flex-1 border-none shadow-none"
+                                            />
+                                        </TabsContent>
+
+                                        <TabsContent value="reference" className="flex-1 flex flex-col overflow-hidden m-0 focus-visible:outline-none focus-visible:ring-0">
+                                            <div className="flex flex-col gap-2 h-full">
+                                                <div className="flex items-center justify-between px-1">
+                                                    <p className="text-[10px] text-muted-foreground italic">
+                                                        Este es el "Gold Standard" que Gemini usará para calificar.
+                                                    </p>
+                                                    <span className="text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                                        {type === "Code" ? `Editor ${language}` : "Editor Texto"}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="flex-1 border rounded-md overflow-hidden bg-muted/5 group focus-within:border-primary/50 transition-colors">
+                                                    {type === "Code" ? (
+                                                        <Editor
+                                                            height="100%"
+                                                            language={language === "arduino" ? "cpp" : (language || "javascript")}
+                                                            theme={mode === "dark" ? "vs-dark" : "light"}
+                                                            value={referenceAnswer}
+                                                            onChange={(val) => setReferenceAnswer(val || "")}
+                                                            options={{ 
+                                                                minimap: { enabled: false }, 
+                                                                fontSize: 13, 
+                                                                wordWrap: "on",
+                                                                scrollBeyondLastLine: false,
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <textarea
+                                                            className="w-full h-full p-4 text-sm bg-transparent focus:outline-none resize-none font-sans"
+                                                            placeholder="Escribe aquí la respuesta ideal esperada..."
+                                                            value={referenceAnswer}
+                                                            onChange={(e) => setReferenceAnswer(e.target.value)}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-[10px] font-bold uppercase tracking-wider bg-primary/5 hover:bg-primary/10 border-primary/20"
+                                                    onClick={() => handleGenerateAnswer("reference")}
+                                                    disabled={isGeneratingAnswer || !text}
+                                                >
+                                                    {isGeneratingAnswer ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3 text-amber-500" />}
+                                                    {isGeneratingAnswer ? "Generando..." : "Sugerir Respuesta Ideal con Gemini"}
+                                                </Button>
+                                            </div>
+                                        </TabsContent>
+                                    </Tabs>
                                 </div>
                             </div>
 
@@ -430,14 +558,14 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
                                                     />
                                                 </div>
                                             )}
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-8 text-[10px] font-bold uppercase tracking-wider"
-                                                onClick={handleGenerateAnswer}
-                                                disabled={isGeneratingAnswer || !text}
-                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-[10px] font-bold uppercase tracking-wider"
+                                                    onClick={() => handleGenerateAnswer("test")}
+                                                    disabled={isGeneratingAnswer || !text}
+                                                >
                                                 {isGeneratingAnswer ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3 text-amber-500" />}
                                                 {isGeneratingAnswer ? "Generando..." : "Sugerir Respuesta Ideal con Gemini"}
                                             </Button>
@@ -466,6 +594,14 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
                                 </Tabs>
                             </div>
                         </div>
+
+                        {/* Hidden Inputs moved to the end for better reliability */}
+                        {editingQuestionId && <input type="hidden" name="questionId" value={editingQuestionId} />}
+                        <input type="hidden" name="evaluationId" value={evaluation.id} />
+                        <input type="hidden" name="text" value={text} />
+                        <input type="hidden" name="type" value={type} />
+                        <input type="hidden" name="language" value={language} />
+                        <input type="hidden" name="referenceAnswer" value={referenceAnswer} />
                     </form>
                 </SheetContent>
             </Sheet>
@@ -528,65 +664,40 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
             </div>
 
             <div className="w-full overflow-x-auto rounded-md border bg-card">
-                <Table className="min-w-[800px]">
-                    <TableHeader className="bg-muted/30">
-                        <TableRow>
-                            <TableHead className="w-[80px] text-center text-[10px] uppercase font-bold">Orden</TableHead>
-                            <TableHead className="text-[10px] uppercase font-bold">Tipo</TableHead>
-                            <TableHead className="text-[10px] uppercase font-bold">Enunciado</TableHead>
-                            <TableHead className="text-[10px] uppercase font-bold">Creado</TableHead>
-                            <TableHead className="text-right text-[10px] uppercase font-bold">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {evaluation.questions.map((question: any, index: number) => (
-                            <TableRow key={question.id} className="hover:bg-muted/5">
-                                <TableCell className="text-center font-bold text-muted-foreground">{index + 1}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        {question.type === "Text" ? <Type className="h-3 w-3 text-blue-500" /> : <Code2 className="h-3 w-3 text-orange-500" />}
-                                        <span className={`text-[10px] font-bold uppercase ${question.type === "Text" ? "text-blue-500" : "text-orange-500"}`}>
-                                            {question.type === "Text" ? "Texto" : question.language}
-                                        </span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="max-w-[400px] truncate text-xs text-muted-foreground italic">
-                                    {question.text.replace(/[#*`_~]/g, "").substring(0, 80)}...
-                                </TableCell>
-                                <TableCell className="text-[10px] text-muted-foreground">
-                                    {format(new Date(question.createdAt), "dd/MM/yyyy HH:mm")}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex justify-end gap-1">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenForm(question, index)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Eliminar Pregunta</DialogTitle>
-                                                    <DialogDescription>Esta acción no se puede deshacer. Escribe ELIMINAR para continuar.</DialogDescription>
-                                                </DialogHeader>
-                                                <form action={async (formData) => { await deleteQuestionAction(formData); }}>
-                                                    <input type="hidden" name="questionId" value={question.id} />
-                                                    <input type="hidden" name="evaluationId" value={evaluation.id} />
-                                                    <div className="py-4">
-                                                        <Input name="confirmText" placeholder="ELIMINAR" pattern="^ELIMINAR$" required />
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <Button type="submit" variant="destructive" className="w-full">Eliminar permanentemente</Button>
-                                                    </DialogFooter>
-                                                </form>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </div>
-                                </TableCell>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragCancel={() => setActiveId(null)}
+                >
+                    <Table className="min-w-[800px]">
+                        <TableHeader className="bg-muted/30">
+                            <TableRow>
+                                <TableHead className="w-10"></TableHead>
+                                <TableHead className="w-12 text-center text-[10px] uppercase font-bold">Orden</TableHead>
+                                <TableHead className="w-24 text-[10px] uppercase font-bold">Tipo</TableHead>
+                                <TableHead className="text-[10px] uppercase font-bold">Enunciado</TableHead>
+                                <TableHead className="w-40 text-[10px] uppercase font-bold">Creado</TableHead>
+                                <TableHead className="text-right text-[10px] uppercase font-bold w-24">Acciones</TableHead>
                             </TableRow>
-                        ))}
-                        {evaluation.questions.length === 0 && (
+                        </TableHeader>
+                        <TableBody>
+                            <SortableContext
+                                items={evaluation.questions.map((q: any) => q.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {evaluation.questions.map((question: any, index: number) => (
+                                    <SortableQuestionRow
+                                        key={question.id}
+                                        question={question}
+                                        index={index}
+                                        onEdit={() => handleOpenForm(question, index)}
+                                        evaluationId={evaluation.id}
+                                    />
+                                ))}
+                            </SortableContext>
+                            {evaluation.questions.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground flex flex-col items-center justify-center gap-2 opacity-50">
                                     <Info className="h-6 w-6" />
@@ -594,10 +705,138 @@ export function QuestionManager({ evaluation }: { evaluation: any }) {
                                 </TableCell>
                             </TableRow>
                         )}
-                    </TableBody>
-                </Table>
+                        </TableBody>
+                    </Table>
+                    <DragOverlay adjustScale={true}>
+                        {activeId ? (
+                            <table className="w-full border-collapse">
+                                <tbody>
+                                    <QuestionRowUI
+                                        question={evaluation.questions.find((q: any) => q.id === activeId)}
+                                        index={evaluation.questions.findIndex((q: any) => q.id === activeId)}
+                                        isOverlay={true}
+                                    />
+                                </tbody>
+                            </table>
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
             </div>
         </div>
     );
 }
+
+function SortableQuestionRow({ question, index, onEdit, evaluationId }: { question: any, index: number, onEdit: () => void, evaluationId: string }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: question.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <QuestionRowUI
+            ref={setNodeRef}
+            style={style}
+            question={question}
+            index={index}
+            onEdit={onEdit}
+            evaluationId={evaluationId}
+            attributes={attributes}
+            listeners={listeners}
+            isDragging={isDragging}
+        />
+    );
+}
+
+const QuestionRowUI = forwardRef<HTMLTableRowElement, any>(({
+    question,
+    index,
+    onEdit,
+    evaluationId,
+    attributes,
+    listeners,
+    isDragging,
+    isOverlay,
+    style
+}, ref) => {
+    if (!question) return null;
+
+    return (
+        <TableRow
+            ref={ref}
+            style={style}
+            className={`
+                hover:bg-muted/5 transition-colors
+                ${isDragging ? "bg-muted/50 border-primary/20" : ""}
+                ${isOverlay ? "bg-card shadow-2xl border-primary ring-2 ring-primary/20 cursor-grabbing list-none" : ""}
+            `}
+        >
+            <TableCell className="w-10">
+                <button
+                    {...attributes}
+                    {...listeners}
+                    className={`p-1 hover:bg-muted rounded transition-colors ${isOverlay ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"}`}
+                >
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                </button>
+            </TableCell>
+            <TableCell className="text-center font-bold text-muted-foreground w-12">{index + 1}</TableCell>
+            <TableCell className="w-24">
+                <div className="flex items-center gap-2">
+                    {question.type === "Text" ? <Type className="h-3 w-3 text-blue-500" /> : <Code2 className="h-3 w-3 text-orange-500" />}
+                    <span className={`text-[10px] font-bold uppercase ${question.type === "Text" ? "text-blue-500" : "text-orange-500"}`}>
+                        {question.type === "Text" ? "Texto" : question.language}
+                    </span>
+                </div>
+            </TableCell>
+            <TableCell className="max-w-[400px] truncate text-xs text-muted-foreground italic">
+                {question.text.replace(/[#*`_~]/g, "").substring(0, 80)}...
+            </TableCell>
+            <TableCell className="text-[10px] text-muted-foreground w-40">
+                {format(new Date(question.createdAt), "dd/MM/yyyy HH:mm")}
+            </TableCell>
+            <TableCell className="text-right w-24">
+                {!isOverlay && (
+                    <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Eliminar Pregunta</DialogTitle>
+                                    <DialogDescription>Esta acción no se puede deshacer. Escribe ELIMINAR para continuar.</DialogDescription>
+                                </DialogHeader>
+                                <form action={async (formData) => { await deleteQuestionAction(formData); }}>
+                                    <input type="hidden" name="questionId" value={question.id} />
+                                    <input type="hidden" name="evaluationId" value={evaluationId} />
+                                    <div className="py-4">
+                                        <Input name="confirmText" placeholder="ELIMINAR" pattern="^ELIMINAR$" required />
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="submit" variant="destructive" className="w-full">Eliminar permanentemente</Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                )}
+            </TableCell>
+        </TableRow>
+    );
+});
+
+QuestionRowUI.displayName = "QuestionRowUI";
 

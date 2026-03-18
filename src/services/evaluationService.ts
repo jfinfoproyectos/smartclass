@@ -85,7 +85,7 @@ export const evaluationService = {
             where: { id },
             include: {
                 questions: {
-                    orderBy: { createdAt: "asc" }
+                    orderBy: { order: "asc" }
                 }
             }
         });
@@ -102,13 +102,24 @@ export const evaluationService = {
         text: string;
         type: string;
         language?: string;
+        referenceAnswer?: string;
     }) {
+        // Obtenemos el último orden para asignar el siguiente
+        const lastQuestion = await prisma.question.findFirst({
+            where: { evaluationId: data.evaluationId },
+            orderBy: { order: "desc" },
+            select: { order: true }
+        });
+        const nextOrder = (lastQuestion?.order ?? 0) + 1;
+
         return await prisma.question.create({
             data: {
                 evaluationId: data.evaluationId,
                 text: data.text,
                 type: data.type,
                 language: data.language,
+                referenceAnswer: data.referenceAnswer,
+                order: nextOrder
             },
         });
     },
@@ -117,6 +128,7 @@ export const evaluationService = {
         text: string;
         type: string;
         language?: string;
+        referenceAnswer?: string;
     }) {
         // Verify ownership
         const evaluation = await prisma.evaluation.findUnique({
@@ -134,8 +146,31 @@ export const evaluationService = {
                 text: data.text,
                 type: data.type,
                 language: data.language,
+                referenceAnswer: data.referenceAnswer,
             },
         });
+    },
+
+    async updateQuestionsOrder(evaluationId: string, authorId: string, questionOrders: { id: string, order: number }[]) {
+        // Verify ownership
+        const evaluation = await prisma.evaluation.findUnique({
+            where: { id: evaluationId },
+            select: { authorId: true }
+        });
+
+        if (!evaluation || (evaluation.authorId !== authorId && authorId !== 'admin')) {
+            throw new Error("Unauthorized");
+        }
+
+        // Use a transaction for bulk update
+        return await prisma.$transaction(
+            questionOrders.map((q) =>
+                prisma.question.update({
+                    where: { id: q.id },
+                    data: { order: q.order }
+                })
+            )
+        );
     },
 
     async deleteQuestion(id: string, evaluationId: string, authorId: string) {
@@ -225,7 +260,7 @@ export const evaluationService = {
                 evaluation: {
                     include: {
                         questions: {
-                            orderBy: { createdAt: "asc" }
+                            orderBy: { order: "asc" }
                         }
                     }
                 }
@@ -340,7 +375,7 @@ export const evaluationService = {
             where: { id },
             include: {
                 questions: {
-                    orderBy: { createdAt: "asc" }
+                    orderBy: { order: "asc" }
                 }
             }
         });
@@ -362,7 +397,9 @@ export const evaluationService = {
             questions: evaluation.questions.map(q => ({
                 text: q.text,
                 type: q.type,
-                language: q.language
+                language: q.language,
+                referenceAnswer: q.referenceAnswer,
+                order: q.order
             }))
         };
     },
@@ -381,10 +418,12 @@ export const evaluationService = {
                     wildcardAiHints: data.wildcardAiHints ?? 0,
                     wildcardSecondChance: data.wildcardSecondChance ?? 0,
                     questions: {
-                        create: data.questions.map((q: any) => ({
+                        create: data.questions.map((q: any, i: number) => ({
                             text: q.text,
                             type: q.type,
-                            language: q.language
+                            language: q.language,
+                            referenceAnswer: q.referenceAnswer,
+                            order: q.order || (i + 1)
                         }))
                     }
                 }
