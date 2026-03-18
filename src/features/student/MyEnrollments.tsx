@@ -36,7 +36,9 @@ import { StudentAttendanceSummary } from "@/features/attendance/components/Stude
 import { Badge } from "@/components/ui/badge";
 import { StudentRemarks } from "./StudentRemarks";
 import { SharedContentList } from "./components/SharedContentList";
+import { StudentGradesView } from "./components/StudentGradesView";
 import { GlareCard } from "@/components/ui/aceternity/glare-card";
+import { formatName } from "@/lib/utils";
 
 export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: { enrollments: any[], selectedCourse?: string, onSelectCourse?: (id: string | null) => void }) {
     // Filter enrollments by selected course
@@ -98,7 +100,7 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                                                 <Users className="h-3.5 w-3.5 text-primary" />
                                             </div>
-                                            <span className="truncate">Prof: {enrollment.course.teacher.name}</span>
+                                            <span className="truncate">Prof: {formatName(enrollment.course.teacher.name, enrollment.course.teacher.profile)}</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -143,7 +145,7 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                     <div className="flex items-center text-sm text-muted-foreground gap-3">
                                         <span className="flex items-center gap-1">
                                             <Users className="h-3.5 w-3.5" />
-                                            Prof: {enrollment.course.teacher.name}
+                                            Prof: {formatName(enrollment.course.teacher.name, enrollment.course.teacher.profile)}
                                         </span>
                                         {enrollment.course.activities.length > 0 && (
                                             <span className="flex items-center gap-1">
@@ -189,22 +191,22 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                 <TabsTrigger value="evaluations" className="gap-2">
                                     <FileText className="h-4 w-4" />
                                     <span className="hidden sm:inline">Evaluaciones</span>
-                                    <span className="sm:hidden text-xs">Eval.</span>
+                                    <span className="sm:hidden text-xs">Evaluaciones</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="attendance" className="gap-2">
-                                    <Clock className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Historial de Inasistencias</span>
-                                    <span className="sm:hidden text-xs">Asistencia</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="resources" className="gap-2">
-                                    <BookOpen className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Recursos Compartidos</span>
-                                    <span className="sm:hidden text-xs">Recursos</span>
+                                <TabsTrigger value="grades" className="gap-2">
+                                    <GraduationCap className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Calificaciones</span>
+                                    <span className="sm:hidden text-xs">Calificaciones</span>
                                 </TabsTrigger>
                                 <TabsTrigger value="remarks" className="gap-2">
                                     <MessageSquare className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Observaciones Estudiante</span>
-                                    <span className="sm:hidden text-xs">Obs.</span>
+                                    <span className="hidden sm:inline">Observaciones</span>
+                                    <span className="sm:hidden text-xs">Observaciones</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="resources" className="gap-2">
+                                    <BookOpen className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Recursos</span>
+                                    <span className="sm:hidden text-xs">Recursos</span>
                                 </TabsTrigger>
                             </TabsList>
 
@@ -415,6 +417,10 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
 
                             <TabsContent value="remarks" className="space-y-4 pt-4">
                                 <StudentRemarks courseId={enrollment.course.id} userId={enrollment.userId} />
+                            </TabsContent>
+
+                            <TabsContent value="grades" className="space-y-4 pt-4">
+                                <StudentGradesView enrollment={enrollment} />
                             </TabsContent>
                         </Tabs>
                     </CardContent>

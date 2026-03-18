@@ -7,7 +7,7 @@ import { activityService } from "@/services/activityService";
 import { courseService } from "@/services/courseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Dices, Users } from "lucide-react";
+import { ExternalLink, Dices, Users, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { Roulette } from "@/features/teacher/Roulette";
 import { GroupGenerator } from "@/features/teacher/GroupGenerator";
@@ -15,6 +15,8 @@ import { GroupContentShare } from "@/features/teacher/components/GroupContentSha
 import { sharedContentService } from "@/services/sharedContentService";
 import { evaluationService } from "@/services/evaluationService";
 import { EvaluationAssignmentManager } from "@/features/teacher/EvaluationAssignmentManager";
+import { GradesManager } from "@/features/teacher/GradesManager";
+import { gradeService } from "@/services/gradeService";
 
 import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
 
@@ -44,6 +46,7 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
     // Evaluaciones
     const evaluationAssignments = await evaluationService.getCourseEvaluationAttempts(courseId);
     const teacherEvaluations = await evaluationService.getTeacherEvaluations(session.user.id);
+    const gradesData = await gradeService.getCourseGradesData(courseId);
 
     return (
         <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-4 sm:pt-6">
@@ -54,21 +57,37 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                 </div>
             </div>
 
-            <Tabs defaultValue="activities" className="space-y-4">
+            <Tabs defaultValue="students" className="space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-5 sm:inline-flex h-auto p-1">
-                        <TabsTrigger value="activities">Actividades</TabsTrigger>
+                    <TabsList className="w-full sm:w-auto flex flex-wrap h-auto p-1 items-center justify-start gap-1">
                         <TabsTrigger value="students">Estudiantes</TabsTrigger>
-                        <TabsTrigger value="roulette" className="gap-2">
-                            <Dices className="h-4 w-4" />
+                        <TabsTrigger value="activities">Actividades</TabsTrigger>
+                        <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
+                        <TabsTrigger value="grades" className="gap-2">
+                            <GraduationCap className="h-4 w-4 hidden sm:inline-block" />
+                            Calificaciones
+                        </TabsTrigger>
+
+                        <TabsTrigger 
+                            value="roulette" 
+                            className="gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:data-[state=active]:bg-indigo-600"
+                        >
+                            <Dices className="h-4 w-4 hidden sm:inline-block" />
                             Ruleta
                         </TabsTrigger>
-                        <TabsTrigger value="groups" className="gap-2">
-                            <Users className="h-4 w-4" />
+                        <TabsTrigger 
+                            value="groups" 
+                            className="gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:data-[state=active]:bg-indigo-600"
+                        >
+                            <Users className="h-4 w-4 hidden sm:inline-block" />
                             Grupos
                         </TabsTrigger>
-                        <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
-                        <TabsTrigger value="share">Compartir</TabsTrigger>
+                        <TabsTrigger 
+                            value="share"
+                            className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:data-[state=active]:bg-indigo-600"
+                        >
+                            Compartir
+                        </TabsTrigger>
                     </TabsList>
                     {course.externalUrl && (
                         <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
@@ -101,6 +120,9 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                         attempts={evaluationAssignments}
                         teacherEvaluations={teacherEvaluations}
                     />
+                </TabsContent>
+                <TabsContent value="grades" className="space-y-4">
+                    <GradesManager courseId={courseId} initialData={gradesData} courseTitle={course.title} />
                 </TabsContent>
                 <TabsContent value="share" className="space-y-4">
                     <GroupContentShare courseId={courseId} initialContent={sharedContents} />

@@ -160,7 +160,11 @@ export const adminService = {
                 remarks: {
                     include: {
                         course: true,
-                        teacher: true
+                        teacher: {
+                            include: {
+                                profile: true
+                            }
+                        }
                     },
                     orderBy: { createdAt: 'desc' }
                 },
@@ -353,7 +357,13 @@ export const adminService = {
                     select: {
                         id: true,
                         name: true,
-                        email: true
+                        email: true,
+                        profile: {
+                            select: {
+                                nombres: true,
+                                apellido: true
+                            }
+                        }
                     }
                 },
                 activity: {

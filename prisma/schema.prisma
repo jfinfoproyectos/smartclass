@@ -134,6 +134,8 @@ model Course {
   schedules          CourseSchedule[]
   sharedContent      SharedContent[]
   evaluationAttempts EvaluationAttempt[] @relation("CourseEvaluationAttempts")
+  gradeCategories    GradeCategory[]
+  gradeGroups        GradeGroup[]
 
   @@map("course")
 }
@@ -181,7 +183,8 @@ model Activity {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  submissions Submission[]
+  submissions     Submission[]
+  gradeGroupItems GradeGroupItem[]
 
   @@map("activity")
 }
@@ -418,6 +421,7 @@ model EvaluationAttempt {
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   submissions  EvaluationSubmission[] @relation("AttemptSubmissions")
+  gradeGroupItems GradeGroupItem[]
 
   @@map("evaluation_attempt")
 }
@@ -456,4 +460,47 @@ model EvaluationAnswer {
   supportAttempts Int                  @default(0) // Contador de veces que se ha solicitado ayuda/IA
 
   @@map("evaluation_answer")
+}
+
+model GradeCategory {
+  id        String       @id @default(cuid())
+  name      String       // Label like "Primer Corte", "Segundo Corte"
+  weight    Float        @default(1.0) // Weight for final course grade (0-100)
+  courseId  String
+  course    Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  groups    GradeGroup[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("grade_category")
+}
+
+model GradeGroup {
+  id          String           @id @default(cuid())
+  name        String           // Label like "Talleres", "Exámenes"
+  weight      Float            @default(1.0) // Weight for category grade (0-100)
+  categoryId  String?
+  category    GradeCategory?    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  courseId    String // Kept for legacy/convenience
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  items       GradeGroupItem[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("grade_group")
+}
+
+model GradeGroupItem {
+  id                  String             @id @default(cuid())
+  groupId             String
+  group               GradeGroup         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  activityId          String?
+  activity            Activity?          @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  evaluationAttemptId String?
+  evaluationAttempt   EvaluationAttempt? @relation(fields: [evaluationAttemptId], references: [id], onDelete: SetNull)
+  weight              Float              @default(1.0) // Internal weight within the group
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@map("grade_group_item")
 }

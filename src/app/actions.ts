@@ -7,6 +7,7 @@ import { activityService } from "@/services/activityService";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { parseISOAsUTC, toUTCStartOfDay } from "@/lib/dateUtils";
+import { formatName } from "@/lib/utils";
 
 async function getSession() {
     return await auth.api.getSession({ headers: await headers() });
@@ -1572,7 +1573,13 @@ export async function getCourseDuplicateLinksAction(courseId: string) {
             user: {
                 select: {
                     name: true,
-                    email: true
+                    email: true,
+                    profile: {
+                        select: {
+                            nombres: true,
+                            apellido: true
+                        }
+                    }
                 }
             }
         }
@@ -1602,7 +1609,7 @@ export async function getCourseDuplicateLinksAction(courseId: string) {
                 duplicates.push({
                     url: subs[0].url, // Use original URL for display
                     students: subs.map(s => ({
-                        name: s.user.name,
+                        name: formatName(s.user.name, s.user.profile),
                         email: s.user.email,
                         submissionDate: s.createdAt
                     }))
@@ -1684,7 +1691,14 @@ export async function getMissingSubmissionsAction(activityId: string) {
                     id: true,
                     name: true,
                     email: true,
-                    image: true
+                    image: true,
+                    profile: {
+                        select: {
+                            identificacion: true,
+                            nombres: true,
+                            apellido: true
+                        }
+                    }
                 }
             }
         }
@@ -1966,12 +1980,34 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
         throw new Error("Unauthorized");
     }
 
-    // Get course info
+    // Get course info with full hierarchy
     const course = await prisma.course.findUnique({
         where: { id: courseId },
         include: {
             teacher: {
                 select: { name: true }
+            },
+            gradeCategories: {
+                include: {
+                    groups: {
+                        include: {
+                            items: {
+                                include: {
+                                    activity: true,
+                                    evaluationAttempt: {
+                                        include: {
+                                            evaluation: {
+                                                select: { title: true }
+                                            },
+                                            submissions: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'asc' }
             },
             enrollments: {
                 where: { status: "APPROVED" },
@@ -1980,7 +2016,13 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
                         select: {
                             id: true,
                             name: true,
-                            email: true
+                            email: true,
+                            profile: {
+                                select: {
+                                    nombres: true,
+                                    apellido: true
+                                }
+                            }
                         }
                     }
                 },
@@ -1989,16 +2031,8 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
                 }
             },
             activities: {
-                orderBy: { order: 'asc' },
                 include: {
-                    submissions: {
-                        select: {
-                            userId: true,
-                            grade: true,
-                            feedback: true,
-                            url: true
-                        }
-                    }
+                    submissions: true
                 }
             },
             attendances: {
@@ -2032,40 +2066,84 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
         throw new Error("Course not found");
     }
 
-    const courseData: any = course;
-    const teacherName = courseData.teacher?.name || "Sin profesor";
-    const courseName = courseData.title;
+    const teacherName = course.teacher?.name || "Sin profesor";
+    const courseName = course.title;
 
     // Process data per student
-    const studentsData = courseData.enrollments.map((enrollment: any) => {
+    const studentsData = course.enrollments.map((enrollment: any) => {
         const student = enrollment.user;
         const studentId = student.id;
 
-        // 1. Calculate Average Grade
-        let totalWeightedGrade = 0;
-        let totalWeight = 0;
+        // Hierarchical Grade Calculation
+        const categoriesGrades = course.gradeCategories.map(cat => {
+            const groupGrades = cat.groups.map(group => {
+                let totalWeightedGrade = 0;
+                let totalWeight = 0;
 
-        const studentActivities = course.activities.map((activity: any) => {
-            const submission = activity.submissions.find((s: any) => s.userId === studentId);
+                const itemsWithGrades = group.items.map(item => {
+                    let grade = 0;
+                    let title = "S/N";
+                    if (item.activityId) {
+                        const activity = course.activities.find(a => a.id === item.activityId);
+                        const submission = activity?.submissions.find(s => s.userId === studentId);
+                        grade = submission?.grade || 0;
+                        title = activity?.title || title;
+                    } else if (item.evaluationAttemptId) {
+                        const submission = item.evaluationAttempt?.submissions.find(s => s.userId === studentId);
+                        grade = (submission?.score || 0) * 5 / 100;
+                        title = item.evaluationAttempt?.evaluation?.title || title;
+                    }
 
-            if (submission?.grade !== null && submission?.grade !== undefined) {
-                totalWeightedGrade += submission.grade * activity.weight;
-                totalWeight += activity.weight;
-            }
+                    totalWeightedGrade += grade * item.weight;
+                    totalWeight += item.weight;
 
+                    return {
+                        id: item.id,
+                        title,
+                        weight: item.weight,
+                        grade
+                    };
+                });
+
+                const groupAvg = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+                return {
+                    id: group.id,
+                    name: group.name,
+                    weight: group.weight,
+                    grade: groupAvg,
+                    items: itemsWithGrades
+                };
+            });
+
+            let catWeightedGrade = 0;
+            let catTotalWeight = 0;
+
+            groupGrades.forEach(g => {
+                catWeightedGrade += g.grade * g.weight;
+                catTotalWeight += g.weight;
+            });
+
+            const catAvg = catTotalWeight > 0 ? catWeightedGrade / catTotalWeight : 0;
             return {
-                id: activity.id,
-                title: activity.title,
-                weight: activity.weight,
-                type: activity.type,
-                deadline: activity.deadline,
-                submissions: submission ? [submission] : []
+                id: cat.id,
+                name: cat.name,
+                weight: cat.weight,
+                grade: catAvg,
+                groups: groupGrades
             };
         });
 
-        const averageGrade = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+        let finalWeightedGrade = 0;
+        let finalTotalWeight = 0;
 
-        // 2. Filter Attendances
+        categoriesGrades.forEach(c => {
+            finalWeightedGrade += c.grade * c.weight;
+            finalTotalWeight += c.weight;
+        });
+
+        const finalGrade = finalTotalWeight > 0 ? finalWeightedGrade / finalTotalWeight : 0;
+
+        // Filter Attendances
         const studentAttendances = course.attendances
             .filter((a: any) => a.userId === studentId)
             .map((a: any) => ({
@@ -2076,7 +2154,7 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
                 justificationUrl: a.justificationUrl
             }));
 
-        // 3. Filter Remarks
+        // Filter Remarks
         const studentRemarks = course.remarks
             .filter((r: any) => r.userId === studentId)
             .map((r: any) => ({
@@ -2088,17 +2166,215 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
             }));
 
         return {
-            studentName: student.name || "Sin nombre",
+            studentName: formatName(student.name, student.profile),
             courseName,
             teacherName,
-            averageGrade,
-            activities: studentActivities,
+            averageGrade: finalGrade,
+            categories: categoriesGrades, // Hierarchical data for PDF
             attendances: studentAttendances,
             remarks: studentRemarks
         };
     });
 
     return studentsData;
+}
+
+export async function getStudentCompleteDataAction(studentId: string, courseId: string) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+        throw new Error("Unauthorized");
+    }
+
+    // Get course info with full hierarchy for THIS student
+    const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        include: {
+            teacher: {
+                select: { name: true }
+            },
+            gradeCategories: {
+                include: {
+                    groups: {
+                        include: {
+                            items: {
+                                include: {
+                                    activity: true,
+                                    evaluationAttempt: {
+                                        include: {
+                                            evaluation: {
+                                                select: { title: true }
+                                            },
+                                            submissions: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'asc' }
+            },
+            enrollments: {
+                where: { userId: studentId, status: "APPROVED" },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            profile: {
+                                select: {
+                                    nombres: true,
+                                    apellido: true
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            activities: {
+                include: {
+                    submissions: {
+                        where: { userId: studentId }
+                    }
+                }
+            },
+            attendances: {
+                where: { userId: studentId },
+                orderBy: { date: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            },
+            remarks: {
+                where: { userId: studentId },
+                orderBy: { date: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!course || course.enrollments.length === 0) {
+        throw new Error("Enrollment not found");
+    }
+
+    const teacherName = course.teacher?.name || "Sin profesor";
+    const courseName = course.title;
+    const enrollment = course.enrollments[0];
+    const student = enrollment.user;
+
+    // Hierarchical Grade Calculation
+    const categoriesGrades = course.gradeCategories.map(cat => {
+        const groupGrades = cat.groups.map(group => {
+            let totalWeightedGrade = 0;
+            let totalWeight = 0;
+
+            const itemsWithGrades = group.items.map(item => {
+                let grade = 0;
+                let title = "S/N";
+                if (item.activityId) {
+                    const activity = course.activities.find(a => a.id === item.activityId);
+                    const submission = activity?.submissions[0];
+                    grade = submission?.grade || 0;
+                    title = activity?.title || title;
+                } else if (item.evaluationAttemptId) {
+                    const submission = item.evaluationAttempt?.submissions.find(s => s.userId === studentId);
+                    grade = (submission?.score || 0) * 5 / 100;
+                    title = item.evaluationAttempt?.evaluation?.title || title;
+                }
+
+                totalWeightedGrade += grade * item.weight;
+                totalWeight += item.weight;
+
+                return {
+                    id: item.id,
+                    title,
+                    weight: item.weight,
+                    grade
+                };
+            });
+
+            const groupAvg = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+            return {
+                id: group.id,
+                name: group.name,
+                weight: group.weight,
+                grade: groupAvg,
+                items: itemsWithGrades
+            };
+        });
+
+        let catWeightedGrade = 0;
+        let catTotalWeight = 0;
+
+        groupGrades.forEach(g => {
+            catWeightedGrade += g.grade * g.weight;
+            catTotalWeight += g.weight;
+        });
+
+        const catAvg = catTotalWeight > 0 ? catWeightedGrade / catTotalWeight : 0;
+        return {
+            id: cat.id,
+            name: cat.name,
+            weight: cat.weight,
+            grade: catAvg,
+            groups: groupGrades
+        };
+    });
+
+    let finalWeightedGrade = 0;
+    let finalTotalWeight = 0;
+
+    categoriesGrades.forEach(c => {
+        finalWeightedGrade += c.grade * c.weight;
+        finalTotalWeight += c.weight;
+    });
+
+    const finalGrade = finalTotalWeight > 0 ? finalWeightedGrade / finalTotalWeight : 0;
+
+    return {
+        studentId: student.id,
+        studentName: formatName(student.name, student.profile),
+        studentEmail: student.email,
+        courseName,
+        teacherName,
+        averageGrade: finalGrade,
+        categories: categoriesGrades,
+        attendances: course.attendances.map(a => ({
+            id: a.id,
+            date: a.date,
+            status: a.status,
+            justification: a.justification,
+            justificationUrl: a.justificationUrl
+        })),
+        remarks: course.remarks.map(r => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            type: r.type,
+            date: r.date
+        })),
+        // For Excel compatibility
+        _hierarchy: categoriesGrades,
+        "ID": student.id,
+        "Estudiante": formatName(student.name, student.profile),
+        "Correo": student.email,
+        "Nota Final": finalGrade.toFixed(2)
+    };
 }
 
 // ==========================================
@@ -2828,7 +3104,7 @@ export async function getPlagiarismAnalysisAction(attemptId: string) {
     const submissions = await prisma.evaluationSubmission.findMany({
         where: { attemptId },
         include: {
-            user: { select: { id: true, name: true } },
+            user: { include: { profile: true } },
             answersList: { select: { questionId: true, answer: true } }
         }
     });
@@ -2837,7 +3113,7 @@ export async function getPlagiarismAnalysisAction(attemptId: string) {
 
     const formattedSubmissions = submissions.map(s => ({
         userId: s.user.id,
-        userName: s.user.name,
+        userName: formatName(s.user.name, s.user.profile),
         answers: s.answersList.map(a => ({ questionId: a.questionId, content: a.answer }))
     }));
 

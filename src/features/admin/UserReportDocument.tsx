@@ -1,6 +1,7 @@
 
 import { Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 import { format } from 'date-fns';
+import { formatName } from '@/lib/utils';
 
 const styles = StyleSheet.create({
     page: {
@@ -112,7 +113,7 @@ export const UserReportDocument = ({ user, details }: UserReportProps) => (
                     <Text style={styles.subtitle}>Generado el {format(new Date(), "PPpp")}</Text>
                 </View>
                 <View>
-                    <Text style={{ fontSize: 12 }}>{user.name}</Text>
+                    <Text style={{ fontSize: 12 }}>{formatName(user.name, user.profile)}</Text>
                     <Text style={{ fontSize: 10, color: '#666' }}>{user.email}</Text>
                     <Text style={{ fontSize: 10, color: '#666' }}>Rol: {user.role}</Text>
                 </View>
@@ -215,7 +216,7 @@ export const UserReportDocument = ({ user, details }: UserReportProps) => (
                         <View key={index} style={{ marginBottom: 8, padding: 5, borderLeftWidth: 2, borderLeftColor: remark.type === 'COMMENDATION' ? 'green' : 'orange' }}>
                             <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{remark.title} ({format(new Date(remark.date), "dd/MM/yyyy")})</Text>
                             <Text style={{ fontSize: 9, marginTop: 2 }}>{remark.description}</Text>
-                            <Text style={{ fontSize: 8, color: '#666', marginTop: 2 }}>Por: {remark.teacher.name || "Profesor"}</Text>
+                            <Text style={{ fontSize: 8, color: '#666', marginTop: 2 }}>Por: {formatName(remark.teacher.name, remark.teacher.profile)}</Text>
                         </View>
                     ))}
                 </View>

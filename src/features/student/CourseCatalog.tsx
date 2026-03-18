@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { enrollStudentAction } from "@/app/actions";
 import { BookOpen, User, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatName } from "@/lib/utils";
 
 export function CourseCatalog({ courses, pendingEnrollments = [] }: { courses: any[], pendingEnrollments?: string[] }) {
     return (
@@ -24,7 +25,7 @@ export function CourseCatalog({ courses, pendingEnrollments = [] }: { courses: a
                         <CardContent className="flex flex-col flex-grow">
                             <div className="flex items-center text-sm text-muted-foreground mb-2 mt-auto">
                                 <User className="mr-1 h-3 w-3" />
-                                Profesor: {course.teacher.name}
+                                Profesor: {formatName(course.teacher.name, course.teacher.profile)}
                             </div>
                             {course.registrationDeadline && (
                                 <div className="mb-3 text-xs text-center">

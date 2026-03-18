@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Activity, Database, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { getSystemHealthAction } from "@/app/admin-actions";
+import { formatName } from "@/lib/utils";
 
 interface SystemHealth {
     status: 'healthy' | 'unhealthy';
@@ -153,7 +154,7 @@ export function SystemMonitor({ initialHealth, recentActivity }: SystemMonitorPr
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center justify-between">
                                             <span className="font-medium text-sm truncate max-w-[200px]">
-                                                {activity.user.name || activity.user.email}
+                                                {formatName(activity.user.name, activity.user.profile)}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
                                                 {new Date(activity.timestamp).toLocaleString()}

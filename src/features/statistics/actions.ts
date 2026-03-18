@@ -2,6 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { formatName } from "@/lib/utils";
 import prisma from "@/lib/prisma";
 
 
@@ -42,7 +43,17 @@ export async function getStatisticsData(courseId?: string) {
             },
             role: "student"
         },
-        select: { id: true, name: true, email: true },
+        select: { 
+            id: true, 
+            name: true, 
+            email: true,
+            profile: {
+                select: {
+                    nombres: true,
+                    apellido: true
+                }
+            }
+        },
         orderBy: { name: 'asc' }
     });
 
@@ -121,7 +132,7 @@ export async function getStatisticsData(courseId?: string) {
 
         return {
             id: student.id,
-            name: student.name,
+            name: formatName(student.name, student.profile),
             email: student.email,
             averageGrade: parseFloat(averageGrade.toFixed(2)),
             attendancePercentage: parseFloat(attendancePercentage.toFixed(1)),

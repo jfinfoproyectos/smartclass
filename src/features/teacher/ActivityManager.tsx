@@ -40,6 +40,7 @@ import { scanRepositoryAction, getMissingSubmissionsAction } from "@/app/actions
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search, UserX } from "lucide-react";
+import { formatName } from "@/lib/utils";
 
 
 import {
@@ -172,7 +173,6 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
             });
         }
     };
-
     return (
         <div className="space-y-4">
             <div className="flex gap-2">
@@ -380,29 +380,8 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
         }
     };
 
-    const totalWeight = activities.reduce((sum, act) => sum + act.weight, 0);
-    const isWeightBalanced = Math.abs(totalWeight - 100) < 0.1; // Tolerance for float errors
-
     return (
         <div className="space-y-4">
-            {!isWeightBalanced && activities.length > 0 && (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-md flex items-center justify-between">
-                    <div className="flex items-center">
-                        <AlertCircle className="h-5 w-5 mr-2" />
-                        <span>
-                            <strong>Advertencia:</strong> La suma de los pesos es {totalWeight.toFixed(1)}% (debe ser 100%).
-                        </span>
-                    </div>
-                    <form action={async () => {
-                        await import("@/app/actions").then(mod => mod.redistributeWeightsAction(courseId));
-                    }}>
-                        <Button type="submit" variant="outline" size="sm" className="bg-white dark:bg-amber-900 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800 text-amber-900 dark:text-amber-100">
-                            Redistribuir Pesos Automáticamente
-                        </Button>
-                    </form>
-                </div>
-            )}
-
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold">Actividades del Curso</h3>
                 <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -455,7 +434,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                         </div>
 
                                         <div className="grid grid-cols-12 gap-4">
-                                            <div className="col-span-6 space-y-2">
+                                            <div className="col-span-12 space-y-2">
                                                 <Label htmlFor="type">Tipo</Label>
                                                 <Select name="type" defaultValue={importedData?.type || "GITHUB"} onValueChange={setSelectedType}>
                                                     <SelectTrigger>
@@ -467,10 +446,6 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                                         <SelectItem value="GOOGLE_COLAB">Google Colab</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                            </div>
-                                            <div className="col-span-3 space-y-2">
-                                                <Label htmlFor="weight">Peso (%)</Label>
-                                                <Input id="weight" name="weight" type="number" step="1" min="1" max="100" defaultValue={importedData?.weight || "1.0"} required />
                                             </div>
                                             {selectedType !== "MANUAL" && (
                                                 <div className="col-span-3 space-y-2">
@@ -637,7 +612,6 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                             <TableHead className="w-[50px]">Orden</TableHead>
                             <TableHead>Título</TableHead>
                             <TableHead>Tipo</TableHead>
-                            <TableHead>Peso</TableHead>
                             <TableHead>Fecha Límite</TableHead>
                             <TableHead>Entregas</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
@@ -681,9 +655,6 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline">{activity.type}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                    {activity.weight.toFixed(1)}%
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center text-sm text-muted-foreground">
@@ -865,7 +836,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
 
 
                                 <div className="grid grid-cols-12 gap-4">
-                                    <div className="col-span-6 space-y-2">
+                                    <div className="col-span-12 space-y-2">
                                         <Label htmlFor={`type-${activity.id}`}>Tipo</Label>
                                         <Select name="type" defaultValue={importedData?.type ?? activity.type} onValueChange={setSelectedType}>
                                             <SelectTrigger>
@@ -877,10 +848,6 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                                 <SelectItem value="GOOGLE_COLAB">Google Colab</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    </div>
-                                    <div className="col-span-3 space-y-2">
-                                        <Label htmlFor={`weight-${activity.id}`}>Peso (%)</Label>
-                                        <Input id={`weight-${activity.id}`} name="weight" type="number" step="1" min="1" max="100" defaultValue={importedData?.weight ?? activity.weight.toFixed(1)} required />
                                     </div>
                                     {selectedType !== "MANUAL" && (
                                         <div className="col-span-3 space-y-2">
@@ -1055,13 +1022,13 @@ function MissingSubmissionsDialog({ activityId, activityTitle }: { activityId: s
                                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-xs">
                                         {student.image ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={student.image} alt={student.name} className="h-full w-full rounded-full object-cover" />
+                                            <img src={student.image} alt={formatName(student.name, student.profile)} className="h-full w-full rounded-full object-cover" />
                                         ) : (
-                                            student.name?.substring(0, 2).toUpperCase() || "??"
+                                            student.profile?.nombres?.[0] || student.name?.substring(0, 1).toUpperCase() || "?"
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">{student.name}</p>
+                                        <p className="text-sm font-medium">{formatName(student.name, student.profile)}</p>
                                         <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                                     </div>
                                 </div>

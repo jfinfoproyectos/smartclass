@@ -61,6 +61,7 @@ import { UserReportDocument } from "./UserReportDocument";
 import { format } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { formatName } from "@/lib/utils";
 
 interface User {
     id: string;
@@ -185,7 +186,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
         const user = users.find(u => u.id === userId);
         if (!user) return;
 
-        setPendingRoleChange({ userId, newRole, userName: user.name || user.email });
+        setPendingRoleChange({ userId, newRole, userName: formatName(user.name, user.profile) });
         setRoleChangeDialogOpen(true);
     };
 
@@ -341,7 +342,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `reporte_${selectedUser.name || 'usuario'}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+            link.download = `reporte_${formatName(selectedUser.name, selectedUser.profile).replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -362,7 +363,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
         // Sheet 1: General Info
         const infoData = [
             ["ID", selectedUser.id],
-            ["Nombre", selectedUser.name],
+            ["Nombre", formatName(selectedUser.name, selectedUser.profile)],
             ["Email", selectedUser.email],
             ["Rol", selectedUser.role],
             ["Fecha Registro", format(new Date(selectedUser.createdAt), "dd/MM/yyyy")]
@@ -399,7 +400,7 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
             XLSX.utils.book_append_sheet(wb, wsAttendance, "Asistencia");
         }
 
-        XLSX.writeFile(wb, `reporte_${selectedUser.name || 'usuario'}.xlsx`);
+        XLSX.writeFile(wb, `reporte_${formatName(selectedUser.name, selectedUser.profile).replace(/\s+/g, '_')}.xlsx`);
         toast.success("Excel generado correctamente");
     };
 
@@ -506,12 +507,12 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                                 <div className="flex items-center gap-3">
                                                     <UserAvatar
                                                         src={user.image}
-                                                        alt={user.name || "User"}
-                                                        fallbackText={user.name || user.email}
+                                                        alt={formatName(user.name, user.profile)}
+                                                        fallbackText={formatName(user.name, user.profile)}
                                                         size="sm"
                                                     />
                                                     <div>
-                                                        <div className="font-medium">{user.name || "Sin nombre"}</div>
+                                                        <div className="font-medium">{formatName(user.name, user.profile)}</div>
                                                         {user.profile && (
                                                             <div className="text-xs text-muted-foreground">
                                                                 {user.profile.identificacion}
@@ -746,12 +747,12 @@ export function UserManagement({ initialUsers, totalCount }: UserManagementProps
                                         <div className="flex items-center gap-6">
                                             <UserAvatar
                                                 src={selectedUser.image}
-                                                alt={selectedUser.name || "User"}
-                                                fallbackText={selectedUser.name || selectedUser.email}
+                                                alt={formatName(selectedUser.name, selectedUser.profile)}
+                                                fallbackText={formatName(selectedUser.name, selectedUser.profile)}
                                                 className="h-24 w-24 text-2xl"
                                             />
                                             <div>
-                                                <h1 className="text-3xl font-bold">{selectedUser.name || "Sin nombre"}</h1>
+                                                <h1 className="text-3xl font-bold">{formatName(selectedUser.name, selectedUser.profile)}</h1>
                                                 <p className="text-muted-foreground text-lg">{selectedUser.email}</p>
                                                 <div className="flex items-center gap-2 mt-2">
                                                     <Badge variant={getRoleBadgeVariant(selectedUser.role)} className="px-3 py-1 text-sm">

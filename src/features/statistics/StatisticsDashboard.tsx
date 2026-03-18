@@ -182,7 +182,7 @@ export function StatisticsDashboard() {
                                 {data.studentMetrics.map((student) => (
                                     <TableRow key={student.id}>
                                         <TableCell className="font-medium max-w-[200px]">
-                                            <div className="truncate">{student.name}</div>
+                                            <div>{student.name}</div>
                                             <div className="text-xs text-muted-foreground truncate">{student.email}</div>
                                         </TableCell>
                                         <TableCell className="text-center font-bold">

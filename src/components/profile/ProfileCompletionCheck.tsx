@@ -12,6 +12,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { formatName } from "@/lib/utils";
 
 
 export function ProfileCompletionCheck() {
@@ -117,10 +118,13 @@ export function ProfileCompletionCheck() {
 
         setSaving(true);
         try {
+            const capitalizedNombres = formatName(nombres)
+            const capitalizedApellido = formatName(apellido)
+
             const formData = new FormData();
             formData.append("identificacion", identificacion);
-            formData.append("nombres", nombres);
-            formData.append("apellido", apellido);
+            formData.append("nombres", capitalizedNombres);
+            formData.append("apellido", capitalizedApellido);
             if (telefono) formData.append("telefono", telefono);
             if (geminiApiKey) formData.append("geminiApiKey", geminiApiKey);
             formData.append("dataProcessingConsent", "true"); // Always send true if allowing save
@@ -128,7 +132,7 @@ export function ProfileCompletionCheck() {
             await updateProfileAction(formData);
 
             // Update session name if changed
-            const fullName = `${nombres.trim()} ${apellido.trim()}`;
+            const fullName = `${capitalizedNombres} ${capitalizedApellido}`.trim();
             if (session?.user?.name !== fullName) {
                 await authClient.updateUser({ name: fullName });
             }

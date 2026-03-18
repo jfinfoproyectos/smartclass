@@ -8,12 +8,13 @@ interface CourseReportTemplateProps {
     teacherName: string;
     averageGrade: number;
     activities: any[];
+    categories?: any[];
     attendances: any[];
     remarks: any[];
 }
 
 export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseReportTemplateProps>(
-    ({ studentName, courseName, teacherName, averageGrade, activities, attendances = [], remarks = [] }, ref) => {
+    ({ studentName, courseName, teacherName, averageGrade, activities, categories, attendances = [], remarks = [] }, ref) => {
 
         // Calculate Attendance Stats
         const totalClasses = attendances.length;
@@ -95,63 +96,98 @@ export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseRepor
                     </div>
                 </div>
 
-                {/* Activities Table */}
+                {/* Activities Detail */}
                 <div className="mb-8">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Detalle de Actividades</h3>
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b-2 border-gray-300">
-                                <th className="py-3 px-2 font-bold text-gray-700 w-12">#</th>
-                                <th className="py-3 px-2 font-bold text-gray-700">Actividad</th>
-                                <th className="py-3 px-2 font-bold text-gray-700 text-center">Peso</th>
-                                <th className="py-3 px-2 font-bold text-gray-700 text-center">Estado</th>
-                                <th className="py-3 px-2 font-bold text-gray-700 text-center">Entrega(s)</th>
-                                <th className="py-3 px-2 font-bold text-gray-700 text-right">Nota</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {activities.map((activity, index) => {
-                                const submission = activity.submissions[0];
-                                const isGraded = submission && submission.grade !== null;
-                                const isSubmitted = !!submission;
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Detalle de Calificaciones</h3>
+                    
+                    {categories && categories.length > 0 ? (
+                        <div className="space-y-6">
+                            {categories.map((cat: any) => (
+                                <div key={cat.id} className="border rounded-lg overflow-hidden border-gray-300">
+                                    <div className="bg-gray-800 text-white px-4 py-2 flex justify-between items-center">
+                                        <span className="font-bold uppercase text-sm tracking-wider">{cat.name}</span>
+                                        <span className="text-sm font-bold">Corte: {cat.grade.toFixed(1)} ({cat.weight}%)</span>
+                                    </div>
+                                    <div className="p-0">
+                                        {cat.groups.map((group: any) => (
+                                            <div key={group.id} className="border-b last:border-0 border-gray-200">
+                                                <div className="bg-gray-100 px-4 py-1.5 flex justify-between items-center text-xs font-bold text-gray-700">
+                                                    <span>{group.name} ({group.weight}%)</span>
+                                                    <span>Promedio: {group.grade.toFixed(1)}</span>
+                                                </div>
+                                                <table className="w-full text-left border-collapse">
+                                                    <tbody>
+                                                        {group.items.map((item: any) => (
+                                                            <tr key={item.id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
+                                                                <td className="py-2 px-4 text-sm text-gray-900">{item.title}</td>
+                                                                <td className="py-2 px-4 text-center text-xs text-gray-500 w-24">Peso: {item.weight}%</td>
+                                                                <td className="py-2 px-4 text-right font-bold text-sm text-gray-900 w-24">{item.grade.toFixed(1)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b-2 border-gray-300">
+                                    <th className="py-3 px-2 font-bold text-gray-700 w-12">#</th>
+                                    <th className="py-3 px-2 font-bold text-gray-700">Actividad</th>
+                                    <th className="py-3 px-2 font-bold text-gray-700 text-center">Peso</th>
+                                    <th className="py-3 px-2 font-bold text-gray-700 text-center">Estado</th>
+                                    <th className="py-3 px-2 font-bold text-gray-700 text-center">Entrega(s)</th>
+                                    <th className="py-3 px-2 font-bold text-gray-700 text-right">Nota</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {activities.map((activity, index) => {
+                                    const submission = activity.submissions[0];
+                                    const isGraded = submission && submission.grade !== null;
+                                    const isSubmitted = !!submission;
 
-                                return (
-                                    <tr key={activity.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="py-3 px-2 text-gray-500">{index + 1}</td>
-                                        <td className="py-3 px-2 font-medium text-gray-900">{activity.title}</td>
-                                        <td className="py-3 px-2 text-center text-gray-600">{activity.weight.toFixed(1)}%</td>
-                                        <td className="py-3 px-2 text-center">
-                                            {isGraded ? (
-                                                <span className="inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">
-                                                    Calificado
-                                                </span>
-                                            ) : isSubmitted ? (
-                                                <span className="inline-block px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
-                                                    Enviado
-                                                </span>
-                                            ) : (
-                                                <span className="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-bold">
-                                                    Pendiente
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="py-3 px-2 text-center">
-                                            {submission?.url && (submission.url.startsWith('http://') || submission.url.startsWith('https://')) ? (
-                                                <a href={submission.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs block truncate max-w-[200px] mx-auto" title={submission.url}>
-                                                    Ver Entrega
-                                                </a>
-                                            ) : (
-                                                <span className="text-gray-400">-</span>
-                                            )}
-                                        </td>
-                                        <td className="py-3 px-2 text-right font-bold text-gray-900">
-                                            {isGraded ? submission.grade.toFixed(1) : (!isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? "0.0" : "-"}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                    return (
+                                        <tr key={activity.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                            <td className="py-3 px-2 text-gray-500">{index + 1}</td>
+                                            <td className="py-3 px-2 font-medium text-gray-900">{activity.title}</td>
+                                            <td className="py-3 px-2 text-center text-gray-600">{activity.weight.toFixed(1)}%</td>
+                                            <td className="py-3 px-2 text-center">
+                                                {isGraded ? (
+                                                    <span className="inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">
+                                                        Calificado
+                                                    </span>
+                                                ) : isSubmitted ? (
+                                                    <span className="inline-block px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
+                                                        Enviado
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-bold">
+                                                        Pendiente
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3 px-2 text-center">
+                                                {submission?.url && (submission.url.startsWith('http://') || submission.url.startsWith('https://')) ? (
+                                                    <a href={submission.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs block truncate max-w-[200px] mx-auto" title={submission.url}>
+                                                        Ver Entrega
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-gray-400">-</span>
+                                                )}
+                                            </td>
+                                            <td className="py-3 px-2 text-right font-bold text-gray-900">
+                                                {isGraded ? submission.grade.toFixed(1) : (!isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? "0.0" : "-"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 {/* Attendance Detail Table */}

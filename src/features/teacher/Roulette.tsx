@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { RotateCcw, Trophy, Users, ChevronDown, Check, X, Pencil, Volume2, VolumeX, Download } from "lucide-react";
 import * as XLSX from 'xlsx';
-import { cn } from "@/lib/utils";
+import { cn, formatName } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
@@ -202,10 +202,7 @@ export function Roulette({ students: initialStudents, courseId }: RouletteProps)
     }, [candidates, history, courseId, isLoaded]);
 
     const getFullName = (student: Student) => {
-        if (student.profile?.nombres && student.profile?.apellido) {
-            return `${student.profile.nombres} ${student.profile.apellido}`;
-        }
-        return student.name;
+        return formatName(student.name, student.profile);
     };
 
     const handleSpin = async () => {
@@ -386,7 +383,7 @@ export function Roulette({ students: initialStudents, courseId }: RouletteProps)
                                                     alignmentBaseline="middle"
                                                     transform={`rotate(${startAngle + angle / 2}, 50, 50) translate(46, 0)`}
                                                 >
-                                                    {student.name.split(' ')[0]}
+                                                    {formatName(student.name, student.profile).split(' ')[0]}
                                                 </text>
                                             </g>
                                         );
@@ -462,10 +459,10 @@ export function Roulette({ students: initialStudents, courseId }: RouletteProps)
                                         </div>
                                         <Avatar className="h-8 w-8">
                                             <AvatarImage src={item.student?.image || undefined} />
-                                            <AvatarFallback>{item.student?.name?.[0] || "?"}</AvatarFallback>
+                                            <AvatarFallback>{formatName(item.student?.name || "", item.student?.profile)[0] || "?"}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                                            <p className="font-medium text-sm truncate bg-transparent">
+                                            <p className="font-medium text-sm bg-transparent">
                                                 {item.student ? getFullName(item.student) : "Estudiante desconocido"}
                                             </p>
 
@@ -542,7 +539,7 @@ export function Roulette({ students: initialStudents, courseId }: RouletteProps)
                                     <Avatar className="w-32 h-32 border-4 border-background shadow-xl relative z-10">
                                         <AvatarImage src={selected.image || undefined} className="object-cover" />
                                         <AvatarFallback className="text-4xl bg-primary/10 text-primary">
-                                            {selected.name[0]}
+                                            {formatName(selected.name, selected.profile)[0]}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 p-2 rounded-full shadow-lg z-20">

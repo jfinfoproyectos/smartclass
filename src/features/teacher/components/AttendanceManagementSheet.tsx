@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-    Sheet, 
-    SheetContent, 
-    SheetHeader, 
-    SheetTitle, 
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
     SheetDescription,
     SheetFooter
 } from "@/components/ui/sheet";
@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
+import {
     Calendar as CalendarIcon, 
     Check, 
     X, 
@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, formatName } from "@/lib/utils";
 import { 
     recordAttendanceAction,
     deleteAttendanceAction, 
@@ -167,7 +167,7 @@ export function AttendanceManagementSheet({
                         <div>
                             <SheetTitle className="text-xl">Gestión de Asistencia</SheetTitle>
                             <SheetDescription className="text-sm">
-                                {student.profile?.nombres ? `${student.profile.nombres} ${student.profile.apellido}` : student.name}
+                                {formatName(student.name, student.profile)}
                             </SheetDescription>
                         </div>
                     </div>

@@ -8,6 +8,7 @@ import { Check, X, User, Clock, Filter, GraduationCap } from "lucide-react";
 import { approveEnrollmentAction, rejectEnrollmentAction } from "@/app/actions";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { formatName } from "@/lib/utils";
 import {
     Select,
     SelectContent,
@@ -29,6 +30,10 @@ interface PendingEnrollment {
         name: string;
         email: string;
         image: string | null;
+        profile?: {
+            nombres: string | null;
+            apellido: string | null;
+        } | null;
     };
     createdAt: Date;
 }
@@ -157,7 +162,7 @@ export function EnrollmentRequests({ requests: initialRequests }: { requests: Pe
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="space-y-1">
-                                        <div className="font-bold text-lg group-hover:text-primary transition-colors">{request.user.name}</div>
+                                        <div className="font-bold text-lg group-hover:text-primary transition-colors">{formatName(request.user.name, request.user.profile)}</div>
                                         <div className="text-sm text-muted-foreground font-medium">{request.user.email}</div>
                                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                                             <Badge variant="outline" className="text-[10px] uppercase font-bold py-0 h-5 border-emerald-500/20 bg-emerald-500/5 text-emerald-600">

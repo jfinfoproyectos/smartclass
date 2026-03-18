@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getInitials } from "@/lib/utils";
 
 interface UserAvatarProps {
     src: string | null | undefined;
@@ -25,7 +26,7 @@ export function UserAvatar({ src, alt, fallbackText, size = "md", className = ""
         return (
             <div className={`${sizeClass} rounded-full bg-muted flex items-center justify-center ${className}`}>
                 <span className="font-medium">
-                    {fallbackText.charAt(0).toUpperCase()}
+                    {getInitials(fallbackText)}
                 </span>
             </div>
         );

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquareWarning, Award, Search, Info } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatName } from "@/lib/utils";
 import {
     Table,
     TableBody,
@@ -78,6 +79,7 @@ export function StudentRemarks({ courseId, userId }: StudentRemarksProps) {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Fecha</TableHead>
+                            <TableHead>Profesor</TableHead>
                             <TableHead>Tipo</TableHead>
                             <TableHead>Título</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
@@ -88,6 +90,9 @@ export function StudentRemarks({ courseId, userId }: StudentRemarksProps) {
                             <TableRow key={remark.id}>
                                 <TableCell className="text-sm">
                                     {format(new Date(remark.date), "PPP", { locale: es })}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                    {formatName(remark.teacher.name, remark.teacher.profile)}
                                 </TableCell>
                                 <TableCell>
                                     <Badge
@@ -140,6 +145,13 @@ export function StudentRemarks({ courseId, userId }: StudentRemarksProps) {
                                         <><Award className="h-3 w-3 mr-1" /> Felicitación</>
                                     )}
                                 </Badge>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Profesor</Label>
+                            <div className="p-2 bg-muted rounded-md font-medium">
+                                {viewingRemark && formatName(viewingRemark.teacher.name, viewingRemark.teacher.profile)}
                             </div>
                         </div>
 

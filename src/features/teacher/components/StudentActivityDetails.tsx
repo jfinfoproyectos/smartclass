@@ -18,9 +18,9 @@ import { SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentAttendanceSummary } from "../../attendance/components/StudentAttendanceSummary";
 import { RemarkManager } from "./RemarkManager";
-import { getStudentRemarksAction, deleteRemarkAction } from "@/app/actions";
+import { getStudentRemarksAction, deleteRemarkAction, getStudentCompleteDataAction } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquareWarning, Award, Trash2 } from "lucide-react";
+import { MessageSquareWarning, Award, Trash2, FileDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
@@ -31,8 +31,10 @@ import {
 } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { ExportButton } from "@/components/ui/export-button";
-import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
+import { formatDateForExport, formatGradeForExport, exportHierarchicalGradesToExcel } from "@/lib/export-utils";
 import { AttendanceManagementSheet } from "./AttendanceManagementSheet";
+import { pdf } from "@react-pdf/renderer";
+import { CourseReportPDFDocument } from "./CourseReportPDFDocument";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -59,6 +61,11 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
     const [isAttendanceSheetOpen, setIsAttendanceSheetOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [remarkToDelete, setRemarkToDelete] = useState<string | null>(null);
+
+    const [hierarchicalData, setHierarchicalData] = useState<any>(null);
+    const [isLoadingHierarchy, setIsLoadingHierarchy] = useState(false);
+    const [isExportingPDF, setIsExportingPDF] = useState(false);
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
 
     const handlePrint = useReactToPrint({
         contentRef: printRef,
@@ -105,9 +112,22 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
         }
     };
 
+    const fetchHierarchy = async () => {
+        setIsLoadingHierarchy(true);
+        try {
+            const data = await getStudentCompleteDataAction(enrollment.user.id, enrollment.course.id);
+            setHierarchicalData(data);
+        } catch (error) {
+            console.error("Failed to fetch hierarchical data", error);
+        } finally {
+            setIsLoadingHierarchy(false);
+        }
+    };
+
     useEffect(() => {
         fetchRemarks();
         fetchAttendance();
+        fetchHierarchy();
     }, [enrollment.course.id, enrollment.user.id]);
 
     const handleDeleteRemark = (remarkId: string) => {
@@ -169,27 +189,66 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
                     </div>
                 </div>
                 <div className="flex items-center gap-2 pr-8">
-                    <ExportButton
-                        data={enrollment.course.activities.map((activity: any, index: number) => {
-                            const submission = activity.submissions[0];
-                            const isSubmitted = !!submission;
-                            const isGraded = submission && submission.grade !== null;
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!hierarchicalData || isExportingExcel}
+                        className="text-green-600 border-green-200 hover:bg-green-50"
+                        onClick={async () => {
+                            if (!hierarchicalData) return;
+                            setIsExportingExcel(true);
+                            try {
+                                await exportHierarchicalGradesToExcel(
+                                    [hierarchicalData],
+                                    `Reporte_Notas_${hierarchicalData.studentName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`,
+                                    "Notas"
+                                );
+                                toast.success("Excel generado correctamente");
+                            } catch (e) {
+                                toast.error("Error al generar Excel");
+                            } finally {
+                                setIsExportingExcel(false);
+                            }
+                        }}
+                    >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Excel
+                    </Button>
 
-                            return {
-                                '#': index + 1,
-                                'Actividad': activity.title,
-                                'Peso': `${activity.weight.toFixed(1)}%`,
-                                'Estado': isGraded ? 'Calificado' : isSubmitted ? 'Enviado' : 'Pendiente',
-                                'Nota': isGraded ? formatGradeForExport(submission.grade) : (!submission && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') ? '0.0' : '-',
-                                'Entregado': submission ? formatDateForExport(submission.createdAt) : '-'
-                            };
-                        })}
-                        filename={`Calificaciones_${enrollment.user.name.replace(/\s+/g, '_')}_${enrollment.course.title.replace(/\s+/g, '_')}`}
-                        sheetName="Calificaciones"
-                    />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!hierarchicalData || isExportingPDF}
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={async () => {
+                            if (!hierarchicalData) return;
+                            setIsExportingPDF(true);
+                            try {
+                                const blob = await pdf(<CourseReportPDFDocument {...hierarchicalData} />).toBlob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `Reporte_${hierarchicalData.studentName.replace(/[^a-zA-Z0-9_\-]/g, '_')}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                                toast.success("PDF generado correctamente");
+                            } catch (e) {
+                                console.error(e);
+                                toast.error("Error al generar PDF");
+                            } finally {
+                                setIsExportingPDF(false);
+                            }
+                        }}
+                    >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        PDF
+                    </Button>
+
                     <Button variant="outline" size="sm" onClick={onPrintClick}>
                         <Printer className="mr-2 h-4 w-4" />
-                        Generar Reporte
+                        Imprimir
                     </Button>
                 </div>
             </div>
@@ -481,17 +540,16 @@ export function StudentActivityDetails({ enrollment }: StudentActivityDetailsPro
             <div style={{ display: "none" }}>
                 <CourseReportTemplate
                     ref={printRef}
-                    studentName={
-                        enrollment.user.profile?.nombres && enrollment.user.profile?.apellido
+                    studentName={hierarchicalData?.studentName || (enrollment.user.profile?.nombres && enrollment.user.profile?.apellido
                             ? `${enrollment.user.profile.nombres} ${enrollment.user.profile.apellido}`
-                            : enrollment.user.name
-                    }
-                    courseName={enrollment.course.title}
-                    teacherName={enrollment.course.teacher.name}
-                    averageGrade={enrollment.averageGrade}
+                            : enrollment.user.name)}
+                    courseName={hierarchicalData?.courseName || enrollment.course.title}
+                    teacherName={hierarchicalData?.teacherName || enrollment.course.teacher.name}
+                    averageGrade={hierarchicalData?.averageGrade || enrollment.averageGrade}
                     activities={enrollment.course.activities}
-                    attendances={attendances}
-                    remarks={remarks}
+                    categories={hierarchicalData?.categories}
+                    attendances={hierarchicalData?.attendances || attendances}
+                    remarks={hierarchicalData?.remarks || remarks}
                 />
             </div>
 

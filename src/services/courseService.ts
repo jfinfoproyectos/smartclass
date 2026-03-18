@@ -1,4 +1,6 @@
 import prisma from "@/lib/prisma";
+import { format } from "date-fns";
+import { formatName } from "@/lib/utils";
 
 
 export const courseService = {
@@ -163,6 +165,11 @@ export const courseService = {
             where: { teacherId },
             orderBy: { createdAt: "desc" },
             include: {
+                teacher: {
+                    include: {
+                        profile: true
+                    }
+                },
                 _count: {
                     select: { enrollments: true },
                 },
@@ -188,7 +195,7 @@ export const courseService = {
                     include: {
                         schedules: true,
                         teacher: {
-                            select: { name: true, email: true }
+                            include: { profile: true }
                         }
                     }
                 }
@@ -203,7 +210,7 @@ export const courseService = {
             orderBy: { createdAt: "desc" },
             include: {
                 teacher: {
-                    select: { name: true, email: true },
+                    include: { profile: true }
                 },
                 _count: {
                     select: { enrollments: true },
@@ -295,7 +302,9 @@ export const courseService = {
                 course: {
                     include: {
                         teacher: {
-                            select: { name: true },
+                            include: {
+                                profile: true
+                            }
                         },
                         activities: {
                             orderBy: { order: "asc" },
@@ -319,6 +328,15 @@ export const courseService = {
                                     where: { userId }
                                 }
                             }
+                        },
+                        gradeCategories: {
+                            include: {
+                                groups: {
+                                    include: {
+                                        items: true
+                                    }
+                                }
+                            }
                         }
                     },
                 },
@@ -329,7 +347,7 @@ export const courseService = {
 
         // Calculate weighted average grade for each course and fetch remarks/attendance
         // We do this manually or via separate queries because nested filtering on the same level (user -> remarks) 
-        // within an enrollment query can be tricky or less efficient if not careful. 
+        // within an an enrollment query can be tricky or less efficient if not careful. 
         // But actually, we can just fetch them separately or use a more complex include.
         // Let's try to fetch them in parallel for all enrollments to be efficient, or just iterate.
         // Given the scale, iterating is fine for now, or we can use the relation on User if we included User.
@@ -421,7 +439,13 @@ export const courseService = {
                         id: true,
                         name: true,
                         email: true,
-                        image: true
+                        image: true,
+                        profile: {
+                            select: {
+                                nombres: true,
+                                apellido: true,
+                            }
+                        }
                     }
                 }
             },
@@ -467,7 +491,7 @@ export const courseService = {
                 course: {
                     include: {
                         teacher: {
-                            select: { name: true, email: true },
+                            include: { profile: true }
                         },
                     },
                 },
@@ -895,12 +919,36 @@ export const courseService = {
     },
 
     async getCourseGradesReport(courseId: string) {
-        // 1. Fetch Course and Activities
+        // 1. Fetch Course, Categories, Groups, and Items
         const course = await prisma.course.findUnique({
             where: { id: courseId },
             include: {
+                gradeCategories: {
+                    include: {
+                        groups: {
+                            include: {
+                                items: {
+                                    include: {
+                                        activity: true,
+                                        evaluationAttempt: {
+                                            include: {
+                                                evaluation: {
+                                                    select: { title: true }
+                                                },
+                                                submissions: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: { createdAt: 'asc' }
+                },
                 activities: {
-                    orderBy: { order: "asc" }
+                    include: {
+                        submissions: true
+                    }
                 }
             }
         });
@@ -911,7 +959,7 @@ export const courseService = {
         const enrollments = await prisma.enrollment.findMany({
             where: {
                 courseId: courseId,
-                status: 'APPROVED' // Only active students
+                status: 'APPROVED'
             },
             include: {
                 user: {
@@ -934,58 +982,92 @@ export const courseService = {
             }
         });
 
-        // 3. Fetch All Submissions for this course
-        const activityIds = course.activities.map(a => a.id);
-        const submissions = await prisma.submission.findMany({
-            where: {
-                activityId: { in: activityIds }
-            }
-        });
+        // 3. Helper for Category/Group Calculation
+        const calculateHierarchy = (studentId: string) => {
+            const categoriesGrades = course.gradeCategories.map(cat => {
+                const groupGrades = cat.groups.map(group => {
+                    let totalWeightedGrade = 0;
+                    let totalWeight = 0;
 
-        // 4. Process Data
-        const reportData = enrollments.map(enrollment => {
+                    group.items.forEach(item => {
+                        let grade = 0;
+                        if (item.activityId) {
+                            const activity = course.activities.find(a => a.id === item.activityId);
+                            const submission = activity?.submissions.find(s => s.userId === studentId);
+                            grade = submission?.grade || 0;
+                        } else if (item.evaluationAttemptId) {
+                            const submission = item.evaluationAttempt?.submissions.find(s => s.userId === studentId);
+                            grade = (submission?.score || 0) * 5 / 100;
+                        }
+
+                        totalWeightedGrade += grade * item.weight;
+                        totalWeight += item.weight;
+                    });
+
+                    const groupAvg = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+                    return {
+                        id: group.id,
+                        name: group.name,
+                        weight: group.weight,
+                        grade: groupAvg
+                    };
+                });
+
+                let catWeightedGrade = 0;
+                let catTotalWeight = 0;
+
+                groupGrades.forEach(g => {
+                    catWeightedGrade += g.grade * g.weight;
+                    catTotalWeight += g.weight;
+                });
+
+                const catAvg = catTotalWeight > 0 ? catWeightedGrade / catTotalWeight : 0;
+                return {
+                    id: cat.id,
+                    name: cat.name,
+                    weight: cat.weight,
+                    groups: groupGrades,
+                    grade: catAvg
+                };
+            });
+
+            let finalWeightedGrade = 0;
+            let finalTotalWeight = 0;
+
+            categoriesGrades.forEach(c => {
+                finalWeightedGrade += c.grade * c.weight;
+                finalTotalWeight += c.weight;
+            });
+
+            const finalGrade = finalTotalWeight > 0 ? finalWeightedGrade / finalTotalWeight : 0;
+
+            return { categoriesGrades, finalGrade };
+        };
+
+        // 4. Transform for Export (Flattened with hierarchical info)
+        return enrollments.map(enrollment => {
             const student = enrollment.user;
+            const { categoriesGrades, finalGrade } = calculateHierarchy(student.id);
+
             const row: any = {
                 'ID': student.profile?.identificacion || student.id.substring(0, 8),
-                'Estudiante': student.profile?.nombres && student.profile?.apellido
-                    ? `${student.profile.nombres} ${student.profile.apellido}`
-                    : student.name,
+                'Estudiante': formatName(student.name, student.profile),
                 'Correo': student.email
             };
 
-            let totalWeightedGrade = 0;
-            let totalWeight = 0;
-            const now = new Date();
-
-            course.activities.forEach(activity => {
-                const submission = submissions.find(s => s.activityId === activity.id && s.userId === student.id);
-
-                let grade = 0;
-                let displayGrade = '-';
-
-                if (submission && submission.grade !== null) {
-                    grade = submission.grade;
-                    displayGrade = grade.toFixed(1);
-                    totalWeightedGrade += grade * activity.weight;
-                    totalWeight += activity.weight;
-                } else if (!submission && activity.deadline && activity.deadline < now && activity.type !== 'MANUAL') {
-                    // Missed deadline => 0.0
-                    grade = 0.0;
-                    displayGrade = '0.0';
-                    totalWeightedGrade += 0.0;
-                    totalWeight += activity.weight;
-                }
-
-                row[activity.title] = displayGrade;
+            // Add each category/group grade for Excel compatibility
+            categoriesGrades.forEach(cat => {
+                row[`${cat.name} (Total)`] = cat.grade.toFixed(2);
+                cat.groups.forEach(group => {
+                    row[`${cat.name} - ${group.name}`] = group.grade.toFixed(2);
+                });
             });
 
-            const average = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
-            row['Nota Final'] = average.toFixed(1);
+            row['Nota Final'] = finalGrade.toFixed(2);
+            row['_hierarchy'] = categoriesGrades; // Hidden field for advanced exporters
 
             return row;
         });
-
-        return reportData;
     },
     async getCourseAttendanceReport(courseId: string) {
         // 1. Fetch Course to ensure it exists
@@ -1052,9 +1134,7 @@ export const courseService = {
             const student = enrollment.user;
             const row: any = {
                 'ID': student.profile?.identificacion || student.id.substring(0, 8),
-                'Estudiante': student.profile?.nombres && student.profile?.apellido
-                    ? `${student.profile.nombres} ${student.profile.apellido}`
-                    : student.name,
+                'Estudiante': formatName(student.name, student.profile),
                 'Correo': student.email
             };
 
@@ -1139,7 +1219,7 @@ export const courseService = {
                         }
                     },
                     user: {
-                        select: { name: true }
+                        include: { profile: true }
                     }
                 },
                 take: 5,
@@ -1166,7 +1246,7 @@ export const courseService = {
             totalStudentsCount: totalStudents,
             recentPendingGrading: pendingGradingSubmissions.map(s => ({
                 id: s.id,
-                studentName: s.user.name,
+                studentName: formatName(s.user.name, s.user.profile),
                 activityTitle: s.activity.title,
                 courseTitle: s.activity.course.title,
                 activityId: s.activity.id,

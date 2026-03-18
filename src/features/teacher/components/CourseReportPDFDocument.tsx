@@ -213,6 +213,51 @@ const styles = StyleSheet.create({
     tdStatusContainer: { width: '15%', alignItems: 'center' },
     tdLinkContainer: { width: '15%', alignItems: 'center' },
     tdGrade: { width: '15%', fontSize: 10, fontWeight: 700, color: '#111827', textAlign: 'right' },
+    
+    // Hierarchical Rows
+    categoryRow: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.gray200,
+        paddingVertical: 4,
+        paddingHorizontal: 5,
+        borderBottomWidth: 1,
+        borderBottomColor: '#d1d5db',
+    },
+    categoryTitle: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: COLORS.primary,
+        flex: 1,
+    },
+    categoryGrade: {
+        width: '15%',
+        fontSize: 10,
+        fontWeight: 700,
+        color: COLORS.primary,
+        textAlign: 'right',
+    },
+    groupRow: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.gray50,
+        paddingVertical: 3,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.gray200,
+    },
+    groupTitle: {
+        fontSize: 9,
+        fontWeight: 700,
+        fontStyle: 'italic',
+        color: COLORS.secondary,
+        flex: 1,
+    },
+    groupGrade: {
+        width: '15%',
+        fontSize: 9,
+        fontWeight: 700,
+        color: COLORS.secondary,
+        textAlign: 'right',
+    },
 
     badgeCommon: {
         paddingHorizontal: 5,
@@ -315,7 +360,7 @@ interface CourseReportPDFDocumentProps {
     courseName: string;
     teacherName: string;
     averageGrade: number;
-    activities: any[];
+    categories: any[];
     attendances: any[];
     remarks: any[];
 }
@@ -325,7 +370,7 @@ export const CourseReportPDFDocument = ({
     courseName,
     teacherName,
     averageGrade,
-    activities,
+    categories = [],
     attendances = [],
     remarks = []
 }: CourseReportPDFDocumentProps) => {
@@ -340,7 +385,12 @@ export const CourseReportPDFDocument = ({
         ? ((presentCount + lateCount) / totalClasses) * 100
         : 100;
 
-    const evaluatedCount = activities.filter(a => a.submissions && a.submissions[0]?.grade !== null).length;
+    const evaluatedCount = categories.reduce((acc, cat) => 
+        acc + cat.groups.reduce((gAcc: any, group: any) => 
+            gAcc + group.items.filter((i: any) => i.grade > 0).length, 0), 0);
+    const totalItems = categories.reduce((acc, cat) => 
+        acc + cat.groups.reduce((gAcc: any, group: any) => 
+            gAcc + group.items.length, 0), 0);
 
     return (
         <Document>
@@ -379,7 +429,7 @@ export const CourseReportPDFDocument = ({
                         <View style={styles.summarySideInfoBlue}>
                             <Text style={styles.summarySideLabelBlue}>Actividades Evaluadas</Text>
                             <Text style={styles.summarySideValueBlue}>
-                                {evaluatedCount} / {activities.length}
+                                {evaluatedCount} / {totalItems}
                             </Text>
                         </View>
                     </View>
@@ -399,68 +449,65 @@ export const CourseReportPDFDocument = ({
 
                 {/* Activities Table */}
                 <View style={{ marginBottom: 20 }}>
-                    <Text style={styles.sectionTitle}>Detalle de Actividades</Text>
+                    <Text style={styles.sectionTitle}>Detalle de Calificaciones (Jerárquico)</Text>
                     <View style={styles.table}>
                         <View style={styles.tableHeaderRow}>
                             <Text style={styles.thRowId}>#</Text>
-                            <Text style={styles.thActivity}>Actividad</Text>
-                            <Text style={styles.thWeight}>Peso</Text>
+                            <Text style={styles.thActivity}>Elemento / Actividad</Text>
+                            <Text style={styles.thWeight}>Peso Rel.</Text>
                             <Text style={styles.thStatus}>Estado</Text>
-                            <Text style={styles.thLink}>Entrega(s)</Text>
+                            <Text style={styles.thLink}>Ref.</Text>
                             <Text style={styles.thGrade}>Nota</Text>
                         </View>
-                        {activities.map((activity, index) => {
-                            const submission = activity.submissions && activity.submissions[0];
-                            const isGraded = submission && submission.grade !== null;
-                            const isSubmitted = !!submission;
-
-                            // Status Badge Logic
-                            let statusText = "Pendiente";
-                            let statusBg = '#f3f4f6'; // gray-100
-                            let statusColor = '#1f2937'; // gray-800
-
-                            if (isGraded) {
-                                statusText = "Calificado";
-                                statusBg = COLORS.green100;
-                                statusColor = COLORS.green800;
-                            } else if (isSubmitted) {
-                                statusText = "Enviado";
-                                statusBg = COLORS.yellow100;
-                                statusColor = COLORS.yellow800;
-                            }
-
-                            // Grade text
-                            let gradeText = "-";
-                            if (isGraded) {
-                                gradeText = submission.grade.toFixed(1);
-                            } else if (!isSubmitted && activity.deadline && new Date(activity.deadline) < new Date() && activity.type !== 'MANUAL') {
-                                gradeText = "0.0";
-                            }
-
-                            return (
-                                <View key={activity.id} style={styles.tableRow} wrap={false}>
-                                    <Text style={styles.tdRowId}>{index + 1}</Text>
-                                    <Text style={styles.tdActivity}>{activity.title}</Text>
-                                    <Text style={styles.tdWeight}>{activity.weight.toFixed(1)}%</Text>
-                                    <View style={styles.tdStatusContainer}>
-                                        <Text style={[styles.badgeCommon, { backgroundColor: statusBg, color: statusColor }]}>
-                                            {statusText}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.tdLinkContainer}>
-                                        {submission?.url && (submission.url.startsWith('http://') || submission.url.startsWith('https://')) ? (
-                                            <Link src={submission.url} style={styles.linkText}>Ver Entrega</Link>
-                                        ) : (
-                                            <Text style={styles.noLinkText}>-</Text>
-                                        )}
-                                    </View>
-                                    <Text style={styles.tdGrade}>{gradeText}</Text>
+                        
+                        {categories.map((cat, catIndex) => (
+                            <View key={cat.id || catIndex} wrap={false}>
+                                {/* Category Header */}
+                                <View style={styles.categoryRow}>
+                                    <Text style={styles.categoryTitle}>{cat.name} ({cat.weight}%)</Text>
+                                    <Text style={styles.categoryGrade}>{cat.grade.toFixed(2)}</Text>
                                 </View>
-                            );
-                        })}
-                        {activities.length === 0 && (
+                                
+                                {cat.groups.map((group: any, groupIndex: number) => (
+                                    <View key={group.id || groupIndex} wrap={false}>
+                                        {/* Group Header */}
+                                        <View style={styles.groupRow}>
+                                            <Text style={styles.groupTitle}>  • {group.name} ({group.weight}%)</Text>
+                                            <Text style={styles.groupGrade}>{group.grade.toFixed(2)}</Text>
+                                        </View>
+                                        
+                                        {/* Items */}
+                                        {group.items.map((item: any, itemIndex: number) => {
+                                            const isGraded = item.grade > 0;
+                                            
+                                            return (
+                                                <View key={item.id || itemIndex} style={styles.tableRow} wrap={false}>
+                                                    <Text style={styles.tdRowId}>{itemIndex + 1}</Text>
+                                                    <Text style={[styles.tdActivity, { paddingLeft: 20 }]}>{item.title}</Text>
+                                                    <Text style={styles.tdWeight}>{item.weight}%</Text>
+                                                    <View style={styles.tdStatusContainer}>
+                                                        <Text style={[styles.badgeCommon, { 
+                                                            backgroundColor: isGraded ? COLORS.green100 : COLORS.gray50, 
+                                                            color: isGraded ? COLORS.green800 : COLORS.gray500 
+                                                        }]}>
+                                                            {isGraded ? "Calificado" : "Pendiente"}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.tdLinkContainer}>
+                                                        <Text style={styles.noLinkText}>-</Text>
+                                                    </View>
+                                                    <Text style={styles.tdGrade}>{item.grade.toFixed(2)}</Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                ))}
+                            </View>
+                        ))}
+                        
+                        {categories.length === 0 && (
                             <View style={{ padding: 10 }}>
-                                <Text style={styles.emptyText}>No hay actividades registradas.</Text>
+                                <Text style={styles.emptyText}>No hay actividades configuradas.</Text>
                             </View>
                         )}
                     </View>

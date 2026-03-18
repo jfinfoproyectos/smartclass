@@ -46,13 +46,15 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
+import { format, formatDistanceToNow, isAfter } from "date-fns";
+import { es } from "date-fns/locale";
 import { Eye, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2, Bot, Loader2, ChevronDown, ChevronUp, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { FeedbackViewer } from "../student/FeedbackViewer";
 import { deleteSubmissionAction, validateUniqueLinksAction, getGitHubSubmissionDetailsAction, analyzeGitHubFileAction, finalizeGitHubGradingAction } from "@/app/actions";
 import { toast } from "sonner";
 import { ExportButton } from "@/components/ui/export-button";
 import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
+import { formatName } from "@/lib/utils";
 
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
@@ -570,7 +572,7 @@ export function ActivityDetail({
                                     <TableRow key={student.id}>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="font-medium">{student.name}</span>
+                                                <span className="font-medium">{formatName(student.name, student.profile)}</span>
                                                 <span className="text-xs text-muted-foreground">{student.email}</span>
                                             </div>
                                         </TableCell>
@@ -666,7 +668,7 @@ export function ActivityDetail({
                                     <div className="min-w-0">
                                         <SheetTitle>Detalle de Entrega</SheetTitle>
                                         <SheetDescription className="truncate">
-                                            {student.name} ({student.email})
+                                            {formatName(student.name, student.profile)} ({student.email})
                                         </SheetDescription>
                                     </div>
                                     {/* Navegación Anterior / Siguiente */}
@@ -703,7 +705,7 @@ export function ActivityDetail({
                                     <div className="space-y-2 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Nombre:</span>
-                                            <span className="font-medium">{student.name}</span>
+                                            <span className="font-medium">{formatName(student.name, student.profile)}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Email:</span>
@@ -1082,7 +1084,7 @@ export function ActivityDetail({
                                                 {duplicate.students.map((student: any) => (
                                                     <div key={student.id} className="flex items-center justify-between text-sm">
                                                         <div>
-                                                            <span className="font-medium">{student.name}</span>
+                                                            <span className="font-medium">{formatName(student.name, student.profile)}</span>
                                                             <span className="text-muted-foreground ml-2">({student.email})</span>
                                                         </div>
                                                         {student.originalUrl !== duplicate.url && (
@@ -1239,8 +1241,8 @@ export function ActivityDetail({
                                                             />
                                                         </TableCell>
                                                         <TableCell className="font-medium">
-                                                            {s.student.name}
-                                                            <span className="block text-muted-foreground text-xs font-normal truncate mt-0.5">{s.student.email}</span>
+                                                            {formatName(s.student.name, s.student.profile)}
+                                                            <span className="block text-muted-foreground text-xs font-normal mt-0.5">{s.student.email}</span>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Badge variant={s.status === "graded" ? "default" : "secondary"}>

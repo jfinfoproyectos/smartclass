@@ -5,8 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCatalog } from "./CourseCatalog";
 import { MyEnrollments } from "./MyEnrollments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GlareCard } from "@/components/ui/aceternity/glare-card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { formatName } from "@/lib/utils";
+import { Calendar, CheckCircle2, AlertTriangle, ArrowRight, User, Users } from "lucide-react";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
@@ -33,7 +35,7 @@ export function StudentDashboard({
         <div className="flex-1 w-full space-y-6 p-4 sm:p-6 md:p-8">
             {/* Header */}
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">¡Hola, {studentName.split(' ')[0]}!</h1>
+                <h1 className="text-3xl font-bold tracking-tight">¡Hola, {formatName(studentName)}!</h1>
                 <p className="text-muted-foreground">
                     Aquí tienes un resumen de tu actividad académica en SmartClass.
                 </p>
@@ -52,7 +54,7 @@ export function StudentDashboard({
                             const now = new Date();
                             const limit = addDays(now, 3);
                             const upcomingTasks = myEnrollments
-                                .flatMap(e => e.course.activities.map((a: any) => ({ ...a, courseTitle: e.course.title })))
+                                .flatMap(e => e.course.activities.map((a: any) => ({ ...a, courseTitle: e.course.title, teacher: e.course.teacher })))
                                 .filter(a => a.deadline && isAfter(new Date(a.deadline), now) && isBefore(new Date(a.deadline), limit) && a.submissions.length === 0)
                                 .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
                                 .slice(0, 2);
@@ -72,6 +74,10 @@ export function StudentDashboard({
                                                 </Badge>
                                             </div>
                                             <span className="text-[10px] text-muted-foreground truncate">{task.courseTitle}</span>
+                                            <div className="flex items-center text-sm text-muted-foreground mt-auto">
+                                                <User className="mr-1 h-3 w-3" />
+                                                Profesor: {formatName(task.teacher.name, task.teacher.profile)}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -89,10 +95,10 @@ export function StudentDashboard({
                     <CardContent>
                         {(() => {
                             const latestGrades = myEnrollments
-                                .flatMap(e => e.course.activities.flatMap((a: any) => 
+                                .flatMap(e => e.course.activities.flatMap((a: any) =>
                                     a.submissions
                                         .filter((s: any) => s.grade !== null)
-                                        .map((s: any) => ({ ...s, activityTitle: a.title, courseTitle: e.course.title }))
+                                        .map((s: any) => ({ ...s, activityTitle: a.title, courseTitle: e.course.title, teacher: e.course.teacher }))
                                 ))
                                 .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
                                 .slice(0, 2);
@@ -108,6 +114,12 @@ export function StudentDashboard({
                                             <div className="flex flex-col gap-0.5 overflow-hidden">
                                                 <span className="text-xs font-medium truncate">{grade.activityTitle}</span>
                                                 <span className="text-[10px] text-muted-foreground truncate">{grade.courseTitle}</span>
+                                                <div className="flex items-center text-sm text-muted-foreground gap-3">
+                                                    <span className="flex items-center gap-1">
+                                                        <Users className="h-3.5 w-3.5" />
+                                                        Prof: {formatName(grade.teacher.name, grade.teacher.profile)}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <span className="text-sm font-bold text-emerald-600 shrink-0">{grade.grade.toFixed(1)}</span>
                                         </div>

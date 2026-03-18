@@ -35,15 +35,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { getProfileAction, updateProfileAction, getGeminiApiKeyModeAction } from "@/app/actions"
-
-function getInitials(name?: string) {
-  const n = (name || "").trim()
-  if (!n) return "--"
-  const parts = n.split(/\s+/)
-  const first = parts[0]?.[0] || ""
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : ""
-  return (first + last).toUpperCase()
-}
+import { formatName, getInitials } from "@/lib/utils"
 
 function resolveAvatarUrl(image?: string | null) {
   const src = (image || "").trim()
@@ -141,10 +133,16 @@ export function NavUser({
 
   const handleSaveAccount = async () => {
     setSaveError("")
+    
+    // Capitalize names before saving
+    const capitalizedFirstName = formatName(firstName)
+    const capitalizedLastName = formatName(lastName)
+    const capitalizedFullName = `${capitalizedFirstName} ${capitalizedLastName}`.trim()
+
     setSaving(true)
 
     // Update user name
-    const { error } = await authClient.updateUser({ name: fullName })
+    const { error } = await authClient.updateUser({ name: capitalizedFullName })
     if (error) {
       setSaveError(error.message || "Error al actualizar el perfil")
       setSaving(false)
@@ -155,8 +153,8 @@ export function NavUser({
     try {
       const formData = new FormData()
       formData.append("identificacion", identificacion)
-      formData.append("nombres", firstName)
-      formData.append("apellido", lastName)
+      formData.append("nombres", capitalizedFirstName)
+      formData.append("apellido", capitalizedLastName)
       formData.append("telefono", telefono)
       if (apiKey) {
         formData.append("geminiApiKey", apiKey)
@@ -208,7 +206,7 @@ export function NavUser({
                   <AvatarFallback className="rounded-lg">{getInitials(displayedUser.name)}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{displayedUser.name}</span>
+                  <span className="truncate font-medium">{formatName(displayedUser.name)}</span>
                   <span className="truncate text-xs">{displayedUser.email}</span>
                 </div>
                 <ChevronsUpDown className="ml-auto size-4" />
@@ -227,7 +225,7 @@ export function NavUser({
                     <AvatarFallback className="rounded-lg">{getInitials(displayedUser.name)}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{displayedUser.name}</span>
+                    <span className="truncate font-medium">{formatName(displayedUser.name)}</span>
                     <span className="truncate text-xs">{displayedUser.email}</span>
                   </div>
                 </div>

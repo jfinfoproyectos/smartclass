@@ -58,6 +58,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatName, getInitials } from "@/lib/utils";
 
 export function StudentManager({ 
     courseId, 
@@ -90,10 +91,10 @@ export function StudentManager({
         setIsExporting(true);
         try {
             const { getCourseGradesReportAction } = await import("@/app/actions");
-            const { exportToExcel } = await import("@/lib/export-utils");
+            const { exportHierarchicalGradesToExcel } = await import("@/lib/export-utils");
 
             const data = await getCourseGradesReportAction(courseId);
-            exportToExcel(data, `Reporte_Notas_${new Date().toISOString().split('T')[0]}`, "Notas");
+            await exportHierarchicalGradesToExcel(data, `Reporte_Notas_${new Date().toISOString().split('T')[0]}`, "Notas");
             toast.success("Reporte generado exitosamente");
         } catch (error) {
             console.error(error);
@@ -335,9 +336,7 @@ export function StudentManager({
                                                                     <TableCell className="font-medium p-2">
                                                                         <div className="flex flex-col">
                                                                             <span>
-                                                                                {student.profile?.nombres && student.profile?.apellido
-                                                                                    ? `${student.profile.nombres} ${student.profile.apellido}`
-                                                                                    : student.name}
+                                                                                {formatName(student.name, student.profile)}
                                                                             </span>
                                                                             <span className="text-[10px] text-muted-foreground sm:hidden">
                                                                                 {student.profile?.identificacion || student.email}
@@ -381,15 +380,13 @@ export function StudentManager({
                                         <div className="rounded-lg border p-4 bg-muted/50">
                                             <h4 className="text-sm font-semibold mb-3">Estudiante Seleccionado</h4>
                                             <div className="flex items-center gap-4">
-                                                <Avatar className="h-12 w-12">
+                                                <Avatar className="h-12 w-12 text-lg">
                                                     <AvatarImage src={selectedStudent.image} />
-                                                    <AvatarFallback>{selectedStudent.name[0]}</AvatarFallback>
+                                                    <AvatarFallback>{getInitials(formatName(selectedStudent.name, selectedStudent.profile))}</AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1">
                                                     <p className="font-medium text-sm">
-                                                        {selectedStudent.profile?.nombres && selectedStudent.profile?.apellido
-                                                            ? `${selectedStudent.profile.nombres} ${selectedStudent.profile.apellido}`
-                                                            : selectedStudent.name}
+                                                        {formatName(selectedStudent.name, selectedStudent.profile)}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">{selectedStudent.email}</p>
                                                     {selectedStudent.profile?.identificacion && (
@@ -524,15 +521,13 @@ export function StudentManager({
                         {filteredStudents.map((enrollment) => (
                             <TableRow key={enrollment.user.id}>
                                 <TableCell>
-                                    <Avatar className="h-8 w-8">
+                                    <Avatar className="h-8 w-8 text-[10px]">
                                         <AvatarImage src={enrollment.user.image} />
-                                        <AvatarFallback>{enrollment.user.name[0]}</AvatarFallback>
+                                        <AvatarFallback>{getInitials(formatName(enrollment.user.name, enrollment.user.profile))}</AvatarFallback>
                                     </Avatar>
                                 </TableCell>
                                 <TableCell className="font-medium">
-                                    {enrollment.user.profile?.nombres && enrollment.user.profile?.apellido
-                                        ? `${enrollment.user.profile.nombres} ${enrollment.user.profile.apellido}`
-                                        : enrollment.user.name}
+                                    {formatName(enrollment.user.name, enrollment.user.profile)}
                                 </TableCell>
                                 <TableCell>{enrollment.user.profile?.identificacion || "-"}</TableCell>
                                 <TableCell className="truncate max-w-[200px]">{enrollment.user.email}</TableCell>
@@ -575,7 +570,7 @@ export function StudentManager({
                                             <MissingActivitiesDialog
                                                 courseId={courseId}
                                                 userId={enrollment.user.id}
-                                                studentName={enrollment.user.name}
+                                                studentName={formatName(enrollment.user.name, enrollment.user.profile)}
                                             />
 
                                             <DropdownMenu>
@@ -608,7 +603,7 @@ export function StudentManager({
                                                             <DialogHeader>
                                                                 <DialogTitle>Eliminar Estudiante</DialogTitle>
                                                                 <DialogDescription>
-                                                                    Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{enrollment.user.name}</strong> del curso y todos sus registros de asistencia y calificaciones.
+                                                                    Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{formatName(enrollment.user.name, enrollment.user.profile)}</strong> del curso y todos sus registros de asistencia y calificaciones.
                                                                     <br /><br />
                                                                     Escribe <strong>eliminar</strong> para confirmar.
                                                                 </DialogDescription>
@@ -729,9 +724,7 @@ function LateArrivalsModal({ courseId }: { courseId: string }) {
                                         </Avatar>
                                         <div>
                                             <p className="font-medium text-sm">
-                                                {student.profile?.nombres && student.profile?.apellido
-                                                    ? `${student.profile.nombres} ${student.profile.apellido}`
-                                                    : student.name}
+                                                {formatName(student.name, student.profile)}
                                             </p>
                                             <p className="text-[10px] text-muted-foreground">
                                                 {student.profile?.identificacion || "Sin ID"}

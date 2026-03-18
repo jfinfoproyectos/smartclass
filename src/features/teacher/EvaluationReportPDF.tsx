@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { formatDateTime } from "@/lib/dateUtils";
+import { formatName } from "@/lib/utils";
 
 const styles = StyleSheet.create({
     page: { padding: 40, fontSize: 10, fontFamily: "Helvetica", color: "#1e293b" },
@@ -174,7 +175,7 @@ export function EvaluationReportPDF({
                 {submissions.map((sub, index) => (
                     <View key={sub.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]}>
                         <View style={styles.colStudent}>
-                            <Text style={styles.tableCell}>{sub.user.name}</Text>
+                            <Text style={styles.tableCell}>{formatName(sub.user.name, sub.user.profile)}</Text>
                             <Text style={[styles.tableCell, { fontSize: 7, color: "#64748b" }]}>{sub.user.email}</Text>
                         </View>
                         <View style={styles.colStatus}>
@@ -337,7 +338,7 @@ export function EvaluationReportPDF({
                                 }} />
                                 {/* Name */}
                                 <View style={{ width: "35%", flexShrink: 0 }}>
-                                    <Text style={{ fontSize: 9, fontWeight: "bold" }}>{sub.user.name}</Text>
+                                    <Text style={{ fontSize: 9, fontWeight: "bold" }}>{formatName(sub.user.name, sub.user.profile)}</Text>
                                     <Text style={{ fontSize: 7, color: "#64748b" }}>{sub.user.email}</Text>
                                 </View>
                                 {/* Bar */}

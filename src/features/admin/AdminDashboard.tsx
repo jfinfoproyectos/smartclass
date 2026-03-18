@@ -20,6 +20,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { formatName } from "@/lib/utils";
 
 interface AdminDashboardProps {
     stats: {
@@ -211,7 +212,7 @@ export function AdminDashboard({ stats, recentActivity }: AdminDashboardProps) {
                                         </div>
                                         <div className="flex-1 space-y-1">
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-base">{activity.user.name || activity.user.email}</span>
+                                                <span className="font-bold text-base">{formatName(activity.user.name, activity.user.profile)}</span>
                                                 <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full capitalize">
                                                     {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: es })}
                                                 </span>

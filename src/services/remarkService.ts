@@ -31,10 +31,9 @@ export const remarkService = {
             orderBy: { date: "desc" },
             include: {
                 teacher: {
-                    select: {
-                        name: true,
-                        email: true,
-                    },
+                    include: {
+                        profile: true
+                    }
                 },
             },
         });
@@ -54,9 +53,9 @@ export const remarkService = {
                     },
                 },
                 teacher: {
-                    select: {
-                        name: true,
-                    },
+                    include: {
+                        profile: true
+                    }
                 },
             },
         });

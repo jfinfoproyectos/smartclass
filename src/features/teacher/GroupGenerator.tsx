@@ -33,7 +33,7 @@ import { Label } from "@/components/ui/label";
 import { GripVertical, Plus, Shuffle, Trash2, RotateCcw, Users, Download, Upload, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
-import { cn } from "@/lib/utils";
+import { cn, formatName } from "@/lib/utils";
 
 interface Student {
     id: string;
@@ -88,13 +88,11 @@ function SortableStudent({ student, id }: { student: Student; id: string }) {
             </div>
             <Avatar className="h-8 w-8 ml-4">
                 <AvatarImage src={student.image || undefined} />
-                <AvatarFallback>{student.name[0]}</AvatarFallback>
+                <AvatarFallback>{formatName(student.name, student.profile)[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                    {student.profile?.nombres && student.profile?.apellido
-                        ? `${student.profile.nombres} ${student.profile.apellido}`
-                        : student.name}
+                <p className="text-sm font-medium pr-2">
+                    {formatName(student.name, student.profile)}
                 </p>
             </div>
         </div>
@@ -235,9 +233,7 @@ export function GroupGenerator({ students: initialStudents }: GroupGeneratorProp
                 group.students.forEach(student => {
                     data.push({
                         Grupo: group.name,
-                        Estudiante: student.profile?.nombres && student.profile?.apellido
-                            ? `${student.profile.nombres} ${student.profile.apellido}`
-                            : student.name
+                        Estudiante: formatName(student.name, student.profile)
                     });
                 });
             }
@@ -556,13 +552,11 @@ export function GroupGenerator({ students: initialStudents }: GroupGeneratorProp
                         <GripVertical className="h-4 w-4" />
                         <Avatar className="h-8 w-8 ml-4">
                             <AvatarImage src={activeStudent.image || undefined} />
-                            <AvatarFallback>{activeStudent.name[0]}</AvatarFallback>
+                            <AvatarFallback>{formatName(activeStudent.name, activeStudent.profile)[0]}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                                {activeStudent.profile?.nombres && activeStudent.profile?.apellido
-                                    ? `${activeStudent.profile.nombres} ${activeStudent.profile.apellido}`
-                                    : activeStudent.name}
+                            <p className="text-sm font-medium pr-2">
+                                {formatName(activeStudent.name, activeStudent.profile)}
                             </p>
                         </div>
                     </div>
