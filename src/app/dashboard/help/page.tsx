@@ -7,8 +7,6 @@ import { redirect } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Separator } from "@/components/ui/separator"
-import { BookOpen, Home } from "lucide-react"
-import Link from "next/link"
 
 async function getHelpContent() {
     const session = await auth.api.getSession({ headers: await headers() })
@@ -43,19 +41,6 @@ export default async function HelpPage() {
 
     return (
         <div className="container mx-auto py-6 max-w-5xl pb-16">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-                <Link href="/dashboard" className="flex items-center gap-1 hover:text-foreground transition-colors">
-                    <Home className="h-4 w-4" />
-                    Inicio
-                </Link>
-                <span>/</span>
-                <span className="flex items-center gap-1 text-foreground">
-                    <BookOpen className="h-4 w-4" />
-                    Ayuda
-                </span>
-            </div>
-
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-4xl font-bold mb-2">Centro de Ayuda</h1>

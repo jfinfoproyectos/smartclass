@@ -39,7 +39,9 @@ export function ProfileCompletionCheck() {
     const userRole = session?.user?.role;
 
     useEffect(() => {
-        checkStatus();
+        if (session?.user) {
+            checkStatus();
+        }
     }, [session]);
 
     const checkStatus = async () => {
