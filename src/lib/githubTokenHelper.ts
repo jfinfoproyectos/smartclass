@@ -1,19 +1,29 @@
 import prisma from "@/lib/prisma";
 import { decrypt } from "@/lib/encryption";
 
-export async function getGithubToken(): Promise<string | null> {
+export async function getGithubToken(userId?: string): Promise<string | null> {
     try {
-        const settings = await prisma.systemSettings.findUnique({
-            where: { id: "settings" },
-            select: { encryptedGithubToken: true }
-        });
+        // 1. Try to get token from User (if userId is provided)
+        if (userId) {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { encryptedGithubToken: true, role: true }
+            });
 
-        if (!settings?.encryptedGithubToken) {
-            return null;
+            // 🛑 ÚNICAMENTE EL ROL PROFESOR PUEDE USAR SUS PROPIAS CREDENCIALES
+            if (user?.role !== "teacher") {
+                // Si no es profesor (estudiante o admin), no extraemos llaves personales.
+                return null;
+            }
+            
+            if (user?.encryptedGithubToken) {
+                return await decrypt(user.encryptedGithubToken);
+            }
         }
 
-        return await decrypt(settings.encryptedGithubToken);
-    } catch (error) {
+        return null;
+
+    } catch (error: any) {
         console.error("Error fetching GitHub token:", error);
         return null;
     }

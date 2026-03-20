@@ -43,6 +43,7 @@ model User {
   remarksCreated        Remark[]               @relation("TeacherRemarks")
   sharedContentCreated  SharedContent[]        @relation("TeacherSharedContent")
   encryptedGeminiApiKey String?
+  encryptedGithubToken  String?
 
   @@unique([email])
   @@map("user")

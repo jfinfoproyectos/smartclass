@@ -146,10 +146,16 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
         if (!repoUrl) return;
         setIsScanning(true);
         try {
-            const files = await scanRepositoryAction(repoUrl);
-            setScannedFiles(files);
-        } catch (error) {
+            const result = await scanRepositoryAction(repoUrl);
+            setScannedFiles(result.files);
+            if (result.warning) {
+                toast.warning("Límite de API Posible", { description: result.warning });
+            }
+        } catch (error: any) {
             console.error("Error scanning repo:", error);
+            toast.error("Error al escanear repositorio", {
+                description: error.message || "Ocurrió un problema al obtener la estructura del repositorio."
+            });
         } finally {
             setIsScanning(false);
         }

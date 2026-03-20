@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { fetchRepoFilesAction, submitGithubActivityAction } from "@/app/actions";
+import { toast } from "sonner";
 import { useReactToPrint } from 'react-to-print';
 import { ActivityReportTemplate } from '../ActivityReportTemplate';
 import MDEditor from '@uiw/react-md-editor';
@@ -353,11 +354,14 @@ function SubmissionForm({
         setVerificationResult(null);
 
         try {
-            const { validFiles, missingFiles } = await fetchRepoFilesAction(repoUrl, filePaths);
+            const { validFiles, missingFiles, warning } = await fetchRepoFilesAction(repoUrl, filePaths, activityId);
             setVerificationResult({
                 valid: validFiles.map(f => f.path),
                 missing: missingFiles
             });
+            if (warning) {
+                toast.warning("Límite de API Posible", { description: warning });
+            }
             setShowConfirmDialog(true);
         } catch (err: any) {
             setError(err.message || "Error al verificar el repositorio. Verifica que la URL sea correcta y el repositorio sea público.");

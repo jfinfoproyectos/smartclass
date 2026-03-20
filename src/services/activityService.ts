@@ -217,7 +217,15 @@ export const activityService = {
     async reevaluateSubmission(submissionId: string) {
         const submission = await prisma.submission.findUnique({
             where: { id: submissionId },
-            include: { activity: true }
+            include: { 
+                activity: {
+                    include: {
+                        course: {
+                            select: { teacherId: true }
+                        }
+                    }
+                } 
+            }
         });
 
         if (!submission) throw new Error("Submission not found");
@@ -226,7 +234,8 @@ export const activityService = {
             const gradingResult = await gradeSubmission(
                 submission.activity.statement || "",
                 submission.url,
-                submission.activity.filePaths || undefined
+                submission.activity.filePaths || undefined,
+                (submission.activity as any).course.teacherId
             );
 
             let newFeedback = gradingResult.feedback;

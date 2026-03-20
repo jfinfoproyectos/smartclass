@@ -636,6 +636,7 @@ export async function validateUniqueLinksAction(activityId: string) {
     };
 }
 
+
 export async function scanRepositoryAction(repoUrl: string) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") {
@@ -644,18 +645,23 @@ export async function scanRepositoryAction(repoUrl: string) {
 
     const { githubService } = await import("@/services/githubService");
     const { getGithubToken } = await import("@/lib/githubTokenHelper");
+    
     const repoInfo = githubService.parseGitHubUrl(repoUrl);
+    if (!repoInfo) throw new Error("URL de GitHub inválida");
 
-    if (!repoInfo) {
-        throw new Error("Invalid GitHub URL");
+    const token = await getGithubToken(session.user.id);
+    const files = await githubService.getRepoStructure(repoInfo.owner, repoInfo.repo, token || undefined);
+
+    let warning;
+    if (!token) {
+        warning = "Aviso: No tienes configurado tu Token de GitHub en tu perfil. Estás expuesto a posibles límites de tasa de la API.";
     }
 
-    const token = await getGithubToken();
-    return await githubService.getRepoStructure(repoInfo.owner, repoInfo.repo, token || undefined);
+    return { files, warning };
 }
 
 
-export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
+export async function fetchRepoFilesAction(repoUrl: string, filePaths: string, activityId?: string) {
     const session = await getSession();
     if (!session || (session.user.role !== "student" && session.user.role !== "teacher")) {
         throw new Error("Unauthorized");
@@ -666,12 +672,26 @@ export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
     const repoInfo = githubService.parseGitHubUrl(repoUrl);
     if (!repoInfo) throw new Error("Invalid GitHub URL");
 
-    const token = await getGithubToken();
-    const paths = filePaths.split(',').map(p => p.trim());
+    let teacherId = session.user.id;
+
+    if (activityId) {
+        const activity = await prisma.activity.findUnique({
+            where: { id: activityId },
+            include: { course: true }
+        });
+        if (activity) {
+            teacherId = activity.course.teacherId;
+        }
+    }
+
+    const token = await getGithubToken(teacherId);
+
+    const paths = (filePaths || "").split(',').map((p: string) => p.trim());
     const validFiles = [];
     const missingFiles = [];
 
     for (const path of paths) {
+        if (!path) continue;
         const content = await githubService.getFileContent(repoInfo.owner, repoInfo.repo, path, repoInfo.branch, token || undefined);
         if (content) {
             validFiles.push({ path, content });
@@ -680,17 +700,14 @@ export async function fetchRepoFilesAction(repoUrl: string, filePaths: string) {
         }
     }
 
-    return { validFiles, missingFiles };
-}
-
-export async function analyzeFileAction(filename: string, content: string, description: string, repoUrl: string, previousContext?: string) {
-    const session = await getSession();
-    if (!session || (session.user.role !== "student" && session.user.role !== "teacher")) {
-        throw new Error("Unauthorized");
+    let warning;
+    if (!token) {
+        warning = session.user.role === "student"
+            ? "Aviso: Tu profesor no ha configurado su Token de GitHub. Podrían ocurrir fallos por límite de peticiones."
+            : "Aviso: No tienes configurado tu Token de GitHub en tu perfil. Estás expuesto a posibles límites de tasa.";
     }
 
-    const { analyzeFile } = await import("@/services/gemini/codeAnalysisService");
-    return await analyzeFile(filename, content, description, repoUrl, session.user.id, previousContext);
+    return { validFiles, missingFiles, warning };
 }
 
 // Entrega simple de actividad GitHub (sin calificación con Gemini)
@@ -736,9 +753,8 @@ export async function getGitHubSubmissionDetailsAction(repoUrl: string, filePath
     const repoInfo = githubService.parseGitHubUrl(repoUrl);
     if (!repoInfo) throw new Error("URL de GitHub inválida");
 
-    const token = await getGithubToken();
-    const paths = filePaths ? filePaths.split(',').map((p: string) => p.trim()) : [];
-
+    const token = await getGithubToken(session.user.id);
+    const paths = (filePaths || "").split(',').map(p => p.trim()).filter(p => p !== "");
     const validFiles = [];
     const missingFiles = [];
 
@@ -751,7 +767,12 @@ export async function getGitHubSubmissionDetailsAction(repoUrl: string, filePath
         }
     }
 
-    return { validFiles, missingFiles, repoInfo };
+    let warning;
+    if (!token) {
+        warning = "Aviso: No tienes configurado tu Token de GitHub en tu perfil. Estás expuesto a posibles límites de tasa de la API.";
+    }
+
+    return { validFiles, missingFiles, repoInfo, warning };
 }
 
 // 2. Analizar un solo archivo (PROFESOR)
@@ -791,7 +812,11 @@ export async function finalizeGitHubGradingAction(
 
     await prisma.submission.upsert({
         where: { userId_activityId: { userId: studentUserId, activityId } },
-        update: { grade: result.grade, feedback: feedbackText },
+        update: { 
+            grade: result.grade, 
+            feedback: feedbackText,
+            lastSubmittedAt: new Date()
+        },
         create: {
             url: repoUrl,
             activityId,
@@ -812,8 +837,10 @@ export async function finalizeGitHubGradingAction(
 
     await auditLogger.logGrade(activityId, activity?.title || "Actividad", student?.name || "Estudiante", result.grade, session.user.id, session.user.name || "Profesor");
 
+    const { revalidatePath } = await import("next/cache");
     revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
     revalidatePath(`/dashboard/teacher`);
+    revalidatePath("/dashboard/student");
 
     return result;
 }
@@ -1064,10 +1091,9 @@ export async function updateProfileAction(formData: FormData) {
     const dataProcessingConsent = formData.get("dataProcessingConsent") === "true";
 
 
-    if (geminiApiKey) {
+    if (geminiApiKey && session.user.role === "teacher") {
         const { encrypt } = await import("@/lib/encryption");
         const encryptedKey = await encrypt(geminiApiKey);
-
 
         await prisma.user.update({
             where: { id: session.user.id },
@@ -1475,8 +1501,14 @@ export async function gradeGoogleColabAction(activityId: string, colabUrl: strin
         throw new Error("Unauthorized");
     }
 
+    const activity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        include: { course: { select: { teacherId: true } } }
+    });
+    const teacherId = activity?.course.teacherId;
+
     const { gradeGoogleColabSubmission } = await import("@/services/gemini/gradingService");
-    const result = await gradeGoogleColabSubmission(statement, colabUrl, session.user.id);
+    const result = await gradeGoogleColabSubmission(statement, colabUrl, teacherId);
 
     // Log API usage if global key is active
     if (result.apiRequestsCount) {
@@ -2812,8 +2844,14 @@ export async function evaluateAnswerWithAIAction(submissionId: string, questionI
         });
     }
 
+    const evaluationData = await prisma.evaluation.findFirst({
+        where: { questions: { some: { id: questionId } } },
+        select: { authorId: true }
+    });
+    const teacherId = evaluationData?.authorId;
+
     const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
-    const aiResult = await evaluateStudentAnswer(question.text, question.type, currentAnswer, 5.0, question.referenceAnswer || undefined);
+    const aiResult = await evaluateStudentAnswer(question.text, question.type, currentAnswer, 5.0, question.referenceAnswer || undefined, teacherId);
 
     let feedbackHistory: any[] = [];
     if (answerRecord.aiFeedback) {
@@ -2902,8 +2940,14 @@ export async function useAiHintAction(submissionId: string, questionId: string, 
     const question = await prisma.question.findUnique({ where: { id: questionId } });
     if (!question) throw new Error("Question not found");
 
+    const evaluationData = await prisma.evaluation.findUnique({
+        where: { id: submission.attempt.evaluationId },
+        select: { authorId: true }
+    });
+    const teacherId = evaluationData?.authorId;
+
     const { getAiHint } = await import("../services/gemini/evaluationAnalysisService");
-    const hint = await getAiHint(question.text, question.type, currentAnswer);
+    const hint = await getAiHint(question.text, question.type, currentAnswer, teacherId);
 
     wildcardsUsed.aiHintsUsed = hintsUsed + 1;
     if (!wildcardsUsed.aiHintQuestions) wildcardsUsed.aiHintQuestions = [];
@@ -2994,12 +3038,12 @@ export async function useSecondChanceAction(submissionId: string, questionId: st
 
 export async function testQuestionWithAIAction(questionText: string, type: string, answerText: string, referenceAnswer?: string) {
     const session = await getSession();
-    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+    if (!session || session.user.role !== "teacher") {
         throw new Error("Unauthorized");
     }
 
     const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
-    return await evaluateStudentAnswer(questionText, type, answerText, 5.0, referenceAnswer);
+    return await evaluateStudentAnswer(questionText, type, answerText, 5.0, referenceAnswer, session.user.id);
 }
 
 export async function generateQuestionAction(
@@ -3016,22 +3060,22 @@ export async function generateQuestionAction(
     includeTestCases: boolean = false
 ) {
     const session = await getSession();
-    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+    if (!session || session.user.role !== "teacher") {
         throw new Error("Unauthorized");
     }
 
     const { generateQuestion } = await import("../services/gemini/questionGenerationService");
-    return await generateQuestion(topic, type, language, customPrompt, size, openness, includeCode, difficulty, bloomTaxonomy, includeBoilerplate, includeTestCases);
+    return await generateQuestion(topic, type, language, customPrompt, size, openness, includeCode, difficulty, bloomTaxonomy, includeBoilerplate, includeTestCases, session.user.id);
 }
 
 export async function generateAnswerAction(questionText: string, type: string, language?: string) {
     const session = await getSession();
-    if (!session || (session.user.role !== "teacher" && session.user.role !== "admin")) {
+    if (!session || session.user.role !== "teacher") {
         throw new Error("Unauthorized");
     }
 
     const { generateSampleAnswer } = await import("../services/gemini/questionGenerationService");
-    return await generateSampleAnswer(questionText, type, language);
+    return await generateSampleAnswer(questionText, type, language, session.user.id);
 }
 
 export async function getGroupAIInsightsAction(evaluationId: string, attemptId: string) {
@@ -3040,6 +3084,7 @@ export async function getGroupAIInsightsAction(evaluationId: string, attemptId: 
 
     const { evaluationService } = await import("@/services/evaluationService");
     const { getGroupAIInsights } = await import("../services/gemini/evaluationAnalysisService");
+    // Get stats...
 
     const evaluation = await prisma.evaluation.findUnique({
         where: { id: evaluationId },
@@ -3082,7 +3127,8 @@ export async function getGroupAIInsightsAction(evaluationId: string, attemptId: 
         evaluation.title,
         evaluation.questions.map(q => ({ text: q.text, type: q.type })),
         stats,
-        sampleFeedbackList
+        sampleFeedbackList,
+        session.user.id
     );
 }
 
@@ -3114,7 +3160,7 @@ export async function getPlagiarismAnalysisAction(attemptId: string) {
         answers: s.answersList.map(a => ({ questionId: a.questionId, content: a.answer }))
     }));
 
-    return await analyzePlagiarism(attempt.evaluation.title, formattedSubmissions);
+    return await analyzePlagiarism(attempt.evaluation.title, formattedSubmissions, session.user.id);
 }
 
 export async function exportEvaluationAction(evaluationId: string) {

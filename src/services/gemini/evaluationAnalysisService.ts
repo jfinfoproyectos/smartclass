@@ -14,10 +14,11 @@ export async function evaluateStudentAnswer(
     questionType: string,
     studentAnswer: string,
     maxScore: number = 5.0,
-    referenceAnswer?: string
+    referenceAnswer?: string,
+    userId?: string
 ): Promise<AIAnswerEvaluation> {
     try {
-        const ai = await getGeminiClient();
+        const ai = await getGeminiClient(userId);
 
         let focusCriteria = "";
         if (questionType === "Code") {
@@ -113,10 +114,11 @@ export async function evaluateStudentAnswer(
 export async function getAiHint(
     questionText: string,
     questionType: string,
-    studentAnswer: string
+    studentAnswer: string,
+    userId?: string
 ): Promise<string> {
     try {
-        const ai = await getGeminiClient();
+        const ai = await getGeminiClient(userId);
 
         const codeSpecific = questionType === "Code"
             ? `
@@ -205,10 +207,11 @@ export async function getGroupAIInsights(
     evaluationTitle: string,
     questions: { text: string; type: string }[],
     stats: { questionIndex: number; averageScore: number; maxScore: number; successRate: number }[],
-    sampleFeedback?: string[]
+    sampleFeedback?: string[],
+    userId?: string
 ): Promise<AIInsightsResponse> {
     try {
-        const ai = await getGeminiClient();
+        const ai = await getGeminiClient(userId);
 
         const dataSummary = stats.map(s => {
             const q = questions[s.questionIndex];

@@ -27,7 +27,8 @@ export async function analyzePlagiarism(
         userId: string;
         userName: string;
         answers: Array<{ questionId: string; content: string }>;
-    }>
+    }>,
+    userId?: string
 ): Promise<PlagiarismMatch[]> {
     const matches: PlagiarismMatch[] = [];
 
@@ -68,7 +69,7 @@ export async function analyzePlagiarism(
     const highlySuspicious = matches.filter(m => m.similarityScore > 0.6);
     if (highlySuspicious.length > 0) {
         try {
-            const ai = await getGeminiClient();
+            const ai = await getGeminiClient(userId);
             const prompt = `
             Eres un experto en integridad académica. Analiza la similitud de respuestas entre pares de estudiantes para la evaluación "${evaluationTitle}".
             

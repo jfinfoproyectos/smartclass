@@ -14,10 +14,11 @@ export async function generateQuestion(
     difficulty: "easy" | "medium" | "hard" | "expert" = "medium",
     bloomTaxonomy: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create" = "apply",
     includeBoilerplate: boolean = false,
-    includeTestCases: boolean = false
+    includeTestCases: boolean = false,
+    userId?: string
 ): Promise<string> {
     try {
-        const ai = await getGeminiClient();
+        const ai = await getGeminiClient(userId);
 
         const typeDesc = type === "Code"
             ? `una pregunta de programación en lenguaje ${language || "JavaScript"}. El enunciado DEBE pedir una solución técnica en este lenguaje.`
@@ -114,10 +115,11 @@ export async function generateQuestion(
 export async function generateSampleAnswer(
     questionText: string,
     type: string,
-    language?: string
+    language?: string,
+    userId?: string
 ): Promise<string> {
     try {
-        const ai = await getGeminiClient();
+        const ai = await getGeminiClient(userId);
 
         const formatDesc = type === "Code"
             ? `solo el fragmento de código funcional en ${language || "JavaScript"}.`

@@ -10,42 +10,39 @@ export const MODEL_NAME = "gemini-2.5-flash";
  * @returns GoogleGenAI instance configured with the appropriate API key
  */
 export async function getGeminiClient(userId?: string): Promise<GoogleGenAI> {
+    let apiKey: string | null = null;
 
-    // Get system settings
-    const settings = await prisma.systemSettings.findUnique({
-        where: { id: "settings" }
-    });
+    // 1. Try to get API Key from User (if userId is provided)
+    if (userId) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { encryptedGeminiApiKey: true, role: true }
+        });
 
-    let apiKey = process.env.GEMINI_API_KEY;
+        // 🛑 ÚNICAMENTE EL ROL PROFESOR PUEDE USAR SUS PROPIAS CREDENCIALES
+        if (user?.role !== "teacher") {
+            throw new Error("Llamada de IA incorrecta: solo los profesores pueden usar sus credenciales personales.");
+        }
 
-    if (settings) {
-        if (settings.geminiApiKeyMode === "GLOBAL" && settings.encryptedGlobalApiKey) {
+        if (user?.encryptedGeminiApiKey) {
             try {
-                apiKey = await decrypt(settings.encryptedGlobalApiKey);
+                apiKey = await decrypt(user.encryptedGeminiApiKey);
             } catch (error) {
-                console.error("Error decrypting global API key:", error);
-            }
-        } else if (settings.geminiApiKeyMode === "USER" && userId) {
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { encryptedGeminiApiKey: true }
-            });
-
-            if (user?.encryptedGeminiApiKey) {
-                try {
-                    apiKey = await decrypt(user.encryptedGeminiApiKey);
-                } catch (error) {
-                    console.error("Error decrypting user API key:", error);
-                }
+                console.error("Error decrypting user API key:", error);
             }
         }
     }
 
+    // Fallback únicamente si no hay userId (uso interno del sistema o desarrollo muy específico)
+    // Pero según el requerimiento, cada profesor DEBE suministrarla.
     if (!apiKey) {
-        throw new Error("Gemini API Key not configured. Please contact the administrator.");
+        apiKey = process.env.GEMINI_API_KEY || null;
     }
 
-    // Return the GoogleGenAI instance - use ai.models.generateContent() to make calls
+    if (!apiKey) {
+        throw new Error("El profesor no ha configurado su Gemini API Key. Por favor, ve a Configuración para suministrarla.");
+    }
+
     return new GoogleGenAI({ apiKey });
 }
 

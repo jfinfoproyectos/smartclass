@@ -168,9 +168,9 @@ export async function gradeSubmission(
             throw new Error("Información de repositorio inválida.");
         }
 
-        // Get GitHub token
+        // Get GitHub token for the specific user (teacher)
         const { getGithubToken } = await import("@/lib/githubTokenHelper");
-        const token = await getGithubToken();
+        const token = await getGithubToken(userId);
 
         const paths = filePaths.split(',').map(p => p.trim());
         const missingFiles: string[] = [];

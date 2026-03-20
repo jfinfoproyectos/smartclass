@@ -190,10 +190,15 @@ export function ActivityDetail({
             addLog("📂 Analizando estructura del repositorio y descargando archivos...");
 
             // 1. Obtener archivos
-            const { validFiles, missingFiles, repoInfo } = await getGitHubSubmissionDetailsAction(
+            const { validFiles, missingFiles, repoInfo, warning } = await getGitHubSubmissionDetailsAction(
                 repoUrl,
                 activity.filePaths || ""
             );
+
+            if (warning) {
+                toast.warning("Límite de API Posible", { description: warning });
+                addLog(`⚠️ Advertencia: ${warning}`);
+            }
 
             if (validFiles.length === 0 && missingFiles.length === 0) {
                 throw new Error("No se encontraron archivos para evaluar según la configuración de la actividad.");

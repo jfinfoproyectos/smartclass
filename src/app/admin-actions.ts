@@ -319,31 +319,18 @@ export async function getSystemSettingsAction() {
 
 
 export async function updateSystemSettingsAction(data: {
-    geminiApiKeyMode: "GLOBAL" | "USER";
-    globalApiKey?: string;
-    githubToken?: string;
     footerText?: string;
     auditLogEnabled?: boolean;
 }) {
     const session = await requireAdmin();
 
-    const { encrypt } = await import("@/lib/encryption");
-
     const updateData: any = {
-        geminiApiKeyMode: data.geminiApiKeyMode,
+        geminiApiKeyMode: "USER", // Siempre forzar modo por usuario
         footerText: data.footerText,
     };
 
     if (data.auditLogEnabled !== undefined) {
         updateData.auditLogEnabled = data.auditLogEnabled;
-    }
-
-    if (data.globalApiKey) {
-        updateData.encryptedGlobalApiKey = await encrypt(data.globalApiKey);
-    }
-
-    if (data.githubToken) {
-        updateData.encryptedGithubToken = await encrypt(data.githubToken);
     }
 
     const settings = await prisma.systemSettings.upsert({
@@ -368,8 +355,8 @@ export async function updateSystemSettingsAction(data: {
         userId: session.user.id,
         userName: session.user.name || "Admin",
         userRole: "admin",
-        description: `Configuración del sistema actualizada: Modo API Key = ${data.geminiApiKeyMode}`,
-        metadata: { geminiApiKeyMode: data.geminiApiKeyMode, hasGlobalKey: !!data.globalApiKey, auditLogEnabled: data.auditLogEnabled },
+        description: `Configuración del sistema actualizada por el administrador`,
+        metadata: { auditLogEnabled: data.auditLogEnabled },
         success: true,
     });
 
