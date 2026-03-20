@@ -109,26 +109,6 @@ export function AdminSettings({ initialSettings }: AdminSettingsProps) {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="institutionLogo">URL del Logo</Label>
-                            <Input
-                                id="institutionLogo"
-                                name="institutionLogo"
-                                defaultValue={initialSettings.institutionLogo || ""}
-                                placeholder="https://..."
-                            />
-                            <p className="text-xs text-muted-foreground">URL directa a la imagen del logo (PNG o SVG recomendado).</p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="institutionHeroImage">Imagen de Fondo (Hero)</Label>
-                            <Input
-                                id="institutionHeroImage"
-                                name="institutionHeroImage"
-                                defaultValue={initialSettings.institutionHeroImage || ""}
-                                placeholder="https://..."
-                            />
-                            <p className="text-xs text-muted-foreground">URL de la imagen de fondo para la página de inicio.</p>
-                        </div>
-                        <div className="space-y-2">
                             <Label htmlFor="footerText">Texto del Footer</Label>
                             <Input
                                 id="footerText"

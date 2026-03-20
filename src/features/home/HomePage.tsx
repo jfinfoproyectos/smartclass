@@ -8,9 +8,11 @@ import { authClient } from "@/lib/auth-client";
 import { getRoleFromUser } from "@/services/authService";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LampContainer } from "@/components/ui/lamp";
+import { motion } from "framer-motion";
 
 export default function HomePage() {
-    const [settings, setSettings] = useState<{ institutionName?: string | null; institutionLogo?: string | null; institutionHeroImage?: string | null }>({});
+    const [settings, setSettings] = useState<{ institutionName?: string | null }>({});
     const [mounted, setMounted] = useState(false);
     const { data: session } = authClient.useSession();
     const role = getRoleFromUser(session?.user);
@@ -65,48 +67,35 @@ export default function HomePage() {
 
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] h-auto -mx-2 sm:-mx-4 -mb-4 w-[calc(100%+1rem)] sm:w-[calc(100%+2rem)] rounded-none overflow-hidden">
+        <div className="min-h-[calc(100vh-4rem)] h-auto -mx-2 sm:-mx-4 -mb-4 w-[calc(100%+1rem)] sm:w-[calc(100%+2rem)] rounded-none overflow-hidden pb-12">
             <div className="relative flex flex-col w-full">
-                <div className="w-full relative min-h-[300px] md:min-h-[400px] flex flex-col justify-center overflow-hidden">
-                    {settings.institutionHeroImage ? (
-                        <div className="absolute inset-0">
-                            <img
-                                src={settings.institutionHeroImage || undefined}
-                                alt="Hero Background"
-                                className="w-full h-full object-cover opacity-60"
-                            />
-                        </div>
-                    ) : (
-                        <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20"></div>
+                <section className="w-full relative overflow-hidden">
+                    <LampContainer className="min-h-[400px]">
+                        <motion.div
+                            initial={{ opacity: 0.5, y: 100 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{
+                                delay: 0.3,
+                                duration: 0.8,
+                                ease: "easeInOut",
+                            }}
+                            className="flex flex-col items-center justify-center text-center translate-y-24"
+                        >
+                            <h1 className="text-white text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight px-4 drop-shadow-2xl">
+                                {settings.institutionName || ""}
+                            </h1>
 
-                    )}
-
-                    <div className={`relative z-10 flex flex-col items-center justify-center py-10 px-4 text-center ${settings.institutionHeroImage ? 'text-white' : 'text-foreground'}`}>
-
-                        {settings.institutionLogo && (
-                            <img
-                                src={settings.institutionLogo || undefined}
-                                alt="Logo Institucional"
-                                className="w-24 h-24 md:w-32 md:h-32 object-contain mb-6 drop-shadow-2xl bg-white/10 backdrop-blur-sm rounded-full p-3"
-                            />
-                        )}
-                        <h1 className={`text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight px-4 ${settings.institutionHeroImage ? 'drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]' : ''}`}>
-
-                            {settings.institutionName}
-                        </h1>
-
-                        {/* Greeting and Date */}
-                        <div className={`mt-6 space-y-2 ${settings.institutionHeroImage ? 'text-white/90' : 'text-muted-foreground'}`}>
-
-                            <h2 className="text-xl md:text-2xl font-medium drop-shadow-md">
-                                ¡Hola, {mounted ? (session?.user?.name?.split(' ')[0] || 'Usuario') : 'Usuario'}!
-                            </h2>
-                            <p className="text-sm md:text-base opacity-90 capitalize drop-shadow-md">
-                                {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                            <div className="mt-6 space-y-2 text-white/90">
+                                <h2 className="text-xl md:text-2xl font-medium drop-shadow-md">
+                                    ¡Hola, {mounted ? (session?.user?.name?.split(' ')[0] || 'Usuario') : 'Usuario'}!
+                                </h2>
+                                <p className="text-sm md:text-base opacity-90 capitalize drop-shadow-md">
+                                    {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                </p>
+                            </div>
+                        </motion.div>
+                    </LampContainer>
+                </section>
 
                 {/* Navigation Cards */}
                 <div className="w-full py-12 px-6 bg-muted/30 border-y">

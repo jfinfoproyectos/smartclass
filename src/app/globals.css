@@ -206,6 +206,10 @@
   --shadow-2xl: var(--shadow-2xl);
 }
 
+@utility bg-gradient-conic {
+  background-image: conic-gradient(var(--conic-position), var(--tw-gradient-stops));
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
