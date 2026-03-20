@@ -74,6 +74,12 @@
   --shadow-xl: 0px 1px 2.5px 0px oklch(0.49 0.09 235.00 / 0.06), 0px 8px 10px -1px oklch(0.49 0.09 235.00 / 0.06);
   --shadow-2xl: 0px 1px 2.5px 0px oklch(0.49 0.09 235.00 / 0.15);
   
+  /* Chart Colors - Light Mode */
+  --chart-1: oklch(0.65 0.2 30);
+  --chart-2: oklch(0.7 0.15 140);
+  --chart-3: oklch(0.75 0.1 210);
+  --chart-4: oklch(0.8 0.18 90);
+  --chart-5: oklch(0.6 0.2 330);
 }
 
 .dark {
@@ -139,6 +145,13 @@
   --shadow-lg: 0px 1px 2px 0px oklch(0 0 0 / 0.01), 0px 4px 6px -1px oklch(0 0 0 / 0.01);
   --shadow-xl: 0px 1px 2px 0px oklch(0 0 0 / 0.01), 0px 8px 10px -1px oklch(0 0 0 / 0.01);
   --shadow-2xl: 0px 1px 2px 0px oklch(0 0 0 / 0.03);
+
+  /* Chart Colors - Dark Mode */
+  --chart-1: oklch(0.6 0.18 30);
+  --chart-2: oklch(0.65 0.13 140);
+  --chart-3: oklch(0.7 0.08 210);
+  --chart-4: oklch(0.75 0.15 90);
+  --chart-5: oklch(0.55 0.18 330);
 }
 
 @theme inline {

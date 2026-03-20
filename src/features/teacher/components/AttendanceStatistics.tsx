@@ -50,12 +50,20 @@ export function AttendanceStatistics({ data, dateColumns, onFilter }: Attendance
     const currentTheme = mounted ? (resolvedTheme || theme || 'light') : 'light';
     const isDark = currentTheme === 'dark';
 
-    // Chart.js Theme Options
+    // Chart.js Theme Options (Updated for maximum compatibility)
     const chartColors = {
-        text: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+        text: isDark ? '#a1a1aa' : '#71717a',
         grid: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         tooltipBg: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
         tooltipText: isDark ? '#fff' : '#000',
+        present: isDark ? '#22c55e' : '#16a34a',     // green-500 / green-600
+        absent: isDark ? '#ef4444' : '#dc2626',      // red-500 / red-600
+        late: isDark ? '#f59e0b' : '#d97706',        // amber-500 / amber-600
+        excused: isDark ? '#3b82f6' : '#2563eb',     // blue-500 / blue-600
+        trend: isDark ? '#6366f1' : '#4f46e5',       // indigo-500 / indigo-600
+        trendBg: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(79, 70, 229, 0.2)',
+        attention: isDark ? '#f97316' : '#ea580c',   // orange-500 / orange-600
+        commendation: isDark ? '#a855f7' : '#9333ea', // purple-500 / purple-600
     };
 
     // 📊 GLOBAL DISTRIBUTION (Pie Chart)
@@ -80,10 +88,10 @@ export function AttendanceStatistics({ data, dateColumns, onFilter }: Attendance
         datasets: [{
             data: [globalStats.p, globalStats.a, globalStats.l, globalStats.e],
             backgroundColor: [
-                'rgba(34, 197, 94, 0.7)', // Green-500
-                'rgba(239, 68, 68, 0.7)',  // Red-500
-                'rgba(249, 115, 22, 0.7)', // Orange-500
-                'rgba(59, 130, 246, 0.7)', // Blue-500
+                chartColors.present,
+                chartColors.absent,
+                chartColors.late,
+                chartColors.excused,
             ],
             borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
             borderWidth: 1,
@@ -119,11 +127,11 @@ export function AttendanceStatistics({ data, dateColumns, onFilter }: Attendance
         datasets: [{
             label: '% Asistencia (P+T)',
             data: trendData.data,
-            borderColor: 'rgb(59, 130, 246)',
-            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            borderColor: chartColors.trend,
+            backgroundColor: chartColors.trendBg,
             tension: 0.3,
             fill: true,
-            pointBackgroundColor: 'rgb(59, 130, 246)',
+            pointBackgroundColor: chartColors.trend,
         }],
     };
 
@@ -148,8 +156,8 @@ export function AttendanceStatistics({ data, dateColumns, onFilter }: Attendance
         datasets: [{
             label: 'Inasistencias',
             data: topAbsences.map(s => s.absences),
-            backgroundColor: 'rgba(239, 68, 68, 0.7)',
-            borderColor: 'rgb(239, 68, 68)',
+            backgroundColor: chartColors.absent,
+            borderColor: chartColors.absent,
             borderWidth: 0,
             borderRadius: 4,
         }],
@@ -179,8 +187,8 @@ export function AttendanceStatistics({ data, dateColumns, onFilter }: Attendance
             label: 'Cantidad',
             data: [remarkStats.attention, remarkStats.commendation],
             backgroundColor: [
-                'rgba(245, 158, 11, 0.7)', // Amber-500
-                'rgba(168, 85, 247, 0.7)', // Purple-500
+                chartColors.attention,
+                chartColors.commendation,
             ],
             borderWidth: 0,
             borderRadius: 4,

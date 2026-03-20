@@ -19,6 +19,9 @@ import { GradesManager } from "@/features/teacher/GradesManager";
 import { gradeService } from "@/services/gradeService";
 
 import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
+import { CourseStatistics } from "@/features/teacher/components/CourseStatistics";
+import { getCourseAttendanceReportAction } from "@/app/actions";
+import { BarChart3 } from "lucide-react";
 
 export default async function Page({ params }: { params: Promise<{ courseId: string }> }) {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -47,6 +50,12 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
     const evaluationAssignments = await evaluationService.getCourseEvaluationAttempts(courseId);
     const teacherEvaluations = await evaluationService.getTeacherEvaluations(session.user.id);
     const gradesData = await gradeService.getCourseGradesData(courseId);
+    
+    // Asistencia para estadísticas
+    const attendanceReport = await getCourseAttendanceReportAction(courseId);
+    const attendanceDateColumns = attendanceReport.length > 0 
+        ? Object.keys(attendanceReport[0]).filter(key => key !== 'ID' && key !== 'Estudiante' && key !== 'Correo').sort()
+        : [];
 
     return (
         <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-4 sm:pt-6">
@@ -66,6 +75,10 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                         <TabsTrigger value="grades" className="gap-2">
                             <GraduationCap className="h-4 w-4 hidden sm:inline-block" />
                             Calificaciones
+                        </TabsTrigger>
+                        <TabsTrigger value="stats" className="gap-2">
+                            <BarChart3 className="h-4 w-4 hidden sm:inline-block" />
+                            Estadísticas
                         </TabsTrigger>
 
                         <TabsTrigger 
@@ -123,6 +136,15 @@ export default async function Page({ params }: { params: Promise<{ courseId: str
                 </TabsContent>
                 <TabsContent value="grades" className="space-y-4">
                     <GradesManager courseId={courseId} initialData={gradesData} courseTitle={course.title} />
+                </TabsContent>
+                <TabsContent value="stats" className="space-y-4">
+                    <CourseStatistics 
+                        courseId={courseId}
+                        courseTitle={course.title}
+                        attendanceData={attendanceReport}
+                        attendanceDateColumns={attendanceDateColumns}
+                        gradesData={gradesData}
+                    />
                 </TabsContent>
                 <TabsContent value="share" className="space-y-4">
                     <GroupContentShare courseId={courseId} initialContent={sharedContents} />

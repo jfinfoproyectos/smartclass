@@ -1460,9 +1460,7 @@ export async function getScheduleViewAction() {
     if (role === "teacher") {
         const courses = await courseService.getTeacherCourses(userId);
         // Filter active courses for schedule view
-        const now = new Date();
-        // Reset time part to ensure we include courses ending today
-        now.setHours(0, 0, 0, 0);
+        const now = toUTCStartOfDay(new Date());
 
         return courses.filter(c => !c.endDate || new Date(c.endDate) >= now);
     } else {
@@ -1776,8 +1774,7 @@ export async function getAbsentStudentsForTodayAction(courseId: string) {
         throw new Error("Unauthorized");
     }
 
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    const today = toUTCStartOfDay(new Date());
 
     const absents = await prisma.attendance.findMany({
         where: {

@@ -134,12 +134,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             icon: FileText,
             isActive: false,
           },
-          {
-            title: "Estadísticas",
-            url: "/dashboard/teacher/statistics",
-            icon: BarChart,
-            isActive: false,
-          },
         ]
         : role === "student"
           ? [
