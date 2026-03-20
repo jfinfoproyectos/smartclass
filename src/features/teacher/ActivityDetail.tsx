@@ -1189,6 +1189,13 @@ export function ActivityDetail({
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        onClick={() => setSelectedStudentsForBatch(studentStatus.filter(s => s.status === "submitted").filter(s => s.submission).map(s => s.student.id))}
+                                    >
+                                        Solo Entregados
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         onClick={() => setSelectedStudentsForBatch([])}
                                     >
                                         Ninguno

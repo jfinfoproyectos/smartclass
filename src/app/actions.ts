@@ -6,7 +6,7 @@ import { courseService } from "@/services/courseService";
 import { activityService } from "@/services/activityService";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
-import { parseISOAsUTC, toUTCStartOfDay } from "@/lib/dateUtils";
+import { parseISOAsUTC, toUTCStartOfDay, toUTCStartOfDayFromLocal } from "@/lib/dateUtils";
 import { formatName } from "@/lib/utils";
 
 async function getSession() {
@@ -1806,7 +1806,7 @@ export async function getAbsentStudentsForTodayAction(courseId: string) {
         throw new Error("Unauthorized");
     }
 
-    const today = toUTCStartOfDay(new Date());
+    const today = toUTCStartOfDayFromLocal(new Date());
 
     const absents = await prisma.attendance.findMany({
         where: {

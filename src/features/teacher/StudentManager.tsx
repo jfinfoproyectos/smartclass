@@ -216,6 +216,23 @@ export function StudentManager({
         setIsAttendanceSheetOpen(true);
     };
 
+    const handleNavigateAttendance = (direction: 'prev' | 'next') => {
+        if (!studentForAttendance || filteredStudents.length <= 1) return;
+
+        const currentIndex = filteredStudents.findIndex(s => s.user.id === studentForAttendance.id);
+        if (currentIndex === -1) return;
+
+        let nextIndex;
+        if (direction === 'next') {
+            nextIndex = (currentIndex + 1) % filteredStudents.length;
+        } else {
+            nextIndex = (currentIndex - 1 + filteredStudents.length) % filteredStudents.length;
+        }
+
+        const nextStudent = filteredStudents[nextIndex].user;
+        setStudentForAttendance(nextStudent);
+    };
+
 
     const handleStatusChange = async (enrollmentId: string, newStatus: 'APPROVED' | 'REJECTED') => {
         try {
@@ -494,6 +511,7 @@ export function StudentManager({
                     onOpenChange={setIsAttendanceSheetOpen}
                     courseId={courseId}
                     student={studentForAttendance}
+                    onNavigate={handleNavigateAttendance}
                 />
             )}
 

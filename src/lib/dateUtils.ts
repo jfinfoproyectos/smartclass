@@ -7,17 +7,20 @@ import { es } from "date-fns/locale";
  */
 
 /**
- * Convierte una fecha local (o cualquier objeto Date) a una fecha UTC ("Calendar Date").
- * Establece la hora a 00:00:00 UTC manteniendo los componentes de año, mes y día locales.
- * 
- * Ejemplo:
- * Local (UTC-5): 2023-10-27 15:00:00
- * Salida (UTC): 2023-10-27 00:00:00Z
- * 
- * Úsalo antes de guardar fechas en la base de datos que deben ser "fechas enteras" (sin hora),
- * como fechas de asistencia, cumpleaños, o inicio/fin de curso.
+ * Convierte los componentes UTC de un objeto Date a la medianoche UTC.
+ * Úsalo cuando la fecha YA es una "Fecha de Calendario" en UTC (como las de Prisma)
+ * o cuando recibes una fecha ISO y quieres asegurar que se mantiene en UTC 00:00.
  */
 export function toUTCStartOfDay(date: Date): Date {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+}
+
+/**
+ * Convierte los componentes LOCALES de un objeto Date a la medianoche UTC.
+ * Úsalo para normalizar "hoy" (new Date()) o fechas provenientes de inputs locales
+ * (como date pickers) al registro de base de datos UTC.
+ */
+export function toUTCStartOfDayFromLocal(date: Date): Date {
     return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0));
 }
 

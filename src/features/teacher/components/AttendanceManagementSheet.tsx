@@ -26,7 +26,9 @@ import {
     UserCircle,
     CheckCircle2,
     FileText,
-    ExternalLink
+    ExternalLink,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -34,7 +36,8 @@ import { cn, formatName } from "@/lib/utils";
 import { 
     recordAttendanceAction,
     deleteAttendanceAction, 
-    getStudentAttendanceStatsAction 
+    getStudentAttendanceStatsAction,
+    deleteJustificationAction 
 } from "@/app/actions";
 import { formatCalendarDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
@@ -69,13 +72,15 @@ interface AttendanceManagementSheetProps {
             apellido: string;
         } | null;
     };
+    onNavigate?: (direction: 'prev' | 'next') => void;
 }
 
 export function AttendanceManagementSheet({
     isOpen,
     onOpenChange,
     courseId,
-    student
+    student,
+    onNavigate
 }: AttendanceManagementSheetProps) {
     const [date, setDate] = useState<Date>(new Date());
     const [stats, setStats] = useState<any>(null);
@@ -135,6 +140,19 @@ export function AttendanceManagementSheet({
         }
     };
 
+    const handleDeleteJustification = async (recordId: string) => {
+        setActionLoading(`${recordId}-delete-justification`);
+        try {
+            await deleteJustificationAction(recordId, courseId);
+            toast.success("Justificación eliminada. El estudiante ya puede volver a justificar.");
+            await loadStats();
+        } catch (error) {
+            toast.error("Error al eliminar la justificación");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     const getStatusLabel = (status: string) => {
         switch (status) {
             case "PRESENT": return "Presente";
@@ -170,6 +188,26 @@ export function AttendanceManagementSheet({
                                 {formatName(student.name, student.profile)}
                             </SheetDescription>
                         </div>
+                        {onNavigate && (
+                            <div className="ml-auto flex items-center gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onNavigate('prev')}
+                                    className="h-8 w-8 hover:bg-accent"
+                                >
+                                    <ChevronLeft className="h-5 w-5" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onNavigate('next')}
+                                    className="h-8 w-8 hover:bg-accent"
+                                >
+                                    <ChevronRight className="h-5 w-5" />
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </SheetHeader>
 
@@ -471,10 +509,87 @@ export function AttendanceManagementSheet({
                                                                                         </a>
                                                                                     </Button>
                                                                                 )}
+
+                                                                                <div className="pt-2 border-t">
+                                                                                    <Button 
+                                                                                        size="sm" 
+                                                                                        variant="destructive" 
+                                                                                        className="w-full h-8 text-[10px] uppercase font-semibold"
+                                                                                        onClick={() => handleDeleteJustification(record.id)}
+                                                                                        disabled={!!actionLoading}
+                                                                                    >
+                                                                                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                                                                        Eliminar mi Justificación
+                                                                                    </Button>
+                                                                                </div>
                                                                             </div>
                                                                         </PopoverContent>
                                                                     </Popover>
-                                                                    <TooltipContent><p>Ver Excusa</p></TooltipContent>
+                                                                    <TooltipContent><p>Ver/Eliminar Excusa</p></TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+
+                                                            {record.status === "LATE" && record.justification && (
+                                                                <Tooltip>
+                                                                    <Popover>
+                                                                        <TooltipTrigger asChild>
+                                                                            <PopoverTrigger asChild>
+                                                                                <Button 
+                                                                                    size="icon" 
+                                                                                    variant="ghost" 
+                                                                                    className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                                                                >
+                                                                                    <FileText className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </PopoverTrigger>
+                                                                        </TooltipTrigger>
+                                                                        <PopoverContent className="w-80 p-4" align="end">
+                                                                            <div className="flex flex-col gap-3">
+                                                                                <div className="space-y-1">
+                                                                                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                                                                                        <Clock className="h-4 w-4 text-blue-500" />
+                                                                                        Justificación de Tardanza
+                                                                                    </h4>
+                                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Fecha: {formatCalendarDate(record.date, "dd/MM/yyyy")}</p>
+                                                                                </div>
+                                                                                
+                                                                                <div className="bg-muted/30 p-3 rounded-lg border text-sm">
+                                                                                    <p className="font-medium mb-1 text-xs text-muted-foreground uppercase">Justificación:</p>
+                                                                                    <p className="text-sm break-words leading-relaxed">
+                                                                                        {record.justification}
+                                                                                    </p>
+                                                                                </div>
+
+                                                                                {record.justificationUrl && (
+                                                                                    <Button 
+                                                                                        size="sm" 
+                                                                                        variant="outline" 
+                                                                                        className="w-full h-9 gap-2 text-xs"
+                                                                                        asChild
+                                                                                    >
+                                                                                        <a href={record.justificationUrl} target="_blank" rel="noopener noreferrer">
+                                                                                            <ExternalLink className="h-3 w-3" />
+                                                                                            Ver Documento Adjunto
+                                                                                        </a>
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                <div className="pt-2 border-t">
+                                                                                    <Button 
+                                                                                        size="sm" 
+                                                                                        variant="destructive" 
+                                                                                        className="w-full h-8 text-[10px] uppercase font-semibold"
+                                                                                        onClick={() => handleDeleteJustification(record.id)}
+                                                                                        disabled={!!actionLoading}
+                                                                                    >
+                                                                                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                                                                        Eliminar mi Justificación
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </PopoverContent>
+                                                                    </Popover>
+                                                                    <TooltipContent><p>Ver/Eliminar Justificación</p></TooltipContent>
                                                                 </Tooltip>
                                                             )}
 

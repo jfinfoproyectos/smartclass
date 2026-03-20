@@ -99,7 +99,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
             recordDate.getMonth() === today.getMonth() &&
             recordDate.getFullYear() === today.getFullYear();
 
-        const isPast = recordDate < toUTCStartOfDay(today);
+        const isPast = recordDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
         if (isToday) {
             setJustificationType("WITH_SUPPORT");
@@ -136,7 +136,11 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
         setSubmitting(true);
         try {
             if (!selectedRecord) return;
-            await registerAbsenceJustificationAction(courseId, selectedRecord.date, documentUrl || null, justification);
+            const dateInIso = typeof selectedRecord.date === 'string' 
+                ? selectedRecord.date 
+                : (selectedRecord.date as Date).toISOString();
+
+            await registerAbsenceJustificationAction(courseId, dateInIso, documentUrl || null, justification);
             toast.success("Inasistencia justificada exitosamente");
 
             setIsDialogOpen(false);
@@ -227,7 +231,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                                             ) : "-"}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {!readonly && record.status === "ABSENT" && (
+                                            {!readonly && (record.status === "ABSENT" || (record.status === "LATE" && !record.justification)) && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -237,7 +241,7 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                                                 </Button>
                                             )}
                                             {/* Show View button for students if justified */}
-                                            {!readonly && (record.status === "LATE" || record.status === "EXCUSED") && (
+                                            {!readonly && (record.status === "EXCUSED" || (record.status === "LATE" && record.justification)) && (
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -309,14 +313,16 @@ export function StudentAttendanceSummary({ courseId, userId, readonly = false }:
                                     <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-400 p-3">
                                         <div className="flex">
                                             <div className="shrink-0">
-                                                <Clock className="h-5 w-5 text-blue-400" aria-hidden="true" />
+                                                <CalendarIcon className="h-5 w-5 text-blue-400" aria-hidden="true" />
                                             </div>
                                             <div className="ml-3">
                                                 <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-                                                    Fecha de hoy
+                                                    Gestión de Asistencia de Hoy
                                                 </p>
                                                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                                    Solo puedes registrar <strong>llegadas tarde</strong> para el día de hoy.
+                                                    {selectedRecord?.status === "ABSENT" 
+                                                        ? "Has sido marcado como ausente hoy. Puedes justificar tu inasistencia adjuntando un soporte o explicando el motivo."
+                                                        : "Si llegaste tarde y tienes un código de asistencia, o si deseas justificar una inasistencia futura, utiliza las opciones correspondientes."}
                                                 </p>
                                             </div>
                                         </div>

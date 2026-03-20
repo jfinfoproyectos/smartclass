@@ -182,7 +182,7 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                         </CardHeader>
                     <CardContent className="pt-6 min-w-0">
                         <Tabs defaultValue="activities" className="space-y-6">
-                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1">
+                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 h-auto p-1">
                                 <TabsTrigger value="activities" className="gap-2">
                                     <ClipboardCheck className="h-4 w-4" />
                                     <span className="hidden sm:inline">Actividades</span>
@@ -192,6 +192,11 @@ export function MyEnrollments({ enrollments, selectedCourse, onSelectCourse }: {
                                     <FileText className="h-4 w-4" />
                                     <span className="hidden sm:inline">Evaluaciones</span>
                                     <span className="sm:hidden text-xs">Evaluaciones</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="attendance" className="gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Asistencia</span>
+                                    <span className="sm:hidden text-xs">Asistencia</span>
                                 </TabsTrigger>
                                 <TabsTrigger value="grades" className="gap-2">
                                     <GraduationCap className="h-4 w-4" />

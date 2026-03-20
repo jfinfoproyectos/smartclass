@@ -1,6 +1,6 @@
 import { AttendanceStatus } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { toUTCStartOfDay } from "@/lib/dateUtils";
+import { toUTCStartOfDay, toUTCStartOfDayFromLocal } from "@/lib/dateUtils";
 
 
 export const attendanceService = {
@@ -14,7 +14,7 @@ export const attendanceService = {
         // Normalize date to start of day in UTC to avoid timezone shifts
         const normalizedDate = typeof date === 'string'
             ? new Date(date)
-            : toUTCStartOfDay(date);
+            : toUTCStartOfDayFromLocal(date);
 
         // If status is LATE and no arrivalTime is provided, use current time
         // If status is NOT LATE, arrivalTime should be null
@@ -88,7 +88,7 @@ export const attendanceService = {
         // Find existing attendance record for "today" (UTC range)
         // We define "today" as the current UTC date
         const now = new Date();
-        const todayUTC = toUTCStartOfDay(now);
+        const todayUTC = toUTCStartOfDayFromLocal(now);
 
         // We look for a record with exactly this date, or create one if it doesn't exist (though late usually implies there was a session)
         // Adjusting logic: Late arrival means they missed the roll call earlier TODAY.
@@ -150,6 +150,19 @@ export const attendanceService = {
 
         const normalizedDate = typeof date === 'string' ? new Date(date) : toUTCStartOfDay(date);
 
+        // Check current status to preserve LATE if it already exists
+        const currentRecord = await prisma.attendance.findUnique({
+            where: {
+                courseId_userId_date: {
+                    courseId,
+                    userId,
+                    date: normalizedDate,
+                },
+            },
+        });
+
+        const newStatus = currentRecord?.status === "LATE" ? "LATE" : "EXCUSED";
+
         return await prisma.attendance.upsert({
             where: {
                 courseId_userId_date: {
@@ -159,7 +172,7 @@ export const attendanceService = {
                 },
             },
             update: {
-                status: "EXCUSED",
+                status: newStatus,
                 justification: reason,
                 justificationUrl: url,
             },

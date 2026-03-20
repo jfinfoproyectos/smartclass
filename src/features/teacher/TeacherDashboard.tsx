@@ -47,7 +47,7 @@ export function TeacherDashboard({ courses, pendingEnrollments, stats, currentDa
                 </p>
             </div>
 
-            <Tabs defaultValue="overview" className="space-y-6">
+            <Tabs id="teacher-dashboard-tabs" defaultValue="overview" className="space-y-6">
                 <TabsList className="bg-muted/50 p-1">
                     <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
                         Resumen General
@@ -132,7 +132,7 @@ export function TeacherDashboard({ courses, pendingEnrollments, stats, currentDa
                                                     <p className="text-xs text-muted-foreground">
                                                         {item.activityTitle} • <span className="font-medium">{item.courseTitle}</span>
                                                     </p>
-                                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1" suppressHydrationWarning>
                                                         <Clock className="h-3 w-3" />
                                                         Hace {formatDistanceToNow(new Date(item.submittedAt), { locale: es })}
                                                     </p>
