@@ -938,9 +938,11 @@ export const courseService = {
                                                 submissions: true
                                             }
                                         }
-                                    }
+                                    },
+                                    orderBy: { createdAt: 'asc' }
                                 }
-                            }
+                            },
+                            orderBy: { createdAt: 'asc' }
                         }
                     },
                     orderBy: { createdAt: 'asc' }
@@ -954,6 +956,8 @@ export const courseService = {
         });
 
         if (!course) throw new Error("Course not found");
+
+        const { calculateFinalGrade } = await import("@/lib/gradeUtils");
 
         // 2. Fetch Enrolled Students
         const enrollments = await prisma.enrollment.findMany({
@@ -982,72 +986,15 @@ export const courseService = {
             }
         });
 
-        // 3. Helper for Category/Group Calculation
-        const calculateHierarchy = (studentId: string) => {
-            const categoriesGrades = course.gradeCategories.map(cat => {
-                const groupGrades = cat.groups.map(group => {
-                    let totalWeightedGrade = 0;
-                    let totalWeight = 0;
-
-                    group.items.forEach(item => {
-                        let grade = 0;
-                        if (item.activityId) {
-                            const activity = course.activities.find(a => a.id === item.activityId);
-                            const submission = activity?.submissions.find(s => s.userId === studentId);
-                            grade = submission?.grade || 0;
-                        } else if (item.evaluationAttemptId) {
-                            const submission = item.evaluationAttempt?.submissions.find(s => s.userId === studentId);
-                            grade = (submission?.score || 0) * 5 / 100;
-                        }
-
-                        totalWeightedGrade += grade * item.weight;
-                        totalWeight += item.weight;
-                    });
-
-                    const groupAvg = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
-                    return {
-                        id: group.id,
-                        name: group.name,
-                        weight: group.weight,
-                        grade: groupAvg
-                    };
-                });
-
-                let catWeightedGrade = 0;
-                let catTotalWeight = 0;
-
-                groupGrades.forEach(g => {
-                    catWeightedGrade += g.grade * g.weight;
-                    catTotalWeight += g.weight;
-                });
-
-                const catAvg = catTotalWeight > 0 ? catWeightedGrade / catTotalWeight : 0;
-                return {
-                    id: cat.id,
-                    name: cat.name,
-                    weight: cat.weight,
-                    groups: groupGrades,
-                    grade: catAvg
-                };
-            });
-
-            let finalWeightedGrade = 0;
-            let finalTotalWeight = 0;
-
-            categoriesGrades.forEach(c => {
-                finalWeightedGrade += c.grade * c.weight;
-                finalTotalWeight += c.weight;
-            });
-
-            const finalGrade = finalTotalWeight > 0 ? finalWeightedGrade / finalTotalWeight : 0;
-
-            return { categoriesGrades, finalGrade };
-        };
-
         // 4. Transform for Export (Flattened with hierarchical info)
         return enrollments.map(enrollment => {
             const student = enrollment.user;
-            const { categoriesGrades, finalGrade } = calculateHierarchy(student.id);
+            const { categoriesGrades, finalGrade } = calculateFinalGrade(
+                student.id, 
+                course.gradeCategories as any, 
+                course.activities, 
+                course.activities
+            );
 
             const row: any = {
                 'ID': student.profile?.identificacion || student.id.substring(0, 8),

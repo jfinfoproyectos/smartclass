@@ -1873,6 +1873,30 @@ export async function getCourseCompleteDataAction(courseId: string) {
                     }
                 }
             },
+            gradeCategories: {
+                include: {
+                    groups: {
+                        include: {
+                            items: {
+                                include: {
+                                    activity: true,
+                                    evaluationAttempt: {
+                                        include: {
+                                            evaluation: {
+                                                select: { title: true }
+                                            },
+                                            submissions: true
+                                        }
+                                    }
+                                },
+                                orderBy: { createdAt: 'asc' }
+                            }
+                        },
+                        orderBy: { createdAt: 'asc' }
+                    }
+                },
+                orderBy: { createdAt: 'asc' }
+            },
             attendances: {
                 orderBy: { date: 'desc' },
                 include: {
@@ -1903,28 +1927,29 @@ export async function getCourseCompleteDataAction(courseId: string) {
     }
 
     // 1. GRADES DATA
+    const { calculateFinalGrade } = await import("@/lib/gradeUtils");
     const gradesData = course.enrollments.map(enrollment => {
         const student = enrollment.user;
+        const studentId = student.id;
+
+        const { finalGrade } = calculateFinalGrade(
+            studentId,
+            (course as any).gradeCategories || [],
+            course.activities,
+            course.activities
+        );
+
         const row: any = {
             "Estudiante": student.name || "Sin nombre",
             "Email": student.email
         };
 
-        let totalWeightedGrade = 0;
-        let totalWeight = 0;
-
         course.activities.forEach(activity => {
-            const submission = activity.submissions.find(s => s.userId === student.id);
+            const submission = activity.submissions.find(s => s.userId === studentId);
             const grade = submission?.grade ?? null;
             row[activity.title] = grade !== null ? grade.toFixed(1) : "-";
-
-            if (grade !== null) {
-                totalWeightedGrade += grade * activity.weight;
-                totalWeight += activity.weight;
-            }
         });
 
-        const finalGrade = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
         row["Nota Final"] = finalGrade.toFixed(1);
 
         return row;
@@ -2014,7 +2039,9 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
         where: { id: courseId },
         include: {
             teacher: {
-                select: { name: true }
+                include: {
+                    profile: true
+                }
             },
             gradeCategories: {
                 include: {
@@ -2031,9 +2058,11 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
                                             submissions: true
                                         }
                                     }
-                                }
+                                },
+                                orderBy: { createdAt: 'asc' }
                             }
-                        }
+                        },
+                        orderBy: { createdAt: 'asc' }
                     }
                 },
                 orderBy: { createdAt: 'asc' }
@@ -2042,16 +2071,8 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
                 where: { status: "APPROVED" },
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                            profile: {
-                                select: {
-                                    nombres: true,
-                                    apellido: true
-                                }
-                            }
+                        include: {
+                            profile: true
                         }
                     }
                 },
@@ -2067,25 +2088,19 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
             attendances: {
                 orderBy: { date: 'desc' },
                 include: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true
-                        }
-                    }
+                    user: true
                 }
             },
             remarks: {
                 orderBy: { date: 'desc' },
                 include: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true
-                        }
-                    }
+                    user: true
+                }
+            },
+            evaluationAttempts: {
+                include: {
+                    evaluation: { select: { title: true } },
+                    submissions: true
                 }
             }
         }
@@ -2095,7 +2110,8 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
         throw new Error("Course not found");
     }
 
-    const teacherName = course.teacher?.name || "Sin profesor";
+    const { calculateFinalGrade } = await import("@/lib/gradeUtils");
+    const teacherName = formatName(course.teacher?.name, course.teacher?.profile as any);
     const courseName = course.title;
 
     // Process data per student
@@ -2103,74 +2119,13 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
         const student = enrollment.user;
         const studentId = student.id;
 
-        // Hierarchical Grade Calculation
-        const categoriesGrades = course.gradeCategories.map(cat => {
-            const groupGrades = cat.groups.map(group => {
-                let totalWeightedGrade = 0;
-                let totalWeight = 0;
-
-                const itemsWithGrades = group.items.map(item => {
-                    let grade = 0;
-                    let title = "S/N";
-                    if (item.activityId) {
-                        const activity = course.activities.find(a => a.id === item.activityId);
-                        const submission = activity?.submissions.find(s => s.userId === studentId);
-                        grade = submission?.grade || 0;
-                        title = activity?.title || title;
-                    } else if (item.evaluationAttemptId) {
-                        const submission = item.evaluationAttempt?.submissions.find(s => s.userId === studentId);
-                        grade = (submission?.score || 0) * 5 / 100;
-                        title = item.evaluationAttempt?.evaluation?.title || title;
-                    }
-
-                    totalWeightedGrade += grade * item.weight;
-                    totalWeight += item.weight;
-
-                    return {
-                        id: item.id,
-                        title,
-                        weight: item.weight,
-                        grade
-                    };
-                });
-
-                const groupAvg = totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
-                return {
-                    id: group.id,
-                    name: group.name,
-                    weight: group.weight,
-                    grade: groupAvg,
-                    items: itemsWithGrades
-                };
-            });
-
-            let catWeightedGrade = 0;
-            let catTotalWeight = 0;
-
-            groupGrades.forEach(g => {
-                catWeightedGrade += g.grade * g.weight;
-                catTotalWeight += g.weight;
-            });
-
-            const catAvg = catTotalWeight > 0 ? catWeightedGrade / catTotalWeight : 0;
-            return {
-                id: cat.id,
-                name: cat.name,
-                weight: cat.weight,
-                grade: catAvg,
-                groups: groupGrades
-            };
-        });
-
-        let finalWeightedGrade = 0;
-        let finalTotalWeight = 0;
-
-        categoriesGrades.forEach(c => {
-            finalWeightedGrade += c.grade * c.weight;
-            finalTotalWeight += c.weight;
-        });
-
-        const finalGrade = finalTotalWeight > 0 ? finalWeightedGrade / finalTotalWeight : 0;
+        // Hierarchical Grade Calculation using unified utility
+        const { finalGrade, categoriesGrades } = calculateFinalGrade(
+            studentId, 
+            course.gradeCategories as any, 
+            course.activities, 
+            course.evaluationAttempts
+        );
 
         // Filter Attendances
         const studentAttendances = course.attendances
@@ -2188,6 +2143,7 @@ export async function getCourseStudentsCompleteDataAction(courseId: string) {
             .filter((r: any) => r.userId === studentId)
             .map((r: any) => ({
                 id: r.id,
+                name: r.title, // Map title to name if needed by PDF, but let's check
                 title: r.title,
                 description: r.description,
                 type: r.type,

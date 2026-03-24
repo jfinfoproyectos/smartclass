@@ -55,6 +55,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useReactToPrint } from "react-to-print";
 import { formatName } from "@/lib/utils";
+import { 
+    calculateStudentGradeInGroup as calcGroup, 
+    calculateStudentGradeInCategory as calcCat, 
+    calculateFinalGrade as calcFinal 
+} from "@/lib/gradeUtils";
 
 interface GradesManagerProps {
     courseId: string;
@@ -113,58 +118,17 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
     const availableActivities = activities.filter((a: any) => !assignedActivityIds.has(a.id));
     const availableEvaluations = evaluations.filter((e: any) => !assignedEvaluationIds.has(e.id));
 
-    // --- Calculations ---
+    // --- Calculations using unified utility ---
     const calculateStudentGradeInGroup = (studentId: string, group: any) => {
-        if (!group.items || group.items.length === 0) return 0;
-        
-        let totalWeightedGrade = 0;
-        let totalWeight = 0;
-
-        group.items.forEach((item: any) => {
-            let grade = 0;
-            if (item.activityId) {
-                const activity = activities.find((a: any) => a.id === item.activityId);
-                const submission = activity?.submissions.find((s: any) => s.userId === studentId);
-                grade = submission?.grade || 0;
-            } else if (item.evaluationAttemptId) {
-                const attempt = evaluations.find((e: any) => e.id === item.evaluationAttemptId);
-                const submission = attempt?.submissions.find((s: any) => s.userId === studentId);
-                grade = (submission?.score || 0) * 5 / 100; // Normalize to 5.0
-            }
-            
-            totalWeightedGrade += grade * item.weight;
-            totalWeight += item.weight;
-        });
-
-        return totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+        return calcGroup(studentId, group, activities, evaluations).grade;
     };
 
     const calculateStudentGradeInCategory = (studentId: string, category: any) => {
-        if (!category.groups || category.groups.length === 0) return 0;
-
-        let totalWeightedGrade = 0;
-        let totalWeight = 0;
-
-        category.groups.forEach((group: any) => {
-            const groupGrade = calculateStudentGradeInGroup(studentId, group);
-            totalWeightedGrade += groupGrade * group.weight;
-            totalWeight += group.weight;
-        });
-
-        return totalWeight > 0 ? totalWeightedGrade / totalWeight : 0;
+        return calcCat(studentId, category, activities, evaluations).grade;
     };
 
     const calculateFinalGrade = (studentId: string) => {
-        let finalGrade = 0;
-        let totalCategoryWeight = 0;
-
-        categories.forEach((category: any) => {
-            const categoryGrade = calculateStudentGradeInCategory(studentId, category);
-            finalGrade += categoryGrade * category.weight;
-            totalCategoryWeight += category.weight;
-        });
-
-        return totalCategoryWeight > 0 ? finalGrade / totalCategoryWeight : 0;
+        return calcFinal(studentId, categories, activities, evaluations).finalGrade;
     };
 
     // --- Export Actions ---

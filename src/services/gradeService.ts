@@ -19,9 +19,11 @@ export const gradeService = {
                                         }
                                     }
                                 }
-                            }
+                            },
+                            orderBy: { createdAt: "asc" }
                         }
-                    }
+                    },
+                    orderBy: { createdAt: "asc" }
                 }
             },
             orderBy: { createdAt: "asc" }
@@ -64,7 +66,8 @@ export const gradeService = {
                                 }
                             }
                         }
-                    }
+                    },
+                    orderBy: { createdAt: "asc" }
                 }
             },
             orderBy: { createdAt: "asc" }

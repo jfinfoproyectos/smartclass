@@ -10,9 +10,11 @@ Font.register({
     fonts: [
         { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf', fontWeight: 300 },
         { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf', fontWeight: 400 },
+        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-italic-webfont.ttf', fontWeight: 400, fontStyle: 'italic' },
         { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-medium-webfont.ttf', fontWeight: 500 },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 700 },
         { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-mediumitalic-webfont.ttf', fontWeight: 500, fontStyle: 'italic' },
+        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 700 },
+        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bolditalic-webfont.ttf', fontWeight: 700, fontStyle: 'italic' },
     ]
 });
 
@@ -483,7 +485,15 @@ export const CourseReportPDFDocument = ({
                                             return (
                                                 <View key={item.id || itemIndex} style={styles.tableRow} wrap={false}>
                                                     <Text style={styles.tdRowId}>{itemIndex + 1}</Text>
-                                                    <Text style={[styles.tdActivity, { paddingLeft: 20 }]}>{item.title}</Text>
+                                                    <View style={[styles.tdActivity, { paddingLeft: 20 }]}>
+                                                        {item.activityLink ? (
+                                                            <Link src={item.activityLink} style={{ color: COLORS.blue600, textDecoration: 'underline' }}>
+                                                                <Text>{item.title}</Text>
+                                                            </Link>
+                                                        ) : (
+                                                            <Text>{item.title}</Text>
+                                                        )}
+                                                    </View>
                                                     <Text style={styles.tdWeight}>{item.weight}%</Text>
                                                     <View style={styles.tdStatusContainer}>
                                                         <Text style={[styles.badgeCommon, { 
@@ -494,7 +504,11 @@ export const CourseReportPDFDocument = ({
                                                         </Text>
                                                     </View>
                                                     <View style={styles.tdLinkContainer}>
-                                                        <Text style={styles.noLinkText}>-</Text>
+                                                        {item.link ? (
+                                                            <Link src={item.link} style={styles.linkText}>Link</Link>
+                                                        ) : (
+                                                            <Text style={styles.noLinkText}>-</Text>
+                                                        )}
                                                     </View>
                                                     <Text style={styles.tdGrade}>{item.grade.toFixed(2)}</Text>
                                                 </View>

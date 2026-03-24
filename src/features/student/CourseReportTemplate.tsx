@@ -119,7 +119,15 @@ export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseRepor
                                                     <tbody>
                                                         {group.items.map((item: any) => (
                                                             <tr key={item.id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
-                                                                <td className="py-2 px-4 text-sm text-gray-900">{item.title}</td>
+                                                                <td className="py-2 px-4 text-sm text-gray-900">
+                                                                    {item.activityLink ? (
+                                                                        <a href={item.activityLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                                            {item.title}
+                                                                        </a>
+                                                                    ) : (
+                                                                        item.title
+                                                                    )}
+                                                                </td>
                                                                 <td className="py-2 px-4 text-center text-xs text-gray-500 w-24">Peso: {item.weight}%</td>
                                                                 <td className="py-2 px-4 text-right font-bold text-sm text-gray-900 w-24">{item.grade.toFixed(1)}</td>
                                                             </tr>
@@ -153,7 +161,15 @@ export const CourseReportTemplate = React.forwardRef<HTMLDivElement, CourseRepor
                                     return (
                                         <tr key={activity.id} className="border-b border-gray-100 hover:bg-gray-50">
                                             <td className="py-3 px-2 text-gray-500">{index + 1}</td>
-                                            <td className="py-3 px-2 font-medium text-gray-900">{activity.title}</td>
+                                            <td className="py-3 px-2 font-medium text-gray-900">
+                                                {activity.statement ? (
+                                                    <a href={activity.statement} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                        {activity.title}
+                                                    </a>
+                                                ) : (
+                                                    activity.title
+                                                )}
+                                            </td>
                                             <td className="py-3 px-2 text-center text-gray-600">{activity.weight.toFixed(1)}%</td>
                                             <td className="py-3 px-2 text-center">
                                                 {isGraded ? (
