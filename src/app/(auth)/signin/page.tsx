@@ -1,7 +1,12 @@
 import SignIn from "@/features/auth/SignIn";
+import { Suspense } from "react";
+
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
-    <SignIn/>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Cargando...</div>}>
+      <SignIn/>
+    </Suspense>
   );
 }

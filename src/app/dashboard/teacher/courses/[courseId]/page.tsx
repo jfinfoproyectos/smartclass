@@ -5,10 +5,7 @@ import { ActivityManager } from "@/features/teacher/ActivityManager";
 import { StudentManager } from "@/features/teacher/StudentManager";
 import { activityService } from "@/services/activityService";
 import { courseService } from "@/services/courseService";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { ExternalLink, Dices, Users, GraduationCap } from "lucide-react";
-import Link from "next/link";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Roulette } from "@/features/teacher/Roulette";
 import { GroupGenerator } from "@/features/teacher/GroupGenerator";
 import { GroupContentShare } from "@/features/teacher/components/GroupContentShare";
@@ -17,138 +14,108 @@ import { evaluationService } from "@/services/evaluationService";
 import { EvaluationAssignmentManager } from "@/features/teacher/EvaluationAssignmentManager";
 import { GradesManager } from "@/features/teacher/GradesManager";
 import { gradeService } from "@/services/gradeService";
+import { TeacherCourseHeader } from "@/features/teacher/components/TeacherCourseHeader";
 
-import { AttendanceTaker } from "@/features/attendance/components/AttendanceTaker";
 import { CourseStatistics } from "@/features/teacher/components/CourseStatistics";
 import { getCourseAttendanceReportAction } from "@/app/actions";
-import { BarChart3 } from "lucide-react";
+import { getAvailableThemes } from "@/app/actions/themes";
 
-export default async function Page({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function Page({ 
+    params,
+    searchParams 
+}: { 
+    params: Promise<{ courseId: string }>,
+    searchParams: Promise<{ tab?: string }> 
+}) {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session || session.user.role !== "teacher") {
         redirect("/signin");
     }
 
     const { courseId } = await params;
+    const { tab } = await searchParams;
+    const activeTab = tab || "activities";
 
     const course = await courseService.getCourseById(courseId);
 
     if (!course) {
-        return <div>Curso no encontrado</div>;
+        return <div className="p-8 text-center font-bold">Curso no encontrado</div>;
     }
 
     // Verify ownership
     if (course.teacher.id !== session.user.id) {
-        return <div>No tienes permiso para ver este curso</div>;
+        return <div className="p-8 text-center font-bold text-destructive">No tienes permiso para ver este curso</div>;
     }
 
-    const activities = await activityService.getCourseActivities(courseId);
-    const students = await courseService.getCourseStudents(courseId);
-    const sharedContents = await sharedContentService.getByCourse(courseId);
+    const [activities, students, sharedContents, evaluationAssignments, teacherEvaluations, gradesData, attendanceReport, themes] = await Promise.all([
+        activityService.getCourseActivities(courseId),
+        courseService.getCourseStudents(courseId),
+        sharedContentService.getByCourse(courseId),
+        evaluationService.getCourseEvaluationAttempts(courseId),
+        evaluationService.getTeacherEvaluations(session.user.id),
+        gradeService.getCourseGradesData(courseId),
+        getCourseAttendanceReportAction(courseId),
+        getAvailableThemes()
+    ]);
     
-    // Evaluaciones
-    const evaluationAssignments = await evaluationService.getCourseEvaluationAttempts(courseId);
-    const teacherEvaluations = await evaluationService.getTeacherEvaluations(session.user.id);
-    const gradesData = await gradeService.getCourseGradesData(courseId);
-    
-    // Asistencia para estadísticas
-    const attendanceReport = await getCourseAttendanceReportAction(courseId);
     const attendanceDateColumns = attendanceReport.length > 0 
         ? Object.keys(attendanceReport[0]).filter(key => key !== 'ID' && key !== 'Estudiante' && key !== 'Correo').sort()
         : [];
 
     return (
-        <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-4 sm:pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{course.title}</h2>
-                <div className="flex flex-wrap items-center gap-2">
-                    <AttendanceTaker courseId={courseId} />
-                </div>
-            </div>
+        <div className="flex flex-col h-screen overflow-hidden">
+            <Tabs key={activeTab} defaultValue={activeTab} className="w-full h-full flex flex-col">
+                {/* Dedicated Client Header Component */}
+                <TeacherCourseHeader 
+                    courseId={courseId} 
+                    courseTitle={course.title} 
+                    courseExternalUrl={course.externalUrl}
+                    userName={session.user.name || "Instructor"}
+                    themes={themes}
+                    activeTab={activeTab}
+                />
 
-            <Tabs defaultValue="students" className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <TabsList className="w-full sm:w-auto flex flex-wrap h-auto p-1 items-center justify-start gap-1">
-                        <TabsTrigger value="students">Estudiantes</TabsTrigger>
-                        <TabsTrigger value="activities">Actividades</TabsTrigger>
-                        <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
-                        <TabsTrigger value="grades" className="gap-2">
-                            <GraduationCap className="h-4 w-4 hidden sm:inline-block" />
-                            Calificaciones
-                        </TabsTrigger>
-                        <TabsTrigger value="stats" className="gap-2">
-                            <BarChart3 className="h-4 w-4 hidden sm:inline-block" />
-                            Estadísticas
-                        </TabsTrigger>
-
-                        <TabsTrigger 
-                            value="roulette" 
-                            className="gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:data-[state=active]:bg-indigo-600"
-                        >
-                            <Dices className="h-4 w-4 hidden sm:inline-block" />
-                            Ruleta
-                        </TabsTrigger>
-                        <TabsTrigger 
-                            value="groups" 
-                            className="gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:data-[state=active]:bg-indigo-600"
-                        >
-                            <Users className="h-4 w-4 hidden sm:inline-block" />
-                            Grupos
-                        </TabsTrigger>
-                        <TabsTrigger 
-                            value="share"
-                            className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:data-[state=active]:bg-indigo-600"
-                        >
-                            Compartir
-                        </TabsTrigger>
-                    </TabsList>
-                    {course.externalUrl && (
-                        <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
-                            <Link href={course.externalUrl} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Documentación
-                            </Link>
-                        </Button>
-                    )}
+                {/* Main Content Area (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+                    <TabsContent value="activities" className="mt-0 outline-none">
+                        <ActivityManager courseId={courseId} activities={activities} />
+                    </TabsContent>
+                    <TabsContent value="students" className="mt-0 outline-none">
+                        <StudentManager 
+                            courseId={courseId} 
+                            initialStudents={students} 
+                            courseTitle={course.title}
+                        />
+                    </TabsContent>
+                    <TabsContent value="roulette" className="mt-0 outline-none">
+                        <Roulette students={students} courseId={courseId} />
+                    </TabsContent>
+                    <TabsContent value="groups" className="mt-0 outline-none">
+                        <GroupGenerator students={students} />
+                    </TabsContent>
+                    <TabsContent value="evaluations" className="mt-0 outline-none">
+                        <EvaluationAssignmentManager 
+                            courseId={courseId}
+                            attempts={evaluationAssignments}
+                            teacherEvaluations={teacherEvaluations}
+                        />
+                    </TabsContent>
+                    <TabsContent value="grades" className="mt-0 outline-none">
+                        <GradesManager courseId={courseId} initialData={gradesData} courseTitle={course.title} />
+                    </TabsContent>
+                    <TabsContent value="stats" className="mt-0 outline-none">
+                        <CourseStatistics 
+                            courseId={courseId}
+                            courseTitle={course.title}
+                            attendanceData={attendanceReport}
+                            attendanceDateColumns={attendanceDateColumns}
+                            gradesData={gradesData}
+                        />
+                    </TabsContent>
+                    <TabsContent value="share" className="mt-0 outline-none">
+                        <GroupContentShare courseId={courseId} initialContent={sharedContents} />
+                    </TabsContent>
                 </div>
-                <TabsContent value="activities" className="space-y-4">
-                    <ActivityManager courseId={courseId} activities={activities} />
-                </TabsContent>
-                <TabsContent value="students" className="space-y-4">
-                    <StudentManager 
-                        courseId={courseId} 
-                        initialStudents={students} 
-                        courseTitle={course.title}
-                    />
-                </TabsContent>
-                <TabsContent value="roulette" className="space-y-4">
-                    <Roulette students={students} courseId={courseId} />
-                </TabsContent>
-                <TabsContent value="groups" className="space-y-4">
-                    <GroupGenerator students={students} />
-                </TabsContent>
-                <TabsContent value="evaluations" className="space-y-4">
-                    <EvaluationAssignmentManager 
-                        courseId={courseId}
-                        attempts={evaluationAssignments}
-                        teacherEvaluations={teacherEvaluations}
-                    />
-                </TabsContent>
-                <TabsContent value="grades" className="space-y-4">
-                    <GradesManager courseId={courseId} initialData={gradesData} courseTitle={course.title} />
-                </TabsContent>
-                <TabsContent value="stats" className="space-y-4">
-                    <CourseStatistics 
-                        courseId={courseId}
-                        courseTitle={course.title}
-                        attendanceData={attendanceReport}
-                        attendanceDateColumns={attendanceDateColumns}
-                        gradesData={gradesData}
-                    />
-                </TabsContent>
-                <TabsContent value="share" className="space-y-4">
-                    <GroupContentShare courseId={courseId} initialContent={sharedContents} />
-                </TabsContent>
             </Tabs>
         </div>
     );

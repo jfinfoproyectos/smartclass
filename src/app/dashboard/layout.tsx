@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { CreditsModal } from "@/components/CreditsModal";
 import { ModeToggle } from "@/components/theme/ModeToggle";
+import { ThemeSelector } from "@/components/theme/ThemeSelector";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { BackButton } from "@/components/navigation/BackButton";
 import { Footer } from "@/components/Footer";
 import { ProfileCompletionCheck } from "@/components/profile/ProfileCompletionCheck";
+import { getAvailableThemes } from "@/app/actions/themes";
 
 
 export default async function DashboardLayout({
@@ -21,9 +23,11 @@ export default async function DashboardLayout({
     redirect("/");
   }
 
+  const themes = await getAvailableThemes();
+
   return (
 
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <ProfileCompletionCheck />
       <AppSidebar />
       <SidebarInset>
@@ -34,6 +38,7 @@ export default async function DashboardLayout({
               <BackButton />
             </div>
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
+              <ThemeSelector themes={themes} />
               <ModeToggle />
               <CreditsModal />
             </div>

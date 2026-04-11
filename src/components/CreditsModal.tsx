@@ -21,12 +21,14 @@ export function CreditsModal() {
         <Dialog>
             <Tooltip>
                 <DialogTrigger asChild>
-                    <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <Info className="h-[1.2rem] w-[1.2rem]" />
-                            <span className="sr-only">Créditos</span>
-                        </Button>
-                    </TooltipTrigger>
+                    <span className="inline-block">
+                        <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <Info className="h-[1.2rem] w-[1.2rem]" />
+                                <span className="sr-only">Créditos</span>
+                            </Button>
+                        </TooltipTrigger>
+                    </span>
                 </DialogTrigger>
                 <TooltipContent>
                     <p>Créditos</p>

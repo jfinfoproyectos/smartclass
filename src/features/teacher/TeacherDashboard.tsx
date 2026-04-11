@@ -1,26 +1,33 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { CourseManager } from "./CourseManager";
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-    Users, 
-    BookOpen, 
-    ClipboardCheck, 
-    Clock, 
-    Sparkles, 
-    Timer, 
-    ArrowRight,
-    GraduationCap,
-    CheckCircle2,
-    AlertCircle
-} from "lucide-react";
-import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Plus, X } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
+import { createCourseAction, updateCourseAction, cloneCourseAction } from "@/app/actions";
 
 interface TeacherDashboardProps {
     courses: any[];
@@ -36,6 +43,71 @@ interface TeacherDashboardProps {
 }
 
 export function TeacherDashboard({ courses, pendingEnrollments, stats, currentDate }: TeacherDashboardProps) {
+    const [activeTab, setActiveTab] = useState("courses");
+    const [courseFilter, setCourseFilter] = useState("active");
+
+    // Dialog State
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editCourse, setEditCourse] = useState<any>(null);
+    const [isCloning, setIsCloning] = useState(false);
+    const [schedules, setSchedules] = useState<any[]>([]);
+    
+    // New Schedule State
+    const [newDayOfWeek, setNewDayOfWeek] = useState("");
+    const [newStartTime, setNewStartTime] = useState("");
+    const [newEndTime, setNewEndTime] = useState("");
+
+    const now = currentDate ? new Date(currentDate) : new Date();
+    const activeCoursesCount = courses.filter(course => !course.endDate || new Date(course.endDate) >= now).length;
+    const archivedCoursesCount = courses.filter(course => course.endDate && new Date(course.endDate) < now).length;
+
+    const handleAddSchedule = () => {
+        if (newDayOfWeek && newStartTime && newEndTime) {
+            setSchedules([...schedules, { dayOfWeek: newDayOfWeek, startTime: newStartTime, endTime: newEndTime }]);
+            setNewDayOfWeek("");
+            setNewStartTime("");
+            setNewEndTime("");
+        }
+    };
+
+    const handleRemoveSchedule = (index: number) => {
+        setSchedules(schedules.filter((_, i) => i !== index));
+    };
+
+    const getDayLabel = (day: string) => {
+        const days: Record<string, string> = {
+            MONDAY: "Lunes",
+            TUESDAY: "Martes",
+            WEDNESDAY: "Miércoles",
+            THURSDAY: "Jueves",
+            FRIDAY: "Viernes",
+            SATURDAY: "Sábado",
+            SUNDAY: "Domingo",
+        };
+        return days[day] || day;
+    };
+
+    const openCreateDialog = () => {
+        setEditCourse(null);
+        setIsCloning(false);
+        setSchedules([]);
+        setIsDialogOpen(true);
+    };
+
+    const openEditDialog = (course: any) => {
+        setEditCourse(course);
+        setIsCloning(false);
+        setSchedules(course.schedules || []);
+        setIsDialogOpen(true);
+    };
+
+    const openCloneDialog = (course: any) => {
+        setEditCourse(course);
+        setIsCloning(true);
+        setSchedules(course.schedules || []);
+        setIsDialogOpen(true);
+    };
+
     return (
         <div className="flex-1 space-y-8 p-4 sm:p-6 md:p-8 pt-6">
             <div className="flex flex-col gap-2">
@@ -47,173 +119,212 @@ export function TeacherDashboard({ courses, pendingEnrollments, stats, currentDa
                 </p>
             </div>
 
-            <Tabs id="teacher-dashboard-tabs" defaultValue="overview" className="space-y-6">
-                <TabsList className="bg-muted/50 p-1">
-                    <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                        Resumen General
-                    </TabsTrigger>
-                    <TabsTrigger value="courses" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                        Mis Cursos ({courses.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="enrollments" className="data-[state=active]:bg-background data-[state=active]:shadow-sm relative">
-                        Solicitudes
-                        {stats.pendingEnrollmentsCount > 0 && (
-                            <Badge variant="destructive" className="ml-2 px-1.5 h-4 min-w-[1rem] flex items-center justify-center text-[10px]">
-                                {stats.pendingEnrollmentsCount}
-                            </Badge>
+            <Tabs id="teacher-dashboard-tabs" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                <div className="flex items-center justify-between gap-4 bg-muted/20 p-2 rounded-xl border border-border/50 shadow-sm backdrop-blur-sm">
+                    <div className="flex items-center gap-4">
+                        <TabsList className="bg-muted/50 p-1">
+                            <TabsTrigger value="courses" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                Mis Cursos ({courses.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="enrollments" className="data-[state=active]:bg-background data-[state=active]:shadow-sm relative">
+                                Solicitudes
+                                {stats.pendingEnrollmentsCount > 0 && (
+                                    <Badge variant="destructive" className="ml-2 px-1.5 h-4 min-w-[1rem] flex items-center justify-center text-[10px]">
+                                        {stats.pendingEnrollmentsCount}
+                                    </Badge>
+                                )}
+                            </TabsTrigger>
+                        </TabsList>
+                        
+                        {activeTab === "courses" && (
+                            <>
+                                <div className="h-6 w-[1px] bg-border mx-2 hidden lg:block" />
+                                <h3 className="text-lg font-bold text-foreground/80 hidden lg:block">Gestión de Cursos</h3>
+                            </>
                         )}
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-8 animate-in fade-in duration-500">
-                    {/* Estadísticas Rápidas */}
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <Card className="border-none shadow-md bg-gradient-to-br from-blue-500/10 to-transparent">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Cursos Activos</CardTitle>
-                                <BookOpen className="h-4 w-4 text-blue-500" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stats.activeCoursesCount}</div>
-                                <p className="text-xs text-muted-foreground">En el período actual</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-none shadow-md bg-gradient-to-br from-emerald-500/10 to-transparent">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Estudiantes</CardTitle>
-                                <Users className="h-4 w-4 text-emerald-500" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stats.totalStudentsCount}</div>
-                                <p className="text-xs text-muted-foreground">Inscritos en tus cursos</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-none shadow-md bg-gradient-to-br from-amber-500/10 to-transparent">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Por Calificar</CardTitle>
-                                <ClipboardCheck className="h-4 w-4 text-amber-500" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stats.pendingGradingCount}</div>
-                                <p className="text-xs text-muted-foreground">Actividades pendientes</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-none shadow-md bg-gradient-to-br from-rose-500/10 to-transparent">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Inscripciones</CardTitle>
-                                <GraduationCap className="h-4 w-4 text-rose-500" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stats.pendingEnrollmentsCount}</div>
-                                <p className="text-xs text-muted-foreground">Pendientes de aprobación</p>
-                            </CardContent>
-                        </Card>
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                        {/* Actividades Pendientes de Calificación */}
-                        <Card className="lg:col-span-4 shadow-lg border-muted/20">
-                            <CardHeader>
-                                <CardTitle className="text-xl flex items-center gap-2">
-                                    <AlertCircle className="h-5 w-5 text-amber-500" />
-                                    Entregas Recientes por Calificar
-                                </CardTitle>
-                                <CardDescription>
-                                    Últimas 5 entregas que requieren tu revisión.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {stats.recentPendingGrading.length > 0 ? (
-                                        stats.recentPendingGrading.map((item) => (
-                                            <div key={item.id} className="flex items-center justify-between p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors group">
-                                                <div className="space-y-1">
-                                                    <p className="font-semibold text-sm group-hover:text-primary transition-colors">{item.studentName}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.activityTitle} • <span className="font-medium">{item.courseTitle}</span>
-                                                    </p>
-                                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1" suppressHydrationWarning>
-                                                        <Clock className="h-3 w-3" />
-                                                        Hace {formatDistanceToNow(new Date(item.submittedAt), { locale: es })}
-                                                    </p>
-                                                </div>
-                                                <Button variant="ghost" size="sm" asChild>
-                                                    <Link href={`/dashboard/teacher/courses/${item.courseId}/activities/${item.activityId}`}>
-                                                        Calificar <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Link>
-                                                </Button>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-                                            <div className="p-3 bg-emerald-500/10 rounded-full">
-                                                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="font-medium">¡Todo al día!</p>
-                                                <p className="text-sm text-muted-foreground">No tienes entregas pendientes por calificar.</p>
-                                            </div>
-                                        </div>
-                                    )}
+                    <div className="flex items-center gap-3">
+                        {activeTab === "courses" && (
+                            <>
+                                <div className="flex items-center bg-muted/50 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => setCourseFilter("active")}
+                                        className={`px-4 py-1.5 text-xs sm:text-sm font-medium transition-all rounded-md ${
+                                            courseFilter === "active" 
+                                                ? "bg-background shadow-sm text-foreground" 
+                                                : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        Activos ({activeCoursesCount})
+                                    </button>
+                                    <button
+                                        onClick={() => setCourseFilter("archived")}
+                                        className={`px-4 py-1.5 text-xs sm:text-sm font-medium transition-all rounded-md ${
+                                            courseFilter === "archived" 
+                                                ? "bg-background shadow-sm text-foreground" 
+                                                : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        Archivados ({archivedCoursesCount})
+                                    </button>
                                 </div>
-                            </CardContent>
-                        </Card>
+                                <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
+                                
+                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm" onClick={openCreateDialog} className="shadow-md hover:shadow-lg transition-all active:scale-95">
+                                            <Plus className="mr-2 h-4 w-4" /> 
+                                            <span className="hidden sm:inline">Crear Curso</span>
+                                            <span className="sm:hidden">Nuevo</span>
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="w-full max-w-[95vw] sm:max-w-7xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto rounded-xl">
+                                        <form action={async (formData) => {
+                                            formData.append("schedules", JSON.stringify(schedules));
 
-                        {/* Herramientas Rápidas */}
-                        <Card className="lg:col-span-3 shadow-lg border-muted/20">
-                            <CardHeader>
-                                <CardTitle className="text-xl flex items-center gap-2">
-                                    <Sparkles className="h-5 w-5 text-primary" />
-                                    Herramientas de Clase
-                                </CardTitle>
-                                <CardDescription>
-                                    Utilidades rápidas para tus sesiones presenciales o virtuales.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 gap-3">
-                                <Button variant="outline" className="h-16 justify-start gap-4 border-dashed hover:border-primary hover:bg-primary/5 transition-all" asChild>
-                                    <Link href="/dashboard/teacher/tools">
-                                        <div className="p-2 bg-orange-500/10 rounded-lg">
-                                            <Sparkles className="h-5 w-5 text-orange-500" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-semibold">Ruleta Genérica</p>
-                                            <p className="text-xs text-muted-foreground">Sortear temas o premios</p>
-                                        </div>
-                                    </Link>
-                                </Button>
-                                <Button variant="outline" className="h-16 justify-start gap-4 border-dashed hover:border-primary hover:bg-primary/5 transition-all" asChild>
-                                    <Link href="/dashboard/teacher/tools">
-                                        <div className="p-2 bg-blue-500/10 rounded-lg">
-                                            <Timer className="h-5 w-5 text-blue-500" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-semibold">Temporizador Visual</p>
-                                            <p className="text-xs text-muted-foreground">Gestión de tiempos</p>
-                                        </div>
-                                    </Link>
-                                </Button>
-                                <Button variant="outline" className="h-16 justify-start gap-4 border-dashed hover:border-primary hover:bg-primary/5 transition-all" asChild>
-                                    <Link href="/dashboard/teacher/schedule">
-                                        <div className="p-2 bg-purple-500/10 rounded-lg">
-                                            <Clock className="h-5 w-5 text-purple-500" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-semibold">Horario de Clases</p>
-                                            <p className="text-xs text-muted-foreground">Consulta tu agenda semanal</p>
-                                        </div>
-                                    </Link>
-                                </Button>
-                            </CardContent>
-                        </Card>
+                                            if (isCloning && editCourse) {
+                                                formData.append("sourceCourseId", editCourse.id);
+                                                await cloneCourseAction(formData);
+                                            } else if (editCourse) {
+                                                formData.append("courseId", editCourse.id);
+                                                await updateCourseAction(formData);
+                                            } else {
+                                                await createCourseAction(formData);
+                                            }
+                                            setIsDialogOpen(false);
+                                            setEditCourse(null);
+                                            setIsCloning(false);
+                                            setSchedules([]);
+                                        }}>
+                                            <DialogHeader>
+                                                <DialogTitle className="text-2xl">
+                                                    {isCloning ? "Clonar Curso" : (editCourse ? "Editar Curso" : "Crear Nuevo Curso")}
+                                                </DialogTitle>
+                                                <DialogDescription>
+                                                    {isCloning
+                                                        ? "Configura los detalles del nuevo curso basado en el original."
+                                                        : (editCourse ? "Modifica los detalles del curso." : "Ingresa los detalles del nuevo curso.")}
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-6">
+                                                <div className="space-y-6">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="title" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Título del Curso *</Label>
+                                                        <Input id="title" name="title" required defaultValue={editCourse?.title} placeholder="Ej: Introducción a la Programación" className="bg-muted/30 focus-visible:ring-primary/50" />
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="description" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Descripción</Label>
+                                                        <Textarea id="description" name="description" defaultValue={editCourse?.description || ""} placeholder="Describe brevemente el contenido y objetivos del curso..." rows={5} className="bg-muted/30 focus-visible:ring-primary/50 resize-none" />
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="externalUrl" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Enlace Externo</Label>
+                                                        <Input id="externalUrl" name="externalUrl" type="url" defaultValue={editCourse?.externalUrl || ""} placeholder="https://ejemplo.com/recursos" className="bg-muted/30 focus-visible:ring-primary/50" />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="startDate" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Fecha Inicio</Label>
+                                                            <Input id="startDate" name="startDate" type="date" defaultValue={editCourse?.startDate ? format(new Date(editCourse.startDate), "yyyy-MM-dd") : ''} className="bg-muted/30" />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="endDate" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Fecha Fin</Label>
+                                                            <Input id="endDate" name="endDate" type="date" defaultValue={editCourse?.endDate ? format(new Date(editCourse.endDate), "yyyy-MM-dd") : ''} className="bg-muted/30" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Right Column - Schedule */}
+                                                <div className="space-y-6 bg-muted/10 p-4 sm:p-6 rounded-2xl border border-border/50">
+                                                    <Label className="text-lg font-bold flex items-center gap-2">
+                                                        <span className="bg-primary/10 p-1 rounded-md">📅</span>
+                                                        Horarios
+                                                    </Label>
+
+                                                    <div className="space-y-4">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div className="space-y-2">
+                                                                <Label className="text-xs font-semibold text-muted-foreground">Día</Label>
+                                                                <Select value={newDayOfWeek} onValueChange={setNewDayOfWeek}>
+                                                                    <SelectTrigger className="bg-background">
+                                                                        <SelectValue placeholder="Día" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="MONDAY">Lunes</SelectItem>
+                                                                        <SelectItem value="TUESDAY">Martes</SelectItem>
+                                                                        <SelectItem value="WEDNESDAY">Miércoles</SelectItem>
+                                                                        <SelectItem value="THURSDAY">Jueves</SelectItem>
+                                                                        <SelectItem value="FRIDAY">Viernes</SelectItem>
+                                                                        <SelectItem value="SATURDAY">Sábado</SelectItem>
+                                                                        <SelectItem value="SUNDAY">Domingo</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="space-y-2 flex-1">
+                                                                    <Label className="text-xs font-semibold text-muted-foreground">Inicio</Label>
+                                                                    <Input type="time" value={newStartTime} onChange={(e) => setNewStartTime(e.target.value)} className="bg-background" />
+                                                                </div>
+                                                                <div className="space-y-2 flex-1">
+                                                                    <Label className="text-xs font-semibold text-muted-foreground">Fin</Label>
+                                                                    <Input type="time" value={newEndTime} onChange={(e) => setNewEndTime(e.target.value)} className="bg-background" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <Button type="button" onClick={handleAddSchedule} disabled={!newDayOfWeek || !newStartTime || !newEndTime} className="w-full bg-primary/10 hover:bg-primary/20 text-primary border-none" variant="outline">
+                                                            <Plus className="mr-2 h-4 w-4" /> Agregar Horario
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                                        {schedules.map((s, idx) => (
+                                                            <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border/50 shadow-sm animate-in slide-in-from-right-2 duration-300">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="font-bold text-sm bg-muted px-2 py-1 rounded text-primary">{getDayLabel(s.dayOfWeek)}</span>
+                                                                    <span className="text-muted-foreground text-sm font-medium">{s.startTime} - {s.endTime}</span>
+                                                                </div>
+                                                                <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveSchedule(idx)} className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full">
+                                                                    <X className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                        {schedules.length === 0 && (
+                                                            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-2xl opacity-50">
+                                                                No hay horarios definidos
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <DialogFooter className="pt-6 border-t mt-4">
+                                                <Button type="submit" className="px-8 font-bold text-lg h-12 rounded-xl shadow-lg shadow-primary/20">
+                                                    {isCloning ? "Clonar Curso" : (editCourse ? "Actualizar" : "Guardar Curso")}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            </>
+                        )}
                     </div>
+                </div>
+
+                <TabsContent value="courses" className="animate-in fade-in duration-500 mt-0">
+                    <CourseManager 
+                        initialCourses={courses} 
+                        pendingEnrollments={pendingEnrollments} 
+                        currentDate={currentDate} 
+                        filter={courseFilter as any}
+                        onEdit={openEditDialog}
+                        onClone={openCloneDialog}
+                    />
                 </TabsContent>
 
-                <TabsContent value="courses" className="animate-in fade-in duration-500">
-                    <CourseManager initialCourses={courses} pendingEnrollments={pendingEnrollments} currentDate={currentDate} />
-                </TabsContent>
-
-                <TabsContent value="enrollments" className="animate-in fade-in duration-500">
+                <TabsContent value="enrollments" className="animate-in fade-in duration-500 mt-0">
                     <EnrollmentRequests requests={pendingEnrollments} />
                 </TabsContent>
             </Tabs>

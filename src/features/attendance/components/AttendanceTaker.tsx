@@ -12,6 +12,7 @@ import { formatCalendarDate } from "@/lib/dateUtils";
 
 interface AttendanceTakerProps {
     courseId: string;
+    trigger?: React.ReactNode;
 }
 
 interface Student {
@@ -26,7 +27,7 @@ interface Student {
     } | null;
 }
 
-export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
+export function AttendanceTaker({ courseId, trigger }: AttendanceTakerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [students, setStudents] = useState<Student[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -187,10 +188,12 @@ export function AttendanceTaker({ courseId }: AttendanceTakerProps) {
     return (
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                    <UserCheck className="h-4 w-4" />
-                    Llamar Asistencia
-                </Button>
+                {trigger || (
+                    <Button variant="outline" className="gap-2">
+                        <UserCheck className="h-4 w-4" />
+                        Llamar Asistencia
+                    </Button>
+                )}
             </SheetTrigger>
             <SheetContent side="bottom" className="h-screen p-0 flex flex-col gap-0 border-none">
                 {/* Header */}

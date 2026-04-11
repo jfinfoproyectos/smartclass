@@ -204,7 +204,7 @@ export function TakeEvaluationLayout({
         }
 
         // Redirect to dashboard with error message
-        router.push(`/dashboard/student?error=${encodeURIComponent(details)}`);
+        router.push(`/dashboard/student?courseId=${attempt.courseId}&tab=evaluations&error=${encodeURIComponent(details)}`);
     };
 
     // Initialize local state for answers based on what's already saved
@@ -532,7 +532,7 @@ export function TakeEvaluationLayout({
         setIsSubmitting(true);
         await handleSaveCurrent();
         await submitEvaluationAction(submission.id);
-        router.push("/dashboard/student");
+        router.push(`/dashboard/student?courseId=${attempt.courseId}&tab=evaluations`);
     };
 
     const handleAskAI = async () => {
@@ -842,7 +842,7 @@ export function TakeEvaluationLayout({
                                 size="sm"
                                 variant="secondary"
                                 className="h-7 text-xs px-3"
-                                onClick={() => router.push("/dashboard/student")}
+                                onClick={() => router.push(`/dashboard/student?courseId=${attempt.courseId}&tab=evaluations`)}
                             >
                                 <LogOut className="w-3.5 h-3.5 mr-1" />
                                 Salir de Vista Previa

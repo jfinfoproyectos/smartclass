@@ -108,7 +108,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             title: "Cursos",
             url: "/dashboard/teacher",
             icon: BookOpen,
-            isActive: true,
+            isActive: false,
           },
           {
             title: "Calendario",
@@ -153,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               title: "Cursos",
               url: "/dashboard/student",
               icon: BookOpen,
-              isActive: true,
+              isActive: false,
             },
             {
               title: "Calendario",

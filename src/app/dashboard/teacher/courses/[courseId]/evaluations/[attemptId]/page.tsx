@@ -5,6 +5,10 @@ import { evaluationService } from "@/services/evaluationService";
 import { courseService } from "@/services/courseService";
 import { EvaluationStats } from "@/features/teacher/EvaluationStats";
 
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+
 export default async function EvaluationAttemptResultsPage({ 
     params 
 }: { 
@@ -37,6 +41,13 @@ export default async function EvaluationAttemptResultsPage({
 
     return (
         <div className="flex flex-col gap-6 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+            <Button variant="ghost" size="sm" asChild className="w-fit h-8 px-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors group">
+                <Link href={`/dashboard/teacher/courses/${courseId}?tab=evaluations`} className="flex items-center gap-1.5 font-bold uppercase text-[10px] tracking-widest">
+                    <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                    Volver a Evaluaciones
+                </Link>
+            </Button>
+
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight">
                     Resultados: {attempt.evaluation.title}

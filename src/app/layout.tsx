@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Suspense } from "react";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ScrollRestorer } from "@/components/ScrollRestorer";
+import { ThemeInitializer } from "@/components/theme/ThemeInitializer";
 
 
 export const metadata: Metadata = {
@@ -22,11 +24,14 @@ export default function RootLayout({
       <body>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
-          <ScrollRestorer />
+          <Suspense fallback={null}>
+            <ThemeInitializer />
+            <ScrollRestorer />
+          </Suspense>
           {children}
           <Toaster />
         </ThemeProvider>

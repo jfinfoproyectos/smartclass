@@ -1,187 +1,154 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCatalog } from "./CourseCatalog";
 import { MyEnrollments } from "./MyEnrollments";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GlareCard } from "@/components/ui/aceternity/glare-card";
-import { Badge } from "@/components/ui/badge";
 import { formatName } from "@/lib/utils";
-import { Calendar, CheckCircle2, AlertTriangle, ArrowRight, User, Users } from "lucide-react";
-import { format, isAfter, isBefore, addDays } from "date-fns";
-import { es } from "date-fns/locale";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function StudentDashboard({
     availableCourses,
     myEnrollments,
     studentName,
-    pendingEnrollments = []
+    pendingEnrollments = [],
+    themes = []
 }: {
     availableCourses: any[],
     myEnrollments: any[],
     studentName: string,
-    pendingEnrollments?: string[]
+    pendingEnrollments?: string[],
+    themes?: any[]
 }) {
-    const [selectedCourse, setSelectedCourse] = useState<string>("");
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const selectedCourse = searchParams.get("courseId") || "";
+    const activeTab = searchParams.get("tab") || "activities";
+    const isInsideCourse = !!selectedCourse;
 
     const handleSelectCourse = (courseId: string | null) => {
-        setSelectedCourse(courseId || "");
+        const params = new URLSearchParams(searchParams.toString());
+        if (courseId) {
+            params.set("courseId", courseId);
+            params.set("tab", "activities"); // Default tab when entering
+        } else {
+            params.delete("courseId");
+            params.delete("tab");
+        }
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
+    const handleTabChange = (tab: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("tab", tab);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
     return (
-        <div className="flex-1 w-full space-y-6 p-4 sm:p-6 md:p-8">
-            {/* Header */}
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">¡Hola, {formatName(studentName)}!</h1>
-                <p className="text-muted-foreground">
-                    Aquí tienes un resumen de tu actividad académica en SmartClass.
-                </p>
-            </div>
+        <div className={cn(
+            "flex-1 w-full",
+            isInsideCourse ? "p-0 h-[calc(100vh-4rem)] overflow-hidden flex flex-col" : "p-4 sm:p-6 md:p-8 space-y-6"
+        )}>
+            {/* Header - Hidden when inside a course */}
+            {!isInsideCourse && (
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-3xl font-bold tracking-tight">¡Hola, {formatName(studentName)}!</h1>
+                    <p className="text-muted-foreground">
+                        Aquí tienes un resumen de tu actividad académica en SmartClass.
+                    </p>
+                </div>
+            )}
 
-            {/* Resumen Semanal / Widgets Rápidos */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                {/* Próximos Vencimientos */}
-                <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold">Tareas Próximas</CardTitle>
-                        <Calendar className="h-4 w-4 text-amber-500" />
-                    </CardHeader>
-                    <CardContent>
-                        {(() => {
-                            const now = new Date();
-                            const limit = addDays(now, 3);
-                            const upcomingTasks = myEnrollments
-                                .flatMap(e => e.course.activities.map((a: any) => ({ ...a, courseTitle: e.course.title, teacher: e.course.teacher })))
-                                .filter(a => a.deadline && isAfter(new Date(a.deadline), now) && isBefore(new Date(a.deadline), limit) && a.submissions.length === 0)
-                                .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-                                .slice(0, 2);
-
-                            if (upcomingTasks.length === 0) {
-                                return <p className="text-xs text-muted-foreground">No tienes tareas pendientes para los próximos 3 días. ¡Buen trabajo!</p>;
-                            }
-
-                            return (
-                                <div className="space-y-3">
-                                    {upcomingTasks.map(task => (
-                                        <div key={task.id} className="flex flex-col gap-1">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="text-xs font-medium truncate flex-1 min-w-0">{task.title}</span>
-                                                <Badge variant="outline" className="text-[10px] py-0 border-amber-200 text-amber-700 bg-amber-50 shrink-0">
-                                                    {format(new Date(task.deadline), "eeee", { locale: es })}
-                                                </Badge>
-                                            </div>
-                                            <span className="text-[10px] text-muted-foreground truncate">{task.courseTitle}</span>
-                                            <div className="flex items-center text-sm text-muted-foreground mt-auto">
-                                                <User className="mr-1 h-3 w-3" />
-                                                Profesor: {formatName(task.teacher.name, task.teacher.profile)}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            );
-                        })()}
-                    </CardContent>
-                </Card>
-
-                {/* Últimas Calificaciones */}
-                <Card className="border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold">Notas Recientes</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    </CardHeader>
-                    <CardContent>
-                        {(() => {
-                            const latestGrades = myEnrollments
-                                .flatMap(e => e.course.activities.flatMap((a: any) =>
-                                    a.submissions
-                                        .filter((s: any) => s.grade !== null)
-                                        .map((s: any) => ({ ...s, activityTitle: a.title, courseTitle: e.course.title, teacher: e.course.teacher }))
-                                ))
-                                .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
-                                .slice(0, 2);
-
-                            if (latestGrades.length === 0) {
-                                return <p className="text-xs text-muted-foreground">Aún no tienes calificaciones nuevas.</p>;
-                            }
-
-                            return (
-                                <div className="space-y-3">
-                                    {latestGrades.map(grade => (
-                                        <div key={grade.id} className="flex items-center justify-between gap-2">
-                                            <div className="flex flex-col gap-0.5 overflow-hidden">
-                                                <span className="text-xs font-medium truncate">{grade.activityTitle}</span>
-                                                <span className="text-[10px] text-muted-foreground truncate">{grade.courseTitle}</span>
-                                                <div className="flex items-center text-sm text-muted-foreground gap-3">
-                                                    <span className="flex items-center gap-1">
-                                                        <Users className="h-3.5 w-3.5" />
-                                                        Prof: {formatName(grade.teacher.name, grade.teacher.profile)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <span className="text-sm font-bold text-emerald-600 shrink-0">{grade.grade.toFixed(1)}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            );
-                        })()}
-                    </CardContent>
-                </Card>
-
-                {/* Resumen de Asistencia */}
-                <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold">Cursos Inscritos</CardTitle>
-                        <ArrowRight className="h-4 w-4 text-primary" />
-                    </CardHeader>
-                    <CardContent className="flex flex-col justify-center">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold">{myEnrollments.length}</span>
-                            <span className="text-sm text-muted-foreground">cursos activos</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-2">
-                            Entregas totales: {myEnrollments.reduce((acc, e) => acc + e.course.activities.reduce((a: number, act: any) => a + act.submissions.length, 0), 0)}
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {pendingEnrollments.length > 0 && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-200">
+            {pendingEnrollments.length > 0 && !isInsideCourse && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-200 ml-4 sm:ml-6 md:ml-8 mr-4 sm:mr-6 md:mr-8">
                     Tienes {pendingEnrollments.length} solicitud{pendingEnrollments.length !== 1 ? 'es' : ''} de inscripción pendiente{pendingEnrollments.length !== 1 ? 's' : ''} de aprobación por el profesor.
                 </div>
             )}
 
-            {/* Tabs */}
-            <Tabs defaultValue="my-courses" className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <TabsList className="grid w-full sm:w-auto grid-cols-2">
-                        <TabsTrigger value="my-courses">Mis Cursos</TabsTrigger>
-                        <TabsTrigger value="catalog">Catálogo de Cursos</TabsTrigger>
-                    </TabsList>
-                </div>
+            {/* Content area */}
+            <div className={cn(isInsideCourse ? "h-full" : "")}>
+                {isInsideCourse && (
+                    <style jsx global>{`
+                        /* Hide the global App Header when inside a course to allow course-specific unified header */
+                        main[data-slot="sidebar-inset"] > header {
+                            display: none !important;
+                        }
 
-                <TabsContent value="my-courses" className="space-y-6 mt-0">
+                        /* Remove all margins, radius and force full height on the main inset */
+                        main[data-slot="sidebar-inset"] {
+                            margin: 0 !important;
+                            border-radius: 0 !important;
+                            height: 100vh !important;
+                            overflow: hidden !important;
+                            display: flex !important;
+                            flex-direction: column !important;
+                        }
+
+                        /* Force the child container to be flush and fill the ENTIRE height since we hid the header */
+                        main[data-slot="sidebar-inset"] > div {
+                            padding: 0 !important;
+                            margin: 0 !important;
+                            height: 100vh !important;
+                            max-height: 100vh !important;
+                            flex: 1 !important;
+                            display: flex !important;
+                            flex-direction: column !important;
+                            overflow: hidden !important;
+                        }
+
+                        /* Hide any potential footers and lock global scroll */
+                        footer, .footer {
+                            display: none !important;
+                        }
+                        /* Ocultar scrollbar global de windows si persiste */
+                        body, html {
+                            overflow: hidden !important;
+                            height: 100vh !important;
+                        }
+                    `}</style>
+                )}
+                {isInsideCourse ? (
                     <MyEnrollments
                         enrollments={myEnrollments}
                         selectedCourse={selectedCourse}
                         onSelectCourse={handleSelectCourse}
+                        themes={themes}
                     />
-                </TabsContent>
-                <TabsContent value="catalog" className="space-y-6 mt-0">
-                    <CourseCatalog
-                        courses={availableCourses.filter(course =>
-                            !myEnrollments.some(enrollment => enrollment.courseId === course.id) &&
-                            (!course.endDate || new Date(course.endDate) >= new Date()) &&
-                            course.registrationOpen &&
-                            (!course.registrationDeadline || new Date(course.registrationDeadline) >= new Date())
-                        )}
-                        pendingEnrollments={pendingEnrollments}
-                    />
-                </TabsContent>
-            </Tabs>
+                ) : (
+                    <Tabs defaultValue="my-courses" className="space-y-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <TabsList className="grid w-full sm:w-auto grid-cols-2">
+                                <TabsTrigger value="my-courses">Mis Cursos</TabsTrigger>
+                                <TabsTrigger value="catalog">Catálogo de Cursos</TabsTrigger>
+                            </TabsList>
+                        </div>
+
+                        <TabsContent value="my-courses" className="space-y-6 mt-0">
+                            <MyEnrollments 
+                                enrollments={myEnrollments} 
+                                selectedCourse={selectedCourse} 
+                                onSelectCourse={handleSelectCourse}
+                                activeTab={activeTab}
+                                onTabChange={handleTabChange}
+                                themes={themes}
+                            />
+                        </TabsContent>
+                        <TabsContent value="catalog" className="space-y-6 mt-0">
+                            <CourseCatalog
+                                courses={availableCourses.filter(course =>
+                                    !myEnrollments.some(enrollment => enrollment.courseId === course.id) &&
+                                    (!course.endDate || new Date(course.endDate) >= new Date()) &&
+                                    course.registrationOpen &&
+                                    (!course.registrationDeadline || new Date(course.registrationDeadline) >= new Date())
+                                )}
+                                pendingEnrollments={pendingEnrollments}
+                            />
+                        </TabsContent>
+                    </Tabs>
+                )}
+            </div>
         </div>
     );
 }

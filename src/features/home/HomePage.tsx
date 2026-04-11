@@ -101,15 +101,15 @@ export default function HomePage() {
                 <div className="w-full py-12 px-6 bg-muted/30 border-y">
                     <div className="max-w-7xl mx-auto">
                         <h2 className="text-2xl font-bold mb-8 text-center">Acceso Rápido</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        <div className="flex flex-wrap justify-center gap-6">
                             {navItems.map((item, index) => (
-                                <Link key={index} href={item.url}>
+                                <Link key={index} href={item.url} className="w-full sm:w-[280px] md:w-[320px]">
                                     <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer h-full border-primary/10">
                                         <CardHeader className="flex flex-col items-center justify-center text-center space-y-4 p-6">
                                             <div className={`p-4 rounded-full bg-background shadow-sm ${item.color}`}>
-                                                <item.icon className="w-8 h-8" />
+                                                <item.icon className="w-10 h-10" />
                                             </div>
-                                            <CardTitle className="text-lg font-medium">{item.title}</CardTitle>
+                                            <CardTitle className="text-xl font-bold uppercase tracking-tight">{item.title}</CardTitle>
                                         </CardHeader>
                                     </Card>
                                 </Link>

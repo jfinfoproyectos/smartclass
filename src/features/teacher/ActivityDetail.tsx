@@ -55,6 +55,7 @@ import { toast } from "sonner";
 import { ExportButton } from "@/components/ui/export-button";
 import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
 import { formatName } from "@/lib/utils";
+import Link from "next/link";
 
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
@@ -448,7 +449,14 @@ export function ActivityDetail({
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                <Button variant="ghost" size="sm" asChild className="w-fit h-8 px-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors group">
+                    <Link href={`/dashboard/teacher/courses/${activity.courseId}?tab=activities`} className="flex items-center gap-1.5 font-bold uppercase text-[10px] tracking-widest">
+                        <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                        Volver a Actividades
+                    </Link>
+                </Button>
+
                 <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                         <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{activity.title}</h2>

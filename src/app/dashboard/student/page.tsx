@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentDashboard } from "@/features/student/StudentDashboard";
 import { courseService } from "@/services/courseService";
+import { getAvailableThemes } from "@/app/actions/themes";
 
 export default async function Page() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -14,10 +15,13 @@ export default async function Page() {
   const myEnrollments = await courseService.getStudentEnrollments(session.user.id);
   const pendingEnrollments = await courseService.getStudentPendingEnrollments(session.user.id);
 
+  const themes = await getAvailableThemes();
+
   return <StudentDashboard
     availableCourses={availableCourses}
     myEnrollments={myEnrollments}
     studentName={session.user.name}
     pendingEnrollments={pendingEnrollments}
+    themes={themes}
   />;
 }
