@@ -10,12 +10,13 @@ export function NavigationLoader() {
     const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        setIsLoading(false)
+        // Use a microtask to avoid synchronous setState in effect body
+        const timer = setTimeout(() => setIsLoading(false), 0)
+        return () => clearTimeout(timer)
     }, [pathname, searchParams])
 
     useEffect(() => {
         const handleStart = () => setIsLoading(true)
-        const handleComplete = () => setIsLoading(false)
 
         // Listen for route changes
         window.addEventListener("beforeunload", handleStart)

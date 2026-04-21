@@ -16,10 +16,8 @@ export async function saveTeacherCredentialsAction(formData: FormData) {
     }
 
     const userId = session.user.id;
-    const githubToken = formData.get("githubToken") as string;
-    const geminiApiKey = formData.get("geminiApiKey") as string;
 
-    const data: any = {};
+    const data: Record<string, string | null> = {};
 
     if (formData.has("githubToken")) {
         const githubToken = formData.get("githubToken") as string;
@@ -45,7 +43,7 @@ export async function saveTeacherCredentialsAction(formData: FormData) {
             entityId: userId,
             userId: userId,
             userName: session.user.name || "Profesor",
-            userRole: session.user.role as any,
+            userRole: session.user.role as "teacher" | "admin" | "student",
             description: "Credenciales de API (GitHub/Gemini) actualizadas por el profesor",
             success: true,
         });

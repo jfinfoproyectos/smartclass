@@ -2,7 +2,6 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GraduationCap, BookOpen, Settings2 } from "lucide-react"
-import { ModeToggle } from "@/components/theme/ModeToggle"
 import { HeroSection } from "@/features/landing/HeroSection"
 
 export default function Page() {

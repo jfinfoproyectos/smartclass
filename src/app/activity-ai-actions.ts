@@ -15,9 +15,9 @@ export async function generateActivityDescriptionAction(prompt: string, activity
         const content = await generateActivityDescription(prompt, activityType, session.user.id)
 
         return { content }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error generating description:", error)
-        return { error: error.message || "Error al generar contenido" }
+        return { error: error instanceof Error ? error.message : "Error al generar contenido" }
     }
 }
 
@@ -32,8 +32,8 @@ export async function generateActivityStatementAction(prompt: string, activityTy
         const content = await generateActivityStatement(prompt, activityType, session.user.id)
 
         return { content }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error generating statement:", error)
-        return { error: error.message || "Error al generar contenido" }
+        return { error: error instanceof Error ? error.message : "Error al generar contenido" }
     }
 }

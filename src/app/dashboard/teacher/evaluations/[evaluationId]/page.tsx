@@ -19,22 +19,23 @@ export default async function EvaluationDetailsPage({
 
     const resolvedParams = await params;
 
+    let evaluation;
     try {
-        const evaluation = await evaluationService.getEvaluationWithQuestions(
+        evaluation = await evaluationService.getEvaluationWithQuestions(
             resolvedParams.evaluationId,
             session.user.id
         );
-
-        if (!evaluation) {
-            return notFound();
-        }
-
-        return (
-            <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto w-full">
-                <QuestionManager evaluation={evaluation} />
-            </div>
-        );
-    } catch (error) {
+    } catch {
         return notFound();
     }
+
+    if (!evaluation) {
+        return notFound();
+    }
+
+    return (
+        <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto w-full">
+            <QuestionManager evaluation={evaluation} />
+        </div>
+    );
 }

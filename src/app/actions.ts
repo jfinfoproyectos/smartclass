@@ -2809,10 +2809,10 @@ export async function evaluateAnswerWithAIAction(submissionId: string, questionI
     const { evaluateStudentAnswer } = await import("../services/gemini/evaluationAnalysisService");
     const aiResult = await evaluateStudentAnswer(question.text, question.type, currentAnswer, 5.0, question.referenceAnswer || undefined, teacherId);
 
-    let feedbackHistory: any[] = [];
+    let feedbackHistory: { attempt: number; feedback: string; score: number; isCorrect: boolean; requestedAt: string }[] = [];
     if (answerRecord.aiFeedback) {
         feedbackHistory = Array.isArray(answerRecord.aiFeedback) 
-            ? answerRecord.aiFeedback 
+            ? answerRecord.aiFeedback as typeof feedbackHistory
             : JSON.parse(answerRecord.aiFeedback as string);
     }
 
@@ -2833,6 +2833,7 @@ export async function evaluateAnswerWithAIAction(submissionId: string, questionI
         data: {
             supportAttempts: currentAttemptNumber,
             score: maxScore,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             aiFeedback: feedbackHistory as any
         }
     });
@@ -2886,7 +2887,12 @@ export async function useAiHintAction(submissionId: string, questionId: string, 
     if (!submission) throw new Error("Submission not found");
 
     const maxHints = submission.attempt.evaluation.wildcardAiHints || 0;
-    const wildcardsUsed: any = submission.wildcardsUsed || {};
+    const wildcardsUsed = (submission.wildcardsUsed || {}) as {
+        aiHintsUsed?: number;
+        aiHintQuestions?: { questionId: string; usedAt: string }[];
+        secondChanceUsed?: number;
+        secondChanceQuestions?: { questionId: string; usedAt: string }[];
+    };
     const hintsUsed = wildcardsUsed.aiHintsUsed || 0;
 
     if (hintsUsed >= maxHints) {
@@ -2941,7 +2947,12 @@ export async function useSecondChanceAction(submissionId: string, questionId: st
     if (!submission) throw new Error("Submission not found");
 
     const maxSecondChances = submission.attempt.evaluation.wildcardSecondChance || 0;
-    const wildcardsUsed: any = submission.wildcardsUsed || {};
+    const wildcardsUsed = (submission.wildcardsUsed || {}) as {
+        aiHintsUsed?: number;
+        aiHintQuestions?: { questionId: string; usedAt: string }[];
+        secondChanceUsed?: number;
+        secondChanceQuestions?: { questionId: string; usedAt: string }[];
+    };
     const secondChanceUsed = wildcardsUsed.secondChanceUsed || 0;
 
     if (secondChanceUsed >= maxSecondChances) {
@@ -3053,13 +3064,13 @@ export async function getGroupAIInsightsAction(evaluationId: string, attemptId: 
     const stats = evaluation.questions.map((q, index) => {
         const answersForQ = submissions
             .flatMap(s => (s.answersList || []))
-            .filter((a: any) => a.questionId === q.id && a.score !== null);
+            .filter((a) => a.questionId === q.id && a.score !== null);
 
         const avg = answersForQ.length > 0
-            ? answersForQ.reduce((acc: number, a: any) => acc + Number(a.score), 0) / answersForQ.length
+            ? answersForQ.reduce((acc, a) => acc + Number(a.score), 0) / answersForQ.length
             : 0;
 
-        const successCount = answersForQ.filter((a: any) => Number(a.score) >= 3.0).length;
+        const successCount = answersForQ.filter((a) => Number(a.score) >= 3.0).length;
 
         return {
             questionIndex: index,
@@ -3069,14 +3080,15 @@ export async function getGroupAIInsightsAction(evaluationId: string, attemptId: 
         };
     });
 
-    const sampleFeedbackList = submissions
-        .flatMap(s => (s.answersList || []))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sampleFeedbackList = (submissions as any[])
+        .flatMap((s: any) => (s.answersList || []))
         .filter((a: any) => a.score !== null && Number(a.score) < 3.0 && a.aiFeedback && a.aiFeedback.length > 0)
         .map((a: any) => {
             const history = Array.isArray(a.aiFeedback) ? a.aiFeedback : JSON.parse(a.aiFeedback as string);
             return history[history.length - 1].feedback;
         })
-        .filter((val, index, self) => self.indexOf(val) === index)
+        .filter((val: string, index: number, self: string[]) => self.indexOf(val) === index)
         .slice(0, 15);
 
     return await getGroupAIInsights(
@@ -3127,7 +3139,7 @@ export async function exportEvaluationAction(evaluationId: string) {
     return await evaluationService.getFullEvaluationData(evaluationId, session.user.id);
 }
 
-export async function importEvaluationAction(data: any) {
+export async function importEvaluationAction(data: Record<string, unknown>) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
 

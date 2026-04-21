@@ -8,6 +8,7 @@ Bienvenido a SmartClass. Esta guía te ayudará paso a paso a navegar por la pla
 
 ### Tu Panel de Inicio
 
+
 Cuando inicias sesión, verás tu **Dashboard de Estudiante** con:
 
 - **Cursos activos**: Todos los cursos en los que estás inscrito

@@ -226,9 +226,8 @@ export async function reassignCourseTeacherAction(courseId: string, newTeacherId
     const session = await requireAdmin();
 
     // Get course and teacher info
-    const [course, oldTeacher, newTeacher] = await Promise.all([
+    const [course, newTeacher] = await Promise.all([
         prisma.course.findUnique({ where: { id: courseId }, select: { title: true, teacherId: true } }),
-        prisma.user.findUnique({ where: { id: newTeacherId }, select: { name: true } }),
         prisma.user.findUnique({ where: { id: newTeacherId }, select: { name: true } })
     ]);
 
@@ -324,6 +323,7 @@ export async function updateSystemSettingsAction(data: {
 }) {
     const session = await requireAdmin();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = {
         geminiApiKeyMode: "USER", // Siempre forzar modo por usuario
         footerText: data.footerText,
@@ -419,8 +419,8 @@ export async function getAuditLogsAction(filters?: {
     const { auditLogger } = await import("@/services/auditLogger");
 
     return await auditLogger.getLogs({
-        action: filters?.action as any,
-        entity: filters?.entity as any,
+        action: filters?.action as "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "OTHER" | undefined,
+        entity: filters?.entity as "USER" | "COURSE" | "ACTIVITY" | "EVALUATION" | "SYSTEM" | "OTHER" | undefined,
         userId: filters?.userId,
         success: filters?.success,
         startDate: filters?.startDate ? new Date(filters.startDate) : undefined,
@@ -495,6 +495,7 @@ export async function getGeminiApiLogsAction(filters?: {
 }) {
     await requireAdmin();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
         action: "OTHER",
         entity: "SYSTEM",
@@ -531,7 +532,7 @@ export async function getGeminiApiLogsAction(filters?: {
             try {
                 const meta = JSON.parse(log.metadata);
                 if (meta.requestsCount) totalRequests += meta.requestsCount;
-            } catch (e) { }
+            } catch { }
         }
     });
 
