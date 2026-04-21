@@ -71,10 +71,11 @@ export function NavUser({
     setLastName(parts.length > 1 ? parts[parts.length - 1] || "" : "")
     setMenuOpen(false)
     setAccountOpen(true)
-    loadProfile() // Load profile data
-    if (isMobile) {
-      setOpenMobile(false)
-    }
+    loadProfile()
+    // En móvil NO cerramos el sidebar aquí:
+    // el Sheet del sidebar usa su propio backdrop y al cerrarse programáticamente
+    // dispara onPointerDownOutside en el Dialog, cierrándolo inmediatamente.
+    // El sidebar se cerrará solo cuando el usuario toque fuera de él.
   }
 
   const su = session?.user as { name?: string; email?: string; image?: string } | null | undefined
@@ -250,7 +251,16 @@ export function NavUser({
         </SidebarMenuItem>
       </SidebarMenu>
       <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
-        <DialogContent>
+        <DialogContent
+          onPointerDownOutside={(e) => {
+            // Evita que el backdrop del Sheet del sidebar (modo móvil)
+            // cierre este dialog cuando el Sheet se cierra
+            if (isMobile) e.preventDefault()
+          }}
+          onInteractOutside={(e) => {
+            if (isMobile) e.preventDefault()
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Actualización de datos</DialogTitle>
             <DialogDescription>Actualiza tu información personal</DialogDescription>
