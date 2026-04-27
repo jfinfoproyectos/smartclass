@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { motion } from "framer-motion";
 import {
     Dialog,
     DialogContent,
@@ -223,7 +224,7 @@ function DeleteCourseDialog({ courseId, courseTitle }: { courseId: string, cours
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-4 w-4 text-red-500 hover:text-red-700 hover:bg-red-50 p-0"
+                                className="h-4 w-4 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-0"
                             >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
@@ -343,12 +344,20 @@ export function CourseManager({
     const CourseGrid = ({ courses }: { courses: Course[] }) => {
         if (courses.length === 0) {
             return (
-                <div className="flex flex-col items-center justify-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-muted/50">
-                    <div className="bg-muted/20 p-4 rounded-full mb-4">
-                        <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center py-24 bg-muted/5 rounded-[2.5rem] border-2 border-dashed border-muted/30 backdrop-blur-sm"
+                >
+                    <div className="bg-primary/5 p-6 rounded-full mb-6 relative">
+                        <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping opacity-20" />
+                        <BookOpen className="h-12 w-12 text-primary/40 relative z-10" />
                     </div>
-                    <p className="text-xl font-medium text-muted-foreground">No se encontraron cursos en esta categoría</p>
-                </div>
+                    <h3 className="text-2xl font-bold text-foreground/80 mb-2">No hay cursos disponibles</h3>
+                    <p className="text-muted-foreground text-center max-w-md px-6">
+                        Parece que todavía no hay cursos en esta sección. ¡Pronto aparecerán nuevas oportunidades de aprendizaje!
+                    </p>
+                </motion.div>
             );
         }
 

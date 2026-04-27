@@ -81,11 +81,11 @@ export default function HomePage() {
                             }}
                             className="flex flex-col items-center justify-center text-center translate-y-24"
                         >
-                            <h1 className="text-white text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight px-4 drop-shadow-2xl">
+                            <h1 className="text-slate-950 dark:text-white text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight px-4 drop-shadow-2xl">
                                 {settings.institutionName || ""}
                             </h1>
 
-                            <div className="mt-6 space-y-2 text-white/90">
+                            <div className="mt-6 space-y-2 text-slate-900/90 dark:text-white/90">
                                 <h2 className="text-xl md:text-2xl font-medium drop-shadow-md">
                                     ¡Hola, {mounted ? (session?.user?.name?.split(' ')[0] || 'Usuario') : 'Usuario'}!
                                 </h2>

@@ -44,7 +44,7 @@ export const calculateStudentGradeInGroup = (studentId: string, group: GradeGrou
         } else if (item.evaluationAttemptId) {
             const attempt = evaluations.find((e: any) => e.id === item.evaluationAttemptId);
             const submission = attempt?.submissions?.find((s: any) => s.userId === studentId);
-            grade = (submission?.score || 0) * 5 / 100; // Normalize to 5.0
+            grade = submission?.score || 0; // Already in 0-5.0 scale
             title = attempt?.evaluation?.title || title;
             // Evaluacions don't have a simple direct submission URL for now
         }

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { createCourseAction, updateCourseAction, cloneCourseAction } from "@/app/actions";
+import { motion } from "framer-motion";
 
 interface TeacherDashboardProps {
     courses: any[];
@@ -314,18 +315,30 @@ export function TeacherDashboard({ courses, pendingEnrollments, stats, currentDa
                 </div>
 
                 <TabsContent value="courses" className="animate-in fade-in duration-500 mt-0">
-                    <CourseManager 
-                        initialCourses={courses} 
-                        pendingEnrollments={pendingEnrollments} 
-                        currentDate={currentDate} 
-                        filter={courseFilter as any}
-                        onEdit={openEditDialog}
-                        onClone={openCloneDialog}
-                    />
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <CourseManager 
+                            initialCourses={courses} 
+                            pendingEnrollments={pendingEnrollments} 
+                            currentDate={currentDate} 
+                            filter={courseFilter as any}
+                            onEdit={openEditDialog}
+                            onClone={openCloneDialog}
+                        />
+                    </motion.div>
                 </TabsContent>
 
                 <TabsContent value="enrollments" className="animate-in fade-in duration-500 mt-0">
-                    <EnrollmentRequests requests={pendingEnrollments} />
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <EnrollmentRequests requests={pendingEnrollments} />
+                    </motion.div>
                 </TabsContent>
             </Tabs>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -29,13 +30,27 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Wand2, ShieldAlert, AlertTriangle, Maximize2 } from "lucide-react";
+import { Loader2, Sparkles, Wand2, ShieldAlert, AlertTriangle, Maximize2, Activity } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { getGroupAIInsightsAction, getPlagiarismAnalysisAction } from "@/app/actions";
 import { pdf } from "@react-pdf/renderer";
 import { AIInsightsPDF } from "./AIInsightsPDF";
+import { motion, animate, useMotionValue, useTransform } from "framer-motion";
+import { useEffect } from "react";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend);
+
+function CountUp({ value, duration = 1 }: { value: number, duration?: number }) {
+    const count = useMotionValue(0);
+    const rounded = useTransform(count, (latest) => latest.toFixed(value % 1 === 0 ? 0 : 2));
+
+    useEffect(() => {
+        const controls = animate(count, value, { duration, ease: "easeOut" });
+        return controls.stop;
+    }, [value, count, duration]);
+
+    return <motion.span>{rounded}</motion.span>;
+}
 
 interface EvaluationStatsProps {
     submissions: any[];
@@ -43,6 +58,7 @@ interface EvaluationStatsProps {
     questions?: Array<{ id: string; text: string; type: string }>;
     evaluationId: string;
     attemptId: string;
+    courseId: string;
     courseName: string;
     teacherName: string;
 }
@@ -66,11 +82,11 @@ const BUCKET_COLORS_BG = [
 interface ModalState {
     open: boolean;
     title: string;
-    students: { name: string; email: string; score: number | null; submitted: boolean }[];
+    students: { id: string; name: string; email: string; score: number | null; submitted: boolean }[];
 }
 
 export function EvaluationStats({
-    submissions, totalQuestions, questions = [], evaluationId, attemptId, courseName, teacherName
+    submissions, totalQuestions, questions = [], evaluationId, attemptId, courseId, courseName, teacherName
 }: EvaluationStatsProps) {
     const [modal, setModal] = useState<ModalState>({ open: false, title: "", students: [] });
     const [questionModal, setQuestionModal] = useState<{
@@ -171,6 +187,7 @@ export function EvaluationStats({
             open: true,
             title,
             students: list.map(s => ({
+                id: s.id,
                 name: s.user?.name || "—",
                 email: s.user?.email || "—",
                 score: s.score !== undefined ? Number(s.score) : null,
@@ -421,11 +438,22 @@ export function EvaluationStats({
                     { label: "Nota Promedio", value: avgScore.toFixed(2), color: "text-blue-600 dark:text-blue-400" },
                     { label: "Nota Máxima", value: maxScore.toFixed(2), color: "text-green-600 dark:text-green-400" },
                     { label: "Nota Mínima", value: submitted.length === 0 ? "—" : minScore.toFixed(2), color: submitted.length === 0 ? "text-muted-foreground" : "text-red-600 dark:text-red-400" },
-                ].map((kpi) => (
-                    <div key={kpi.label} className="rounded-lg border bg-card p-4 flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground uppercase font-medium tracking-wide">{kpi.label}</span>
-                        <span className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</span>
-                    </div>
+                ].map((kpi, idx) => (
+                    <motion.div 
+                        key={kpi.label} 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1, duration: 0.4 }}
+                        className="rounded-xl border bg-card p-5 flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow group overflow-hidden relative"
+                    >
+                        <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                             <Activity className="w-8 h-8" />
+                        </div>
+                        <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">{kpi.label}</span>
+                        <span className={`text-2xl font-black ${kpi.color} tracking-tight`}>
+                            {typeof kpi.value === 'string' && kpi.value === '—' ? '—' : <CountUp value={Number(kpi.value)} />}
+                        </span>
+                    </motion.div>
                 ))}
             </div>
 
@@ -471,7 +499,7 @@ export function EvaluationStats({
                     <CardContent>
                         <div className="space-y-3">
                             {plagiarismData.matches.filter(m => m.similarityScore > 0.4).slice(0, 10).map((match, i) => (
-                                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-white dark:bg-zinc-900 border border-red-100 dark:border-red-900/30 shadow-sm">
+                                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-card border border-red-100 dark:border-red-900/30 shadow-sm">
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2 text-sm font-medium">
                                             <span className="text-zinc-600 dark:text-zinc-400">{match.studentA.name}</span>
@@ -715,7 +743,7 @@ export function EvaluationStats({
                             <span>Pregunta {questionModal.index + 1}</span>
                             <Badge variant="outline">{questionModal.type}</Badge>
                             {questionModal.avg !== null && (
-                                <Badge className={questionModal.avg >= 3 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                                <Badge className={questionModal.avg >= 3 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-none" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-none"}>
                                     Promedio: {questionModal.avg.toFixed(2)}
                                 </Badge>
                             )}
@@ -752,19 +780,28 @@ export function EvaluationStats({
                         <DialogTitle>{modal.title}</DialogTitle>
                         <DialogDescription>{modal.students.length} estudiante{modal.students.length !== 1 ? "s" : ""} en este grupo</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1 mt-4">
                         {modal.students.map((s, i) => (
-                            <div key={i} className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-medium">{s.name}</span>
-                                    <span className="text-xs text-muted-foreground">{s.email}</span>
+                            <div key={i} className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold">{s.name}</span>
+                                        <span className="text-xs text-muted-foreground">{s.email}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {s.score !== null && <span className="text-sm font-black text-blue-600 dark:text-blue-400">{Number(s.score).toFixed(2)}</span>}
+                                        <Badge variant={!s.submitted ? "secondary" : s.score !== null && s.score >= 3 ? "default" : "destructive"}>
+                                            {!s.submitted ? "En progreso" : s.score !== null && s.score >= 3 ? "Aprobado" : "Reprobado"}
+                                        </Badge>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {s.score !== null && <span className="text-sm font-bold">{Number(s.score).toFixed(2)}</span>}
-                                    <Badge variant={!s.submitted ? "secondary" : s.score !== null && s.score >= 3 ? "default" : "destructive"}>
-                                        {!s.submitted ? "En progreso" : s.score !== null && s.score >= 3 ? "Aprobado" : "Reprobado"}
-                                    </Badge>
-                                </div>
+                                {s.submitted && (
+                                    <Button variant="outline" size="sm" asChild className="w-full h-8 text-xs font-bold uppercase tracking-wider bg-background hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-colors">
+                                        <Link href={`/dashboard/teacher/courses/${courseId}/evaluations/${attemptId}/submissions/${s.id}`}>
+                                            Ver Respuestas
+                                        </Link>
+                                    </Button>
+                                )}
                             </div>
                         ))}
                     </div>

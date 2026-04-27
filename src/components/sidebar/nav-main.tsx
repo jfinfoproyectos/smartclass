@@ -57,7 +57,9 @@ export function NavMain({
           // Para otros, ver si el pathname empieza con el url del item (para rutas anidadas)
           const isDashboard = item.url === "/dashboard"
           const active = item.isActive || 
-            (isDashboard ? pathname === item.url : pathname.startsWith(item.url))
+            (isDashboard 
+              ? pathname === item.url 
+              : pathname === item.url || (pathname.startsWith(item.url + "/") && !items.some(other => other.url.length > item.url.length && pathname.startsWith(other.url))))
 
           // Si no hay items anidados, renderizar como enlace directo
           if (!item.items || item.items.length === 0) {

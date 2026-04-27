@@ -49,9 +49,9 @@ export function MyEnrollments({
 
     if (!selectedCourse) {
         return (
-        <div className="flex flex-wrap items-center justify-center gap-6 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-12 w-full max-w-7xl mx-auto">
                 {enrollments.map((enrollment) => (
-                    <div key={enrollment.id} className="relative group">
+                    <div key={enrollment.id} className="relative group flex flex-col">
                         <div className="absolute inset-0 bg-primary/5 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         <Card className="h-full flex flex-col relative bg-background/60 backdrop-blur-xl border-border/50 rounded-[1.8rem] overflow-hidden hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-xl text-center">
                             <div className="absolute top-0 left-0 w-full h-1 bg-primary/20" />
@@ -61,7 +61,7 @@ export function MyEnrollments({
                                     <Badge variant="outline" className="text-[8px] px-2 h-4 uppercase font-black tracking-widest bg-primary/5 text-primary border-primary/20 rounded-full">
                                         Matriculado
                                     </Badge>
-                                    <CardTitle className="text-sm font-bold leading-tight group-hover:text-primary transition-colors w-full uppercase tracking-tight">
+                                    <CardTitle className="text-sm font-bold leading-tight group-hover:text-primary transition-colors w-full uppercase tracking-tight line-clamp-3 min-h-[3rem] flex items-center justify-center">
                                         {enrollment.course.title}
                                     </CardTitle>
                                     <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mt-1">

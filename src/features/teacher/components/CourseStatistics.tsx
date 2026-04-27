@@ -104,7 +104,7 @@ export function CourseStatistics({
                                     } else if (item.evaluationAttemptId) {
                                         const attempt = gradesData.evaluations?.find((e: any) => e.id === item.evaluationAttemptId);
                                         const submission = attempt?.submissions?.find((s: any) => s.userId === student.id);
-                                        grade = (submission?.score || 0) * 5 / 100;
+                                        grade = submission?.score || 0; // Already in 0-5.0 scale
                                     }
                                     groupGrade += grade * item.weight;
                                     groupWeight += item.weight;
@@ -164,7 +164,7 @@ export function CourseStatistics({
                                      } else if (item.evaluationAttemptId) {
                                          const attempt = gradesData.evaluations?.find((e: any) => e.id === item.evaluationAttemptId);
                                          const submission = attempt?.submissions?.find((s: any) => s.userId === student.id);
-                                         grade = (submission?.score || 0) * 5 / 100;
+                                         grade = submission?.score || 0; // Already in 0-5.0 scale
                                      }
                                      groupGrade += grade * item.weight;
                                      groupWeight += item.weight;

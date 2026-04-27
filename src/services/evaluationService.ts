@@ -350,7 +350,7 @@ export const evaluationService = {
                         evaluation: {
                             include: {
                                 questions: {
-                                    orderBy: { createdAt: "asc" }
+                                    orderBy: { order: "asc" }
                                 }
                             }
                         }

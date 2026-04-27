@@ -2278,7 +2278,7 @@ export async function getStudentCompleteDataAction(studentId: string, courseId: 
                     title = activity?.title || title;
                 } else if (item.evaluationAttemptId) {
                     const submission = item.evaluationAttempt?.submissions.find(s => s.userId === studentId);
-                    grade = (submission?.score || 0) * 5 / 100;
+                    grade = submission?.score || 0;
                     title = item.evaluationAttempt?.evaluation?.title || title;
                 }
 
@@ -3192,5 +3192,18 @@ export async function updateEvaluationAssignmentAction(formData: FormData) {
     });
 
     revalidatePath(`/dashboard/teacher/courses/${courseId}/evaluations`);
+}
+
+export async function deleteEvaluationSubmissionAction(submissionId: string, courseId: string) {
+    const session = await getSession();
+    if (!session || (session.user.role !== "admin" && session.user.role !== "teacher")) {
+        throw new Error("Unauthorized");
+    }
+
+    const { evaluationService } = await import("@/services/evaluationService");
+    await evaluationService.deleteSubmission(submissionId);
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+    return { success: true };
 }
 

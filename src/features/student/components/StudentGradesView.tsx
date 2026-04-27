@@ -41,7 +41,7 @@ export function StudentGradesView({ enrollment }: StudentGradesViewProps) {
             } else if (item.evaluationAttemptId) {
                 const attempt = evaluationAttempts.find((e: any) => e.id === item.evaluationAttemptId);
                 const submission = attempt?.submissions[0];
-                grade = (submission?.score || 0) * 5 / 100; // Normalize to 5.0
+                grade = submission?.score || 0; // Already in 0-5.0 scale
             }
             
             totalWeightedGrade += grade * item.weight;
@@ -225,7 +225,7 @@ export function StudentGradesView({ enrollment }: StudentGradesViewProps) {
                                                                         const attempt = evaluationAttempts.find((e: any) => e.id === item.evaluationAttemptId);
                                                                         itemTitle = attempt?.evaluation?.title || "Evaluación";
                                                                         const submission = attempt?.submissions[0];
-                                                                        itemGrade = (submission?.score || 0) * 5 / 100;
+                                                                        itemGrade = submission?.score || 0;
                                                                         isCompleted = submission?.score !== null && submission?.score !== undefined;
                                                                     }
 
