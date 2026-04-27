@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -17,18 +18,31 @@ import {
 } from "@/components/ui/tooltip";
 
 export function CreditsModal() {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return (
+            <Button variant="outline" size="icon">
+                <Info className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Créditos</span>
+            </Button>
+        );
+    }
+
     return (
         <Dialog>
             <Tooltip>
                 <DialogTrigger asChild>
-                    <span className="inline-block">
-                        <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <Info className="h-[1.2rem] w-[1.2rem]" />
-                                <span className="sr-only">Créditos</span>
-                            </Button>
-                        </TooltipTrigger>
-                    </span>
+                    <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Info className="h-[1.2rem] w-[1.2rem]" />
+                            <span className="sr-only">Créditos</span>
+                        </Button>
+                    </TooltipTrigger>
                 </DialogTrigger>
                 <TooltipContent>
                     <p>Créditos</p>

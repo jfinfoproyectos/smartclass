@@ -548,16 +548,18 @@ export async function deleteSubmissionAction(formData: FormData) {
 // Helper function to normalize URLs for comparison
 function normalizeUrl(url: string): string {
     try {
-        const urlObj = new URL(url);
-        // Convert to lowercase
-        let normalized = urlObj.href.toLowerCase();
-        // Remove www.
-        normalized = normalized.replace('://www.', '://');
-        // Remove trailing slash
+        const urlObj = new URL(url.trim());
+        // Normalizar solo el protocolo y el nombre del host (que no son sensibles a mayúsculas)
+        urlObj.hostname = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+        urlObj.protocol = urlObj.protocol.toLowerCase();
+        
+        // El path y los search params son sensibles a mayúsculas en muchos servicios (Drive, GitHub, etc.)
+        let normalized = urlObj.href;
+        // Eliminar barra final para consistencia
         normalized = normalized.replace(/\/$/, '');
         return normalized;
     } catch {
-        // If URL parsing fails, just normalize the string
+        // Si falla el parseo, normalizamos el string completo a minúsculas como fallback
         return url.toLowerCase().trim();
     }
 }
@@ -896,24 +898,87 @@ export async function gradeManualActivityAction(formData: FormData) {
 
     // 🎯 AUDIT LOG
     const { auditLogger } = await import("@/services/auditLogger");
-
-
-    const [activity, student] = await Promise.all([
-        prisma.activity.findUnique({ where: { id: activityId }, select: { title: true } }),
-        prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
-    ]);
-
-    await auditLogger.logGrade(
-        existingSubmission?.id || "new",
-        activity?.title || "Actividad",
-        student?.name || "Estudiante",
-        grade,
-        session.user.id,
-        session.user.name || "Profesor"
-    );
+    await auditLogger.log({
+        action: "GRADE",
+        entity: "SUBMISSION",
+        entityId: `${activityId}_${userId}`,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Nota manual asignada a estudiante (${userId}) en actividad ${activityId}: ${grade}`,
+        success: true,
+    });
 
     revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
 }
+
+export async function batchGradeAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const activityId = formData.get("activityId") as string;
+    const userIdsStr = formData.get("userIds") as string; // JSON string array
+    const gradeStr = formData.get("grade") as string;
+    const feedback = formData.get("feedback") as string;
+    const courseId = formData.get("courseId") as string;
+
+    if (!activityId || !userIdsStr || !gradeStr) {
+        throw new Error("Faltan campos requeridos");
+    }
+
+    const userIds = JSON.parse(userIdsStr) as string[];
+    const grade = parseFloat(gradeStr);
+
+    if (isNaN(grade) || grade < 0 || grade > 5) {
+        throw new Error("La nota debe estar entre 0.0 y 5.0");
+    }
+
+    // Process each student in batch
+    await Promise.all(userIds.map(async (userId) => {
+        const existingSubmission = await activityService.getSubmission(activityId, userId);
+        const url = existingSubmission?.url || "MANUAL";
+
+        return prisma.submission.upsert({
+            where: {
+                userId_activityId: {
+                    userId,
+                    activityId,
+                },
+            },
+            update: {
+                grade,
+                feedback: feedback || null,
+            },
+            create: {
+                url,
+                activityId,
+                userId,
+                grade,
+                feedback: feedback || null,
+                attemptCount: 1,
+                lastSubmittedAt: new Date(),
+            },
+        });
+    }));
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.log({
+        action: "GRADE",
+        entity: "SUBMISSION",
+        entityId: `BATCH_${activityId}`,
+        userId: session.user.id,
+        userName: session.user.name || "Profesor",
+        userRole: session.user.role,
+        description: `Nota grupal asignada a ${userIds.length} estudiantes en actividad ${activityId}: ${grade}`,
+        success: true,
+    });
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
+}
+
 
 export async function rejectManualActivityAction(formData: FormData) {
     const session = await getSession();

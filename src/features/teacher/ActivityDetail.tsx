@@ -48,9 +48,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
 import { es } from "date-fns/locale";
-import { Eye, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2, Bot, Loader2, ChevronDown, ChevronUp, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2, Bot, Loader2, ChevronDown, ChevronUp, CheckCircle, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { FeedbackViewer } from "../student/FeedbackViewer";
-import { deleteSubmissionAction, validateUniqueLinksAction, getGitHubSubmissionDetailsAction, analyzeGitHubFileAction, finalizeGitHubGradingAction } from "@/app/actions";
+import { deleteSubmissionAction, validateUniqueLinksAction, getGitHubSubmissionDetailsAction, analyzeGitHubFileAction, finalizeGitHubGradingAction, batchGradeAction } from "@/app/actions";
 import { toast } from "sonner";
 import { ExportButton } from "@/components/ui/export-button";
 import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
@@ -1040,7 +1040,7 @@ export function ActivityDetail({
 
             {/* Validation Results Dialog */}
             <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
-                <AlertDialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+                <AlertDialogContent className="!max-w-[95vw] sm:!max-w-[95vw] lg:!max-w-[1200px] max-h-[90vh] overflow-y-auto">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
                             <Search className="w-5 h-5" />
@@ -1082,15 +1082,28 @@ export function ActivityDetail({
                                     </div>
 
                                     {validationResults.duplicates.map((duplicate: any, index: number) => (
-                                        <div key={index} className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-4">
+                                        <div key={index} className="rounded-lg border bg-card p-4">
                                             <div className="flex items-start gap-3 mb-3">
-                                                <Badge variant="destructive" className="mt-1">
+                                                <Badge variant="secondary" className="mt-1">
                                                     {duplicate.count} estudiantes
                                                 </Badge>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-mono text-muted-foreground break-all">
+                                                <div className="flex-1 flex items-center gap-2">
+                                                    <p className="text-sm font-mono text-muted-foreground break-all flex-1">
                                                         {duplicate.url}
                                                     </p>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 shrink-0"
+                                                        onClick={() => {
+                                                            const urlToOpen = duplicate.students[0]?.originalUrl || duplicate.url;
+                                                            const finalUrl = urlToOpen.startsWith('http') ? urlToOpen : `https://${urlToOpen}`;
+                                                            window.open(finalUrl, '_blank');
+                                                        }}
+                                                        title="Abrir enlace en nueva pestaña"
+                                                    >
+                                                        <ExternalLink className="w-4 h-4" />
+                                                    </Button>
                                                 </div>
                                             </div>
                                             <div className="space-y-2 pl-4 border-l-2 border-red-300">
@@ -1107,6 +1120,78 @@ export function ActivityDetail({
                                                         )}
                                                     </div>
                                                 ))}
+                                            </div>
+
+                                            {/* Batch Grading Section */}
+                                            <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                                                <div className="flex-1">
+                                                    <Label className="text-xs font-semibold text-muted-foreground">
+                                                        Asignar nota al grupo:
+                                                    </Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="0"
+                                                        max="5"
+                                                        placeholder="0.0 - 5.0"
+                                                        className="h-8 mt-1 bg-background"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                const input = e.currentTarget;
+                                                                const grade = input.value;
+                                                                if (!grade) return;
+                                                                
+                                                                startTransition(async () => {
+                                                                    try {
+                                                                        const formData = new FormData();
+                                                                        formData.append("activityId", activity.id);
+                                                                        formData.append("courseId", activity.courseId);
+                                                                        formData.append("userIds", JSON.stringify(duplicate.students.map((s: any) => s.id)));
+                                                                        formData.append("grade", grade);
+                                                                        
+                                                                        await batchGradeAction(formData);
+                                                                        toast.success(`Nota ${grade} asignada a ${duplicate.students.length} estudiantes`);
+                                                                        input.value = "";
+                                                                    } catch (error: any) {
+                                                                        toast.error("Error", { description: error.message });
+                                                                    }
+                                                                });
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                                <Button 
+                                                    size="sm" 
+                                                    className="self-end h-8"
+                                                    onClick={(e) => {
+                                                        const input = e.currentTarget.previousElementSibling?.querySelector('input');
+                                                        if (!input) return;
+                                                        const grade = input.value;
+                                                        if (!grade) {
+                                                            toast.error("Ingresa una nota");
+                                                            return;
+                                                        }
+                                                        
+                                                        startTransition(async () => {
+                                                            try {
+                                                                const formData = new FormData();
+                                                                formData.append("activityId", activity.id);
+                                                                formData.append("courseId", activity.courseId);
+                                                                formData.append("userIds", JSON.stringify(duplicate.students.map((s: any) => s.id)));
+                                                                formData.append("grade", grade);
+                                                                
+                                                                await batchGradeAction(formData);
+                                                                toast.success(`Nota ${grade} asignada a ${duplicate.students.length} estudiantes`);
+                                                                input.value = "";
+                                                            } catch (error: any) {
+                                                                toast.error("Error", { description: error.message });
+                                                            }
+                                                        });
+                                                    }}
+                                                    disabled={isPending}
+                                                >
+                                                    {isPending ? "Asignando..." : "Asignar Nota"}
+                                                </Button>
                                             </div>
                                         </div>
                                     ))}
