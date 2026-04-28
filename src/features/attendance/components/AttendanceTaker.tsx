@@ -17,7 +17,7 @@ interface AttendanceTakerProps {
 
 interface Student {
     id: string;
-    name: string;
+    name: string | null;
     email: string;
     image: string | null;
     profile: {
@@ -61,9 +61,14 @@ export function AttendanceTaker({ courseId, trigger }: AttendanceTakerProps) {
             
             // Check if there is a record for the currently selected date
             const dateStr = format(attendanceDate, "yyyy-MM-dd");
-            const todayRecord = stats.records.find((r: any) => {
-                const recordDateStr = new Date(r.date).toISOString().split('T')[0];
-                return recordDateStr === dateStr;
+            const todayRecord = stats.records?.find((r: any) => {
+                try {
+                    if (!r.date) return false;
+                    const recordDateStr = new Date(r.date).toISOString().split('T')[0];
+                    return recordDateStr === dateStr;
+                } catch (e) {
+                    return false;
+                }
             });
             setCurrentStatus(todayRecord ? todayRecord.status : null);
             
@@ -80,8 +85,8 @@ export function AttendanceTaker({ courseId, trigger }: AttendanceTakerProps) {
             const studentList = data.map((enrollment: any) => enrollment.user);
             // Sort by last name
             studentList.sort((a: Student, b: Student) => {
-                const nameA = a.profile?.apellido || a.name;
-                const nameB = b.profile?.apellido || b.name;
+                const nameA = a.profile?.apellido || a.name || "";
+                const nameB = b.profile?.apellido || b.name || "";
                 return nameA.localeCompare(nameB);
             });
             setStudents(studentList);
@@ -111,7 +116,7 @@ export function AttendanceTaker({ courseId, trigger }: AttendanceTakerProps) {
         try {
             const dateStr = format(attendanceDate, "yyyy-MM-dd");
             await deleteAttendanceAction(courseId, student.id, dateStr);
-            toast.success(`Registro eliminado para ${student.name}`);
+            toast.success(`Registro eliminado para ${student.profile?.nombres || student.name || "el estudiante"}`);
             
             setCurrentStatus(null);
             
@@ -237,13 +242,15 @@ export function AttendanceTaker({ courseId, trigger }: AttendanceTakerProps) {
                                                 }`}
                                             >
                                                 <Avatar className={`h-8 w-8 border ${currentIndex === index ? "border-primary-foreground/30" : "border-border"}`}>
-                                                    <AvatarImage src={student.image || ""} alt={student.name} />
+                                                    <AvatarImage src={student.image || ""} alt={student.name || "Estudiante"} />
                                                     <AvatarFallback className="text-[10px] bg-muted">
-                                                        {student.name.substring(0, 2).toUpperCase()}
+                                                        {(student.name || "ES").substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <span className="text-xs font-semibold truncate text-left capitalize">
-                                                    {student.profile?.apellido?.toLowerCase() || student.name.split(" ").slice(1)[0]?.toLowerCase() || ""}
+                                                    {student.profile?.nombres && student.profile?.apellido 
+                                                        ? `${student.profile.nombres} ${student.profile.apellido}`.toLowerCase() 
+                                                        : (student.name || "Sin Nombre").toLowerCase()}
                                                 </span>
                                             </button>
                                         ))}
@@ -258,19 +265,19 @@ export function AttendanceTaker({ courseId, trigger }: AttendanceTakerProps) {
                                         <div className="relative">
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary to-blue-500 blur-xl opacity-25 animate-pulse" />
                                             <Avatar className="relative h-28 w-28 md:h-40 md:w-40 lg:h-48 lg:w-48 border-4 md:border-8 border-background shadow-2xl ring-2 md:ring-4 ring-primary/20 transition-transform hover:scale-105 duration-500">
-                                                <AvatarImage src={currentStudent.image || ""} alt={currentStudent.name} className="object-cover" />
+                                                <AvatarImage src={currentStudent.image || ""} alt={currentStudent.name || "Estudiante"} className="object-cover" />
                                                 <AvatarFallback className="text-3xl md:text-5xl font-light bg-muted text-muted-foreground">
-                                                    {currentStudent.name.substring(0, 2).toUpperCase()}
+                                                    {(currentStudent.name || "ES").substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                         </div>
 
                                         <div className="text-center space-y-1 max-w-2xl px-2 capitalize">
                                             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70 leading-tight">
-                                                {currentStudent.profile?.nombres?.toLowerCase() || currentStudent.name.split(" ")[0].toLowerCase()}
+                                                {currentStudent.profile?.nombres?.toLowerCase() || (currentStudent.name || "Sin").split(" ")[0].toLowerCase()}
                                             </h1>
                                             <h2 className="text-lg md:text-2xl text-muted-foreground font-semibold">
-                                                {currentStudent.profile?.apellido?.toLowerCase() || currentStudent.name.split(" ").slice(1).join(" ").toLowerCase()}
+                                                {currentStudent.profile?.apellido?.toLowerCase() || (currentStudent.name || "Nombre").split(" ").slice(1).join(" ").toLowerCase()}
                                             </h2>
                                         </div>
                                     </div>

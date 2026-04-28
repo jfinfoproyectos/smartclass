@@ -31,7 +31,7 @@ import {
     SheetTrigger,
     SheetFooter,
 } from "@/components/ui/sheet";
-import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX, Clock, ChevronDown, Users } from "lucide-react";
+import { Plus, Search, UserPlus, Trash2, UserCheck, Eye, Calendar, MoreHorizontal, ShieldAlert, ShieldCheck, FileSpreadsheet, ClipboardX, Clock, ChevronDown, Users, UserMinus } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -614,24 +614,26 @@ export function StudentManager({
                                                     <Dialog>
                                                         <DialogTrigger asChild>
                                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                                                <UserMinus className="mr-2 h-4 w-4" /> Retirar
                                                             </DropdownMenuItem>
                                                         </DialogTrigger>
                                                         <DialogContent>
                                                             <DialogHeader>
-                                                                <DialogTitle>Eliminar Estudiante</DialogTitle>
+                                                                <DialogTitle>Retirar Estudiante</DialogTitle>
                                                                 <DialogDescription>
-                                                                    Esta acción no se puede deshacer. Esto eliminará permanentemente a <strong>{formatName(enrollment.user.name, enrollment.user.profile)}</strong> del curso y todos sus registros de asistencia y calificaciones.
+                                                                    Esto retirará a <strong>{formatName(enrollment.user.name, enrollment.user.profile)}</strong> del curso actual.
                                                                     <br /><br />
-                                                                    Escribe <strong>eliminar</strong> para confirmar.
+                                                                    No te preocupes, el estudiante <strong>no será eliminado de la base de datos</strong> y sus registros históricos se conservarán en el sistema.
+                                                                    <br /><br />
+                                                                    Escribe <strong>retirar</strong> para confirmar.
                                                                 </DialogDescription>
                                                             </DialogHeader>
                                                             <div className="py-2">
                                                                 <Input
-                                                                    placeholder="Escribe eliminar"
+                                                                    placeholder="Escribe retirar"
                                                                     onChange={(e) => {
                                                                         const btn = document.getElementById(`delete-btn-${enrollment.user.id}`) as HTMLButtonElement;
-                                                                        if (btn) btn.disabled = e.target.value !== "eliminar";
+                                                                        if (btn) btn.disabled = e.target.value.toLowerCase() !== "retirar";
                                                                     }}
                                                                 />
                                                             </div>
@@ -641,6 +643,7 @@ export function StudentManager({
                                                                     formData.append("userId", enrollment.user.id);
                                                                     formData.append("courseId", courseId);
                                                                     await removeStudentFromCourseAction(formData);
+                                                                    toast.success("Estudiante retirado del curso exitosamente");
                                                                 }}>
                                                                     <Button
                                                                         id={`delete-btn-${enrollment.user.id}`}
@@ -648,7 +651,7 @@ export function StudentManager({
                                                                         variant="destructive"
                                                                         disabled
                                                                     >
-                                                                        Eliminar
+                                                                        Retirar
                                                                     </Button>
                                                                 </form>
                                                             </DialogFooter>
