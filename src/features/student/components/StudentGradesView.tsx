@@ -137,6 +137,62 @@ export function StudentGradesView({ enrollment }: StudentGradesViewProps) {
                 </CardContent>
             </Card>
 
+            {/* Quick Summary Grid - Adaptive Layout */}
+            <div className="flex flex-wrap gap-4">
+                {gradeCategories.map((cat: any) => {
+                    const catGrade = calculateGradeInCategory(cat);
+                    return (
+                        <Card key={`summary-${cat.id}`} className="flex-1 min-w-[280px] border-none shadow-sm bg-card/60 backdrop-blur-md ring-1 ring-primary/5 hover:shadow-md transition-all duration-300 group overflow-hidden">
+                            <CardContent className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="bg-primary/10 p-1.5 rounded-lg shrink-0">
+                                            <FolderTree className="h-4 w-4 text-primary" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">
+                                                {cat.name}
+                                            </span>
+                                            <span className="text-[9px] text-primary font-bold opacity-60">
+                                                Peso: {cat.weight}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className={`text-2xl font-black tabular-nums ${getGradeColor(catGrade)}`}>
+                                        {catGrade.toFixed(2)}
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-1.5 pt-1 border-t border-primary/5">
+                                    {cat.groups.map((group: any) => {
+                                        const groupGrade = calculateGradeInGroup(group);
+                                        return (
+                                            <div key={`sum-group-${group.id}`} className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <div className="h-1 w-1 rounded-full bg-primary/30" />
+                                                    <span className="text-[10px] font-bold text-foreground/70 truncate uppercase">
+                                                        {group.name}
+                                                    </span>
+                                                    <span className="text-[8px] text-muted-foreground font-medium">
+                                                        ({group.weight}%)
+                                                    </span>
+                                                </div>
+                                                <div className={`text-[10px] font-black tabular-nums ${getGradeColor(groupGrade)}`}>
+                                                    {groupGrade.toFixed(2)}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </CardContent>
+                            <div className="h-0.5 w-full bg-primary/5">
+                                <Progress value={(catGrade / 5) * 100} className="h-full rounded-none opacity-20" />
+                            </div>
+                        </Card>
+                    );
+                })}
+            </div>
+
             {/* Categories Breakdown */}
             <div className="space-y-6">
                 <h3 className="text-2xl font-black flex items-center gap-3 px-1 text-foreground/80">

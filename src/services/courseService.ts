@@ -951,6 +951,14 @@ export const courseService = {
                     include: {
                         submissions: true
                     }
+                },
+                evaluationAttempts: {
+                    include: {
+                        evaluation: {
+                            select: { title: true }
+                        },
+                        submissions: true
+                    }
                 }
             }
         });
@@ -993,7 +1001,7 @@ export const courseService = {
                 student.id, 
                 course.gradeCategories as any, 
                 course.activities, 
-                course.activities
+                course.evaluationAttempts
             );
 
             const row: any = {

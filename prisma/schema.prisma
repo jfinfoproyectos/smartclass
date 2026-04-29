@@ -164,6 +164,8 @@ enum ActivityType {
   GITHUB
   MANUAL
   GOOGLE_COLAB
+  PDF_REVIEW
+  CODE_PROJECT
 }
 
 model Activity {

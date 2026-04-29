@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 
 
 export const activityService = {
-    async createActivity(data: { title: string; description?: string; statement?: string; filePaths?: string; deadline: Date; openDate?: Date; courseId: string; type?: "GITHUB" | "MANUAL" | "GOOGLE_COLAB"; weight?: number; maxAttempts?: number; allowLinkSubmission?: boolean }) {
+    async createActivity(data: { title: string; description?: string; statement?: string; filePaths?: string; deadline: Date; openDate?: Date; courseId: string; type?: "GITHUB" | "MANUAL" | "GOOGLE_COLAB" | "PDF_REVIEW" | "CODE_PROJECT"; weight?: number; maxAttempts?: number; allowLinkSubmission?: boolean }) {
         // Get max order for the course
         const maxOrderActivity = await prisma.activity.findFirst({
             where: { courseId: data.courseId },
@@ -23,7 +23,7 @@ export const activityService = {
         });
     },
 
-    async updateActivity(id: string, data: { title?: string; description?: string; statement?: string; filePaths?: string; deadline?: Date; openDate?: Date; type?: "GITHUB" | "MANUAL" | "GOOGLE_COLAB"; weight?: number; maxAttempts?: number; allowLinkSubmission?: boolean }) {
+    async updateActivity(id: string, data: { title?: string; description?: string; statement?: string; filePaths?: string; deadline?: Date; openDate?: Date; type?: "GITHUB" | "MANUAL" | "GOOGLE_COLAB" | "PDF_REVIEW" | "CODE_PROJECT"; weight?: number; maxAttempts?: number; allowLinkSubmission?: boolean }) {
         return await prisma.activity.update({
             where: { id },
             data,
@@ -116,13 +116,26 @@ export const activityService = {
         }
 
         // Validate URL based on type
-        if (activity.type === "GITHUB") {
+        if (activity.type === "GITHUB" || activity.type === "CODE_PROJECT") {
             if (!data.url.includes("github.com")) {
                 throw new Error("Invalid GitHub URL");
             }
         } else if (activity.type === "GOOGLE_COLAB") {
             if (!data.url.includes("colab.research.google.com") && !data.url.includes("drive.google.com")) {
                 throw new Error("Enlace inválido. Debe ser de Google Colab o Google Drive.");
+            }
+        } else if (activity.type === "PDF_REVIEW") {
+            // Accept Google Drive, OneDrive, Dropbox, or any URL ending in .pdf
+            const lowerUrl = data.url.toLowerCase();
+            const isValidPdfLink =
+                lowerUrl.includes("drive.google.com") ||
+                lowerUrl.includes("onedrive.live.com") ||
+                lowerUrl.includes("1drv.ms") ||
+                lowerUrl.includes("dropbox.com") ||
+                lowerUrl.endsWith(".pdf") ||
+                lowerUrl.includes("/pdf");
+            if (!isValidPdfLink) {
+                throw new Error("Enlace inválido. Debe ser un enlace a un PDF en Google Drive, OneDrive, Dropbox o una URL directa al archivo PDF.");
             }
         } else if (activity.type === "MANUAL") {
             // Check if link submission is enabled for this manual activity

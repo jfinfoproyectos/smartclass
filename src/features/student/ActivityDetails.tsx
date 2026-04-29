@@ -3,6 +3,8 @@
 import { GithubActivityDetails } from "./components/GithubActivityDetails";
 import { ManualActivityDetails } from "./components/ManualActivityDetails";
 import { GoogleColabActivityDetails } from "./components/GoogleColabActivityDetails";
+import { PdfReviewActivityDetails } from "./components/PdfReviewActivityDetails";
+import { CodeProjectActivityDetails } from "./components/CodeProjectActivityDetails";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
@@ -40,6 +42,10 @@ function ActivityContent({ activity, userId, studentName }: ActivityDetailsProps
             return <GoogleColabActivityDetails activity={activity} userId={userId} studentName={studentName} />;
         case "MANUAL":
             return <ManualActivityDetails activity={activity} userId={userId} studentName={studentName} />;
+        case "PDF_REVIEW":
+            return <PdfReviewActivityDetails activity={activity} userId={userId} studentName={studentName} />;
+        case "CODE_PROJECT":
+            return <CodeProjectActivityDetails activity={activity} userId={userId} studentName={studentName} />;
         default:
             return <div>Tipo de actividad no soportado</div>;
     }

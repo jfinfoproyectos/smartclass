@@ -24,7 +24,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { createCourseAction, deleteCourseAction, updateRegistrationSettingsAction, cloneCourseAction, getCourseCompleteDataAction } from "@/app/actions";
-import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning, Download, Users, BookOpen } from "lucide-react";
+import { Plus, Trash2, Eye, Lock, Unlock, Calendar, Settings, X, Copy, FileWarning, Download, Users, BookOpen, Clock } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -112,8 +112,16 @@ interface PendingEnrollment {
 
 function RegistrationSettingsDialog({ course }: { course: Course }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [mode, setMode] = useState<"permanent" | "date">(course.registrationDeadline ? "date" : "permanent");
+    const [isOpenStatus, setIsOpenStatus] = useState(course.registrationOpen);
+    const [mode, setMode] = useState<"date">( "date");
     const [deadline, setDeadline] = useState(course.registrationDeadline ? format(new Date(course.registrationDeadline), "yyyy-MM-dd'T'HH:mm") : "");
+
+    const setQuickDeadline = (minutes: number) => {
+        const now = new Date();
+        const future = new Date(now.getTime() + minutes * 60000);
+        setDeadline(format(future, "yyyy-MM-dd'T'HH:mm"));
+        setIsOpenStatus(true);
+    };
     // ... rest of the function (no change needed in body if types match)
 
     // I need to be careful with replace_file_content, I cannot assume body content.
@@ -159,7 +167,11 @@ function RegistrationSettingsDialog({ course }: { course: Course }) {
 
                     <div className="space-y-2">
                         <Label>Estado de Inscripción</Label>
-                        <RadioGroup name="isOpen" defaultValue={course.registrationOpen ? "true" : "false"}>
+                        <RadioGroup 
+                            name="isOpen" 
+                            value={isOpenStatus ? "true" : "false"}
+                            onValueChange={(v) => setIsOpenStatus(v === "true")}
+                        >
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="true" id="open" />
                                 <Label htmlFor="open">Abierta</Label>
@@ -171,31 +183,60 @@ function RegistrationSettingsDialog({ course }: { course: Course }) {
                         </RadioGroup>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Duración</Label>
-                        <RadioGroup value={mode} onValueChange={(v: "permanent" | "date") => setMode(v)}>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="permanent" id="permanent" />
-                                <Label htmlFor="permanent">Permanente</Label>
+                    {isOpenStatus && (
+                        <div className="space-y-4 pt-2 border-t">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Opciones de Apertura Rápida</Label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-9 gap-1.5"
+                                    onClick={() => setQuickDeadline(15)}
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> 15m
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-9 gap-1.5"
+                                    onClick={() => setQuickDeadline(30)}
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> 30m
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-9 gap-1.5"
+                                    onClick={() => setQuickDeadline(60)}
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> 1h
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-9 gap-1.5"
+                                    onClick={() => setQuickDeadline(120)}
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> 2h
+                                </Button>
                             </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="date" id="date" />
-                                <Label htmlFor="date">Hasta fecha específica</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
 
-                    {mode === "date" && (
-                        <div className="space-y-2">
-                            <Label htmlFor="deadline">Fecha límite</Label>
-                            <Input
-                                id="deadline"
-                                name="deadline"
-                                type="datetime-local"
-                                value={deadline}
-                                onChange={(e) => setDeadline(e.target.value)}
-                                required={mode === "date"}
-                            />
+                            <div className="space-y-2">
+                                <Label htmlFor="deadline" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">O Fecha Límite Personalizada</Label>
+                                <Input
+                                    id="deadline"
+                                    name="deadline"
+                                    type="datetime-local"
+                                    value={deadline}
+                                    onChange={(e) => setDeadline(e.target.value)}
+                                    required={isOpenStatus}
+                                />
+                                <p className="text-[10px] text-muted-foreground">La inscripción se cerrará automáticamente en la fecha y hora indicadas.</p>
+                            </div>
                         </div>
                     )}
 

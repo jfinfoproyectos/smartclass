@@ -199,7 +199,7 @@ export async function createActivityAction(formData: FormData) {
     const deadlineStr = formData.get("deadline") as string;
     const openDateStr = formData.get("openDate") as string;
     const courseId = formData.get("courseId") as string;
-    const type = formData.get("type") as "GITHUB" | "MANUAL" | "GOOGLE_COLAB";
+    const type = formData.get("type") as "GITHUB" | "MANUAL" | "GOOGLE_COLAB" | "PDF_REVIEW" | "CODE_PROJECT";
     const weightStr = formData.get("weight") as string;
     const maxAttemptsStr = formData.get("maxAttempts") as string;
     const allowLinkSubmissionStr = formData.get("allowLinkSubmission") as string;
@@ -247,7 +247,7 @@ export async function updateActivityAction(formData: FormData) {
     const deadlineStr = formData.get("deadline") as string | null;
     const openDateStr = formData.get("openDate") as string | null;
     const courseId = formData.get("courseId") as string;
-    const type = formData.get("type") as "GITHUB" | "MANUAL" | "GOOGLE_COLAB" | null;
+    const type = formData.get("type") as "GITHUB" | "MANUAL" | "GOOGLE_COLAB" | "PDF_REVIEW" | "CODE_PROJECT" | null;
     const weightStr = formData.get("weight") as string | null;
     const maxAttemptsStr = formData.get("maxAttempts") as string | null;
     const allowLinkSubmissionStr = formData.get("allowLinkSubmission") as string | null;
@@ -638,6 +638,73 @@ export async function validateUniqueLinksAction(activityId: string) {
     };
 }
 
+export async function checkDuplicateSubmissionAction(activityId: string, url: string, currentUserId: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const normalizedUrl = normalizeUrl(url);
+
+    const submissions = await prisma.submission.findMany({
+        where: {
+            activityId,
+            userId: { not: currentUserId }
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            }
+        }
+    });
+
+    const duplicates = submissions.filter(s => normalizeUrl(s.url) === normalizedUrl);
+
+    return duplicates.map(s => ({
+        id: s.user.id,
+        name: s.user.name || 'Sin nombre',
+        email: s.user.email,
+        grade: s.grade,
+        feedback: s.feedback
+    }));
+}
+
+export async function applyBulkGradeAction(formData: FormData) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const activityId = formData.get("activityId") as string;
+    const userIds = JSON.parse(formData.get("userIds") as string) as string[];
+    const grade = parseFloat(formData.get("grade") as string);
+    const feedback = formData.get("feedback") as string;
+    const courseId = formData.get("courseId") as string;
+
+    const results = await Promise.all(userIds.map(async (userId) => {
+        return prisma.submission.update({
+            where: {
+                userId_activityId: {
+                    userId,
+                    activityId
+                }
+            },
+            data: {
+                grade,
+                feedback,
+                updatedAt: new Date()
+            }
+        });
+    }));
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+    return results;
+}
+
 
 export async function scanRepositoryAction(repoUrl: string) {
     const session = await getSession();
@@ -743,6 +810,25 @@ export async function submitGithubActivityAction(activityId: string, repoUrl: st
 
     revalidatePath("/dashboard/student");
     return { success: true };
+}
+
+// 0. Obtener estructura del repositorio (PROFESOR)
+export async function getRepoStructureAction(repoUrl: string, teacherId?: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const { githubService } = await import("@/services/githubService");
+    const { getGithubToken } = await import("@/lib/githubTokenHelper");
+    
+    const repoInfo = githubService.parseGitHubUrl(repoUrl);
+    if (!repoInfo) throw new Error("Invalid GitHub URL");
+
+    const token = await getGithubToken(teacherId || session.user.id);
+    const files = await githubService.getRepoStructure(repoInfo.owner, repoInfo.repo, token || undefined);
+    
+    return files;
 }
 
 // 1. Obtener detalles para iniciar la calificación (PROFESOR)
@@ -859,9 +945,10 @@ export async function gradeManualActivityAction(formData: FormData) {
     const feedback = formData.get("feedback") as string;
     const courseId = formData.get("courseId") as string;
 
-    if (!activityId || !userId || !gradeStr) {
-        throw new Error("Faltan campos requeridos");
-    }
+    if (!activityId) throw new Error("Falta el ID de la actividad");
+    if (!userId) throw new Error("Falta el ID del estudiante");
+    if (!gradeStr) throw new Error("La nota es obligatoria");
+
 
     const grade = parseFloat(gradeStr);
     if (isNaN(grade) || grade < 0 || grade > 5) {
@@ -1605,7 +1692,114 @@ export async function gradeGoogleColabAction(activityId: string, colabUrl: strin
 
 
 // -----------------------------------------------------------------------------
+// PDF REVIEW ACTION
+// -----------------------------------------------------------------------------
+
+
+export async function submitPdfActivityAction(activityId: string, pdfUrl: string) {
+    const session = await getSession();
+    if (!session || session.user.role !== "student") {
+        throw new Error("Unauthorized");
+    }
+
+    const submission = await activityService.submitActivity({
+        url: pdfUrl,
+        activityId,
+        userId: session.user.id,
+    });
+
+    // 🎯 AUDIT LOG
+    const { auditLogger } = await import("@/services/auditLogger");
+    const activity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        select: { title: true }
+    });
+
+    await auditLogger.logSubmission(
+        submission.id,
+        activity?.title || "Actividad PDF",
+        session.user.id,
+        session.user.name || "Estudiante",
+        submission.attemptCount
+    );
+
+    revalidatePath("/dashboard/student");
+    return { success: true };
+}
+
+export async function gradePdfReviewAction(
+    activityId: string, 
+    studentUserId: string, 
+    pdfUrl: string, 
+    statement: string,
+    courseId: string
+) {
+    const session = await getSession();
+    if (!session || session.user.role !== "teacher") {
+        throw new Error("Unauthorized");
+    }
+
+    const activity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        include: { course: { select: { teacherId: true } } }
+    });
+    if (!activity) throw new Error("Actividad no encontrada");
+    const teacherId = activity.course.teacherId;
+
+    const { gradePdfReviewSubmission } = await import("@/services/gemini/pdfReviewService");
+    const result = await gradePdfReviewSubmission(statement, pdfUrl, teacherId);
+
+    // Log API usage if global key is active
+    if (result.apiRequestsCount) {
+        const settings = await prisma.systemSettings.findUnique({ where: { id: "settings" } });
+        if (settings?.geminiApiKeyMode === "GLOBAL" && settings?.encryptedGlobalApiKey) {
+            const { auditLogger } = await import("@/services/auditLogger");
+            await auditLogger.logGeminiApiUsage(
+                session.user.id,
+                session.user.name || "Usuario",
+                session.user.role || "teacher",
+                result.apiRequestsCount
+            );
+        }
+    }
+
+    // Save submission with AI grade and feedback
+    await prisma.submission.update({
+        where: {
+            userId_activityId: {
+                userId: studentUserId,
+                activityId
+            }
+        },
+        data: {
+            grade: result.grade,
+            feedback: result.feedback + (result.apiRequestsCount ? `\n\n*(Peticiones a la API de Gemini: ${result.apiRequestsCount})*` : ""),
+            lastSubmittedAt: new Date()
+        }
+    });
+
+    // 🎯 AUDIT LOG
+    const student = await prisma.user.findUnique({ where: { id: studentUserId }, select: { name: true } });
+    const { auditLogger } = await import("@/services/auditLogger");
+    await auditLogger.logGrade(
+        activityId,
+        activity.title || "Actividad PDF",
+        student?.name || "Estudiante",
+        result.grade,
+        session.user.id,
+        session.user.name || "Profesor"
+    );
+
+    revalidatePath(`/dashboard/teacher/courses/${courseId}/activities/${activityId}`);
+    revalidatePath("/dashboard/student");
+    return result;
+}
+
+
+
+// -----------------------------------------------------------------------------
 // SETTINGS ACTIONS
+
 // -----------------------------------------------------------------------------
 
 import { settingsService } from "@/services/settingsService";
@@ -1938,6 +2132,12 @@ export async function getCourseCompleteDataAction(courseId: string) {
                     }
                 }
             },
+            evaluationAttempts: {
+                include: {
+                    evaluation: { select: { title: true } },
+                    submissions: true
+                }
+            },
             gradeCategories: {
                 include: {
                     groups: {
@@ -2001,7 +2201,7 @@ export async function getCourseCompleteDataAction(courseId: string) {
             studentId,
             (course as any).gradeCategories || [],
             course.activities,
-            course.activities
+            (course as any).evaluationAttempts || []
         );
 
         const row: any = {

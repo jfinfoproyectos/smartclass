@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 import {
     Dialog,
     DialogContent,
@@ -31,18 +30,12 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { createActivityAction, updateActivityAction, deleteActivityAction } from "@/app/actions";
-import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle, Sparkles, Upload, Download } from "lucide-react";
+import { createActivityAction, updateActivityAction, deleteActivityAction, scanRepositoryAction, getMissingSubmissionsAction } from "@/app/actions";
+import { Plus, Calendar, FileText, MessageSquare, Pencil, Trash2, Eye, X, ChevronUp, ChevronDown, AlertCircle, Sparkles, Upload, Download, Loader2, Search, UserX, GripVertical } from "lucide-react";
 import { toast } from "sonner";
-
-
-import { scanRepositoryAction, getMissingSubmissionsAction } from "@/app/actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search, UserX } from "lucide-react";
 import { formatName } from "@/lib/utils";
-
-
 import {
     DndContext,
     closestCenter,
@@ -61,7 +54,24 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { format } from "date-fns";
+import Link from "next/link";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import MDEditor from '@uiw/react-md-editor';
+import '@uiw/react-md-editor/markdown-editor.css';
+import '@uiw/react-markdown-preview/markdown.css';
+import { useTheme } from "next-themes";
+import { AIGenerateDialog } from "./components/AIGenerateDialog";
+import { ActivityFieldHelpDialog } from "./components/ActivityFieldHelpDialog";
+
+
 
 // Sortable item wrapper component
 function SortablePathItem({ id, path, index, onRemove }: { id: string, path: string, index: number, onRemove: (index: number) => void }) {
@@ -287,22 +297,6 @@ function FilePathInput({ name, defaultValue = "", placeholder }: { name: string,
 
 
 
-import { format } from "date-fns";
-import Link from "next/link";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/markdown-editor.css';
-import '@uiw/react-markdown-preview/markdown.css';
-import { useTheme } from "next-themes";
-import { AIGenerateDialog } from "./components/AIGenerateDialog";
-import { ActivityFieldHelpDialog } from "./components/ActivityFieldHelpDialog";
 
 export function ActivityManager({ courseId, activities }: { courseId: string; activities: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -448,12 +442,14 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="GITHUB">GitHub Repositorio</SelectItem>
+                                                        <SelectItem value="CODE_PROJECT">Proyecto de Código (Revisión Manual)</SelectItem>
                                                         <SelectItem value="MANUAL">Manual</SelectItem>
                                                         <SelectItem value="GOOGLE_COLAB">Google Colab</SelectItem>
+                                                        <SelectItem value="PDF_REVIEW">Revisión de PDF</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            {selectedType !== "MANUAL" && (
+                                            {selectedType !== "MANUAL" && selectedType !== "PDF_REVIEW" && selectedType !== "CODE_PROJECT" && (
                                                 <div className="col-span-3 space-y-2">
                                                     <Label htmlFor="maxAttempts">Intentos</Label>
                                                     <Input id="maxAttempts" name="maxAttempts" type="number" min="1" max="10" defaultValue={importedData?.maxAttempts || "1"} required />
@@ -527,7 +523,7 @@ export function ActivityManager({ courseId, activities }: { courseId: string; ac
 
                                     {/* Right Column: Editor */}
                                     <div className="lg:col-span-8 flex flex-col h-full min-h-[500px] gap-4">
-                                        {selectedType !== "MANUAL" && (
+                                        {selectedType !== "MANUAL" && selectedType !== "PDF_REVIEW" && selectedType !== "CODE_PROJECT" && (
                                             <div className="flex-1 flex flex-col min-h-[300px]">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
@@ -865,12 +861,14 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="GITHUB">GitHub Repositorio</SelectItem>
+                                                <SelectItem value="CODE_PROJECT">Proyecto de Código (Revisión Manual)</SelectItem>
                                                 <SelectItem value="MANUAL">Manual</SelectItem>
                                                 <SelectItem value="GOOGLE_COLAB">Google Colab</SelectItem>
+                                                <SelectItem value="PDF_REVIEW">Revisión de PDF</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    {selectedType !== "MANUAL" && (
+                                    {selectedType !== "MANUAL" && selectedType !== "PDF_REVIEW" && selectedType !== "CODE_PROJECT" && (
                                         <div className="col-span-3 space-y-2">
                                             <Label htmlFor={`maxAttempts-${activity.id}`}>Intentos</Label>
                                             <Input id={`maxAttempts-${activity.id}`} name="maxAttempts" type="number" min="1" max="10" defaultValue={importedData?.maxAttempts ?? activity.maxAttempts ?? 1} required />
@@ -956,7 +954,7 @@ function EditActivityDialog({ activity, courseId, mode }: { activity: any, cours
 
                             {/* Right Column: Editor */}
                             <div className="lg:col-span-8 flex flex-col h-full min-h-[500px] gap-4">
-                                {selectedType !== "MANUAL" && (
+                                {selectedType !== "MANUAL" && selectedType !== "PDF_REVIEW" && selectedType !== "CODE_PROJECT" && (
                                     <div className="flex-1 flex flex-col min-h-[300px]">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Label>Instrucciones (Informativas)</Label>

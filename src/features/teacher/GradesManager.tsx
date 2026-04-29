@@ -380,6 +380,17 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
         return "text-muted-foreground";
     };
 
+    const getCategoryBgColor = (index: number) => {
+        const colors = [
+            "bg-blue-50/40 dark:bg-blue-900/20",
+            "bg-amber-50/40 dark:bg-amber-900/20",
+            "bg-emerald-50/40 dark:bg-emerald-900/20",
+            "bg-purple-50/40 dark:bg-purple-900/20",
+            "bg-rose-50/40 dark:bg-rose-900/20",
+        ];
+        return colors[index % colors.length];
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -453,10 +464,10 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
                                     <TableHead className="w-[250px] font-bold" rowSpan={2}>Estudiante</TableHead>
-                                    {categories.map((cat: any) => (
+                                    {categories.map((cat: any, idx: number) => (
                                         <TableHead 
                                             key={cat.id} 
-                                            className="text-center font-bold border-x" 
+                                            className={`text-center font-bold border-x ${getCategoryBgColor(idx)}`}
                                             colSpan={cat.groups.length || 1}
                                         >
                                             <div className="flex flex-col items-center">
@@ -470,10 +481,10 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
                                     <TableHead className="text-right font-bold bg-primary/5" rowSpan={2}>Nota Final</TableHead>
                                 </TableRow>
                                 <TableRow className="bg-muted/30">
-                                    {categories.flatMap((cat: any) => 
+                                    {categories.flatMap((cat: any, idx: number) => 
                                         cat.groups.length > 0 ? (
                                             cat.groups.map((group: any) => (
-                                                <TableHead key={group.id} className="text-center text-[10px] min-w-[80px]">
+                                                <TableHead key={group.id} className={`text-center text-[10px] min-w-[80px] border-x ${getCategoryBgColor(idx)}`}>
                                                     <div className="flex flex-col items-center">
                                                         <span className="truncate w-full text-center">{group.name}</span>
                                                         <span className="text-muted-foreground">({group.weight}%)</span>
@@ -481,7 +492,7 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
                                                 </TableHead>
                                             ))
                                         ) : (
-                                            <TableHead key={cat.id + "-empty"} className="text-center text-[10px] text-muted-foreground italic">
+                                            <TableHead key={cat.id + "-empty"} className={`text-center text-[10px] text-muted-foreground italic border-x ${getCategoryBgColor(idx)}`}>
                                                 Sin grupos
                                             </TableHead>
                                         )
@@ -511,12 +522,12 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            {categories.flatMap((cat: any) => 
+                                            {categories.flatMap((cat: any, idx: number) => 
                                                 cat.groups.length > 0 ? (
                                                     cat.groups.map((group: any) => {
                                                         const grade = calculateStudentGradeInGroup(student.id, group);
                                                         return (
-                                                            <TableCell key={group.id} className="text-center tabular-nums">
+                                                            <TableCell key={group.id} className={`text-center tabular-nums border-x ${getCategoryBgColor(idx)}`}>
                                                                 <span className={getGradeColor(grade)}>
                                                                     {grade.toFixed(2)}
                                                                 </span>
@@ -524,7 +535,7 @@ export function GradesManager({ courseId, courseTitle = "Curso", initialData }: 
                                                         );
                                                     })
                                                 ) : (
-                                                    <TableCell key={cat.id + "-empty"} className="text-center text-muted-foreground italic text-xs">
+                                                    <TableCell key={cat.id + "-empty"} className={`text-center text-muted-foreground italic text-xs border-x ${getCategoryBgColor(idx)}`}>
                                                         -
                                                     </TableCell>
                                                 )

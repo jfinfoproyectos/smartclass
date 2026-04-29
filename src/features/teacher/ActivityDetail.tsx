@@ -20,6 +20,7 @@ import {
     SheetHeader,
     SheetTitle,
     SheetTrigger,
+    SheetFooter,
 } from "@/components/ui/sheet";
 import {
     Tabs,
@@ -48,9 +49,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
 import { es } from "date-fns/locale";
-import { Eye, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2, Bot, Loader2, ChevronDown, ChevronUp, CheckCircle, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { Eye, Github, FileText, ClipboardList, Users, Trash2, Sparkles, Search, AlertTriangle, CheckCircle2, Bot, Loader2, ChevronDown, ChevronUp, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, Settings } from "lucide-react";
 import { FeedbackViewer } from "../student/FeedbackViewer";
-import { deleteSubmissionAction, validateUniqueLinksAction, getGitHubSubmissionDetailsAction, analyzeGitHubFileAction, finalizeGitHubGradingAction, batchGradeAction } from "@/app/actions";
+import { deleteSubmissionAction, validateUniqueLinksAction, getGitHubSubmissionDetailsAction, analyzeGitHubFileAction, finalizeGitHubGradingAction, batchGradeAction, gradePdfReviewAction, getRepoStructureAction, fetchRepoFilesAction, checkDuplicateSubmissionAction, applyBulkGradeAction, gradeManualActivityAction, improveFeedbackAction } from "@/app/actions";
 import { toast } from "sonner";
 import { ExportButton } from "@/components/ui/export-button";
 import { formatDateForExport, formatGradeForExport } from "@/lib/export-utils";
@@ -61,6 +62,7 @@ import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useTheme } from "next-themes";
+import { useParams } from "next/navigation";
 
 export function ActivityDetail({
     activity,
@@ -69,6 +71,9 @@ export function ActivityDetail({
     activity: any,
     students: any[]
 }) {
+    const params = useParams();
+    const activityIdFromUrl = params.activityId as string;
+    
     const [isPending, startTransition] = useTransition();
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [submissionToDelete, setSubmissionToDelete] = useState<any>(null);
@@ -85,9 +90,18 @@ export function ActivityDetail({
     const [lastAnalyses, setLastAnalyses] = useState<any[]>([]);
     const [lastMissingFiles, setLastMissingFiles] = useState<string[]>([]);
     const [isFinalizingOnly, setIsFinalizingOnly] = useState(false);
+    const [isPdfGrading, setIsPdfGrading] = useState<string | null>(null);
+    const [scanningRepoStudentId, setScanningRepoStudentId] = useState<string | null>(null);
+    const [scannedRepoFiles, setScannedRepoFiles] = useState<string[]>([]);
+    const [selectedRepoFiles, setSelectedRepoFiles] = useState<string[]>([]);
+    const [isCodeProjectGrading, setIsCodeProjectGrading] = useState<string | null>(null);
 
     // Estado para calificación por lote
     const [isBatchGrading, setIsBatchGrading] = useState(false);
+    
+    // Refs para captura fiable de valores en formularios manuales
+    const gradeRef = useRef<HTMLInputElement>(null);
+    const feedbackRef = useRef<HTMLTextAreaElement>(null);
     const [showBatchSheet, setShowBatchSheet] = useState(false);
     const [batchStep, setBatchStep] = useState<"selection" | "progress">("selection");
     const [batchLogs, setBatchLogs] = useState<string[]>([]);
@@ -95,6 +109,18 @@ export function ActivityDetail({
     const [batchTotal, setBatchTotal] = useState(0);
     const [batchReport, setBatchReport] = useState<{ name: string, grade?: number, error?: string }[]>([]);
     const [selectedStudentsForBatch, setSelectedStudentsForBatch] = useState<string[]>([]);
+
+    // Estados para detección de duplicados en evaluación individual
+    const [duplicatesForCurrent, setDuplicatesForCurrent] = useState<any[]>([]);
+    const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+    const [bulkGradeDialogOpen, setBulkGradeDialogOpen] = useState(false);
+    const [showBulkConfirmation, setShowBulkConfirmation] = useState(false);
+    const [bulkGradeData, setBulkGradeData] = useState<{ grade: number, feedback: string } | null>(null);
+
+    // Optimizaciones de Lote
+    const [batchAutoDuplicate, setBatchAutoDuplicate] = useState(true);
+    const [batchSkipGraded, setBatchSkipGraded] = useState(true);
+
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const batchScrollRef = useRef<HTMLDivElement>(null);
@@ -112,19 +138,37 @@ export function ActivityDetail({
         }
     }, [batchLogs]);
 
-    // Map students to their submission status
-    const studentStatus = students.map(enrollment => {
-        const student = enrollment.user;
-        const submission = activity.submissions.find((sub: any) => sub.userId === student.id);
-        const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
+    const studentStatus = useMemo(() => {
+        return students.map(enrollment => {
+            const student = enrollment.user;
+            const submission = activity.submissions.find((sub: any) => sub.userId === student.id);
+            const isRejected = submission && submission.grade === null && submission.feedback && submission.feedback.includes("[ENTREGA RECHAZADA]");
 
-        return {
-            student,
-            submission,
-            isRejected,
-            status: submission ? (submission.grade !== null ? "graded" : "submitted") : "pending"
-        };
-    });
+            return {
+                student,
+                submission,
+                isRejected,
+                status: submission ? (submission.grade !== null ? "graded" : "submitted") : "pending"
+            };
+        });
+    }, [students, activity.submissions]);
+
+    useEffect(() => {
+        if (selectedStudentIndex !== null) {
+            const { student, submission } = studentStatus[selectedStudentIndex];
+            if (submission?.url) {
+                setIsCheckingDuplicates(true);
+                checkDuplicateSubmissionAction(activity.id, submission.url, student.id)
+                    .then(setDuplicatesForCurrent)
+                    .catch(err => console.error("Error checking duplicates:", err))
+                    .finally(() => setIsCheckingDuplicates(false));
+            } else {
+                setDuplicatesForCurrent([]);
+            }
+        } else {
+            setDuplicatesForCurrent([]);
+        }
+    }, [selectedStudentIndex, studentStatus, activity.id]);
 
     const { resolvedTheme } = useTheme();
     const mode = resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "auto";
@@ -276,6 +320,110 @@ export function ActivityDetail({
         }
     };
 
+    const handleGradePdfWithAI = async (studentId: string, pdfUrl: string) => {
+        setIsPdfGrading(studentId);
+        try {
+            const result = await gradePdfReviewAction(
+                activity.id,
+                studentId,
+                pdfUrl,
+                activity.statement || "",
+                activity.courseId
+            );
+            toast.success(`PDF evaluado: ${result.grade.toFixed(1)} / 5.0`);
+        } catch (error: any) {
+            toast.error("Error al evaluar PDF", { description: error.message });
+        } finally {
+            setIsPdfGrading(null);
+        }
+    };
+
+    const handleScanRepo = async (studentId: string, repoUrl: string) => {
+        setScanningRepoStudentId(studentId);
+        setScannedRepoFiles([]);
+        setSelectedRepoFiles([]);
+        try {
+            const files = await getRepoStructureAction(repoUrl, activity.course.teacherId);
+            setScannedRepoFiles(files);
+            toast.success(`${files.length} archivos encontrados.`);
+        } catch (error: any) {
+            toast.error("Error al escanear repositorio", { description: error.message });
+        } finally {
+            setScanningRepoStudentId(null);
+        }
+    };
+
+    const handleGradeCodeProjectWithAI = async (studentId: string, repoUrl: string) => {
+        if (selectedRepoFiles.length === 0) {
+            toast.error("Selecciona al menos un archivo para evaluar.");
+            return;
+        }
+
+        setIsCodeProjectGrading(studentId);
+        setGradingLogs([]);
+        setGradingResult(null);
+        setLastAnalyses([]);
+        setShowGradingLogs(true);
+
+        const addLog = (msg: string) => setGradingLogs(prev => [...prev, msg]);
+
+        try {
+            addLog("🔍 Iniciando calificación manual asistida...");
+            addLog(`📂 Descargando ${selectedRepoFiles.length} archivos seleccionados...`);
+
+            const { validFiles, missingFiles, warning } = await fetchRepoFilesAction(
+                repoUrl,
+                selectedRepoFiles.join(','),
+                activity.id
+            );
+
+            if (warning) addLog(`⚠️ Advertencia: ${warning}`);
+
+            addLog(`✅ Archivos descargados. Iniciando análisis individual...`);
+
+            const analyses = [];
+            let accumulatedContext = "";
+
+            for (let i = 0; i < validFiles.length; i++) {
+                const file = validFiles[i];
+                addLog(`⚙️ Analizando (${i + 1}/${validFiles.length}): ${file.path}...`);
+
+                const analysis = await analyzeGitHubFileAction(
+                    file.path,
+                    file.content,
+                    activity.statement || "",
+                    repoUrl,
+                    accumulatedContext
+                );
+
+                analyses.push(analysis);
+                accumulatedContext += `\n- **${file.path}**: ${analysis.summary}`;
+                addLog(`   └─ ✅ Análisis completado.`);
+            }
+
+            addLog("📊 Consolidando evaluación final...");
+            const result = await finalizeGitHubGradingAction(
+                activity.id,
+                studentId,
+                repoUrl,
+                activity.statement || "",
+                analyses,
+                [],
+                selectedRepoFiles.length,
+                activity.courseId
+            );
+
+            setGradingResult(result);
+            addLog(`✅ Calificación completada. Nota final: ${result.grade.toFixed(1)} / 5.0`);
+            toast.success(`Calificación guardada: ${result.grade.toFixed(1)} / 5.0`);
+        } catch (error: any) {
+            addLog(`❌ Error: ${error.message}`);
+            toast.error("Error al calificar", { description: error.message });
+        } finally {
+            setIsCodeProjectGrading(null);
+        }
+    };
+
     const handleRetryFinalize = async (studentId: string, repoUrl: string) => {
         if (lastAnalyses.length === 0) return;
 
@@ -315,9 +463,195 @@ export function ActivityDetail({
             return;
         }
         // Pre-seleccionar todos los estudiantes que tienen entregas
-        setSelectedStudentsForBatch(studentsToGrade.map(s => s.student.id));
+                    setSelectedStudentsForBatch(studentsToGrade.map(s => s.student.id));
         setBatchStep("selection");
         setShowBatchSheet(true);
+    };
+
+    const BulkConfirmationUI = ({ userId, activityId }: { userId: string, activityId: string }) => {
+        if (!showBulkConfirmation || !bulkGradeData) return null;
+
+        return (
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-4 space-y-4 animate-in fade-in slide-in-from-top-2 my-4">
+                <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="w-full">
+                        <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200">Confirmación de Duplicados</h4>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                            Se han detectado <strong>{duplicatesForCurrent.length}</strong> estudiantes adicionales con el mismo enlace:
+                        </p>
+                        
+                        <div className="mt-3 max-h-40 overflow-y-auto border border-amber-200/50 rounded bg-white/50 dark:bg-black/20 p-2 space-y-2">
+                            {duplicatesForCurrent.map(dup => {
+                                const status = studentStatus.find(s => s.student.id === dup.id);
+                                return (
+                                    <div key={dup.id} className="flex items-center justify-between text-[10px] gap-2 border-b border-amber-100 dark:border-amber-900/30 pb-1 last:border-0">
+                                        <span className="font-medium truncate flex-1">{dup.name || dup.email}</span>
+                                        <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
+                                            Nota actual: {status?.submission?.grade !== null && status?.submission?.grade !== undefined ? status.submission.grade.toFixed(1) : "N/A"}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-3 italic">
+                            ¿Deseas aplicar la nota <strong>{bulkGradeData.grade}</strong> a todos o solo a este?
+                        </p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                    <Button 
+                        size="sm"
+                        onClick={handleApplyBulkGrade}
+                        className="bg-amber-600 hover:bg-amber-700 text-white flex-1"
+                    >
+                        Aplicar a todos ({duplicatesForCurrent.length + 1})
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex-1"
+                        onClick={async () => {
+                            try {
+                                const formData = new FormData();
+                                formData.append("activityId", activityId);
+                                formData.append("userId", userId);
+                                formData.append("grade", bulkGradeData.grade.toString());
+                                formData.append("feedback", bulkGradeData.feedback);
+                                formData.append("courseId", activity.courseId);
+
+                                await gradeManualActivityAction(formData);
+                                toast.success("Calificación aplicada solo al estudiante actual");
+                                setShowBulkConfirmation(false);
+                                setBulkGradeData(null);
+                            } catch (err: any) {
+                                toast.error("Error", { description: err.message });
+                            }
+                        }}
+                    >
+                        Solo este estudiante
+                    </Button>
+                    <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                            setShowBulkConfirmation(false);
+                            setBulkGradeData(null);
+                        }}
+                    >
+                        Cancelar
+                    </Button>
+                </div>
+            </div>
+        );
+    };
+
+    const handleGradeManual = async (grade: string, feedback: string, userId: string, activityId: string, duplicates: any[] = []) => {
+        if (!grade) {
+            toast.error("La nota es obligatoria");
+            return;
+        }
+
+        try {
+            // Verificación redundante de duplicados si no se pasaron
+            let finalDuplicates = duplicates;
+            if (finalDuplicates.length === 0) {
+                const currentStatus = studentStatus.find(s => s.student.id === userId);
+                if (currentStatus?.submission?.url) {
+                    finalDuplicates = await checkDuplicateSubmissionAction(activityId, currentStatus.submission.url, userId);
+                }
+            }
+
+            if (finalDuplicates.length > 0) {
+                const gradeNum = parseFloat(grade);
+                setBulkGradeData({ grade: gradeNum, feedback });
+                setShowBulkConfirmation(true);
+                return;
+            }
+
+            // Guardado directo
+            const formData = new FormData();
+            formData.append("activityId", activityId);
+            formData.append("userId", userId);
+            formData.append("grade", grade);
+            formData.append("feedback", feedback);
+            formData.append("courseId", activity.courseId);
+
+            await gradeManualActivityAction(formData);
+            toast.success("Calificación guardada");
+        } catch (error: any) {
+            toast.error("Error al guardar nota", { description: error.message });
+        }
+    };
+
+    const handleApplyBulkGrade = async () => {
+        if (!bulkGradeData || selectedStudentIndex === null) return;
+
+        const { student } = studentStatus[selectedStudentIndex];
+        const userIds = [student.id, ...duplicatesForCurrent.map(d => d.id)];
+
+        startTransition(async () => {
+            try {
+                const formData = new FormData();
+                formData.append("activityId", activity.id);
+                formData.append("userIds", JSON.stringify(userIds));
+                formData.append("grade", bulkGradeData.grade.toString());
+                formData.append("feedback", bulkGradeData.feedback);
+                formData.append("courseId", activity.courseId);
+
+                await applyBulkGradeAction(formData);
+                toast.success(`Calificación aplicada a ${userIds.length} estudiantes.`);
+                setShowBulkConfirmation(false);
+                setBulkGradeData(null);
+            } catch (error: any) {
+                toast.error("Error al aplicar calificación en lote", { description: error.message });
+            }
+        });
+    };
+
+    const DuplicateAlert = () => {
+        if (isCheckingDuplicates) return (
+            <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground animate-pulse">
+                <Loader2 className="h-3 w-3 animate-spin" /> Verificando duplicados...
+            </div>
+        );
+
+        if (duplicatesForCurrent.length === 0) return null;
+
+        return (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded-md space-y-2">
+                <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                        <p className="text-xs font-bold">¡Enlace Duplicado Detectado!</p>
+                        <p className="text-[10px]">Otros {duplicatesForCurrent.length} estudiantes han entregado este mismo enlace.</p>
+                    </div>
+                </div>
+                <div className="pl-6 space-y-1">
+                    {duplicatesForCurrent.map(d => (
+                        <div key={d.id} className="text-[10px] flex justify-between items-center opacity-80">
+                            <span>• {d.name}</span>
+                            {d.grade !== null && <Badge variant="outline" className="h-4 text-[8px] px-1">Calificado: {d.grade}</Badge>}
+                        </div>
+                    ))}
+                </div>
+                <p className="text-[9px] text-amber-600 dark:text-amber-500 italic">
+                    Al guardar la nota, podrás elegir si aplicarla a todos los estudiantes vinculados.
+                </p>
+            </div>
+        );
+    };
+
+    const normalizeUrl = (url: string) => {
+        try {
+            let u = url.trim().toLowerCase();
+            if (u.endsWith('/')) u = u.slice(0, -1);
+            if (u.endsWith('.git')) u = u.slice(0, -4);
+            return u;
+        } catch {
+            return url.trim().toLowerCase();
+        }
     };
 
     const handleBatchGradeWithAI = async () => {
@@ -340,6 +674,7 @@ export function ActivityDetail({
 
         const addLog = (msg: string) => setBatchLogs(prev => [...prev, msg]);
         const report: { name: string, grade?: number, error?: string }[] = [];
+        const urlCache = new Map<string, { grade: number, feedback: string }>();
 
         addLog(`🚀 Iniciando evaluación por lote para ${studentsToGrade.length} estudiantes...`);
 
@@ -350,70 +685,110 @@ export function ActivityDetail({
 
             try {
                 if (!submission.url) {
-                    throw new Error("No hay URL de repositorio.");
+                    throw new Error("No hay URL de entrega.");
                 }
 
-                // 1. Obtener detalles
-                addLog(`📂 Comprobando repositorio de ${student.name}...`);
-                const details = await getGitHubSubmissionDetailsAction(
-                    submission.url,
-                    activity.filePaths || ""
-                );
+                const normalizedUrl = normalizeUrl(submission.url);
 
-                const { validFiles, missingFiles, repoInfo } = details;
-                const analyses: any[] = [];
-                let accumulatedContext = "";
+                // Regla: Depuración de la Cola
+                if (batchSkipGraded && submission.grade !== null && submission.grade !== undefined) {
+                    addLog(`⏭️ ${student.name} ya tiene calificación. Omitiendo según regla de depuración de cola.`);
+                    report.push({ name: student.name, grade: submission.grade });
+                    continue;
+                }
 
-                // 2. Analizar cada archivo
-                for (let j = 0; j < validFiles.length; j++) {
-                    const file = validFiles[j];
-                    addLog(`🔍 Analizando archivo ${j + 1}/${validFiles.length}: ${file.path}`);
+                // Regla: Confirmación de Duplicidad Automática
+                if (batchAutoDuplicate && urlCache.has(normalizedUrl)) {
+                    const cached = urlCache.get(normalizedUrl)!;
+                    addLog(`♻️ Enlace duplicado detectado para ${student.name}. Aplicando misma nota que el registro previo (${cached.grade.toFixed(1)})...`);
+                    
+                    const formData = new FormData();
+                    formData.append("activityId", activity.id);
+                    formData.append("userId", student.id);
+                    formData.append("grade", cached.grade.toString());
+                    formData.append("feedback", cached.feedback);
+                    formData.append("courseId", activity.courseId);
+                    
+                    await import("@/app/actions").then(mod => mod.gradeManualActivityAction(formData));
+                    report.push({ name: student.name, grade: cached.grade });
+                    continue;
+                }
 
-                    try {
-                        const analysis = await analyzeGitHubFileAction(
-                            file.path,
-                            file.content,
-                            activity.statement || "",
-                            submission.url,
-                            accumulatedContext
-                        );
+                let finalResult;
 
-                        analyses.push(analysis);
-                        accumulatedContext += `\n- **${file.path}**: ${analysis.summary}`;
-                        addLog(`✅ Análisis completado. Nota asignada: ${analysis.scoreContribution?.toFixed(2)} / 5.0`);
-                    } catch (fileError: any) {
-                        addLog(`⚠️ Error en archivo ${file.path}: ${fileError.message}`);
-                        const targetBranch = repoInfo.branch === "HEAD" ? "main" : repoInfo.branch;
-                        const encodedFile = file.path.split('/').map((part: string) => encodeURIComponent(part)).join('/');
+                if (activity.type === "GITHUB") {
+                    // --- LÓGICA GITHUB ---
+                    addLog(`📂 Comprobando repositorio de ${student.name}...`);
+                    const details = await getGitHubSubmissionDetailsAction(
+                        submission.url,
+                        activity.filePaths || ""
+                    );
 
-                        analyses.push({
-                            filename: file.path,
-                            repoUrl: submission.url,
-                            fileUrl: `https://github.com/${repoInfo.owner}/${repoInfo.repo}/blob/${targetBranch}/${encodedFile}`,
-                            summary: `Error al analizar: ${fileError.message}`,
-                            strengths: [],
-                            weaknesses: [`Error de análisis: ${fileError.message}`],
-                            errors: [],
-                            scoreContribution: 0
-                        });
+                    const { validFiles, missingFiles, repoInfo } = details;
+                    const analyses: any[] = [];
+                    let accumulatedContext = "";
+
+                    for (let j = 0; j < validFiles.length; j++) {
+                        const file = validFiles[j];
+                        addLog(`🔍 Analizando archivo ${j + 1}/${validFiles.length}: ${file.path}`);
+                        try {
+                            const analysis = await analyzeGitHubFileAction(
+                                file.path,
+                                file.content,
+                                activity.statement || "",
+                                submission.url,
+                                accumulatedContext
+                            );
+                            analyses.push(analysis);
+                            accumulatedContext += `\n- **${file.path}**: ${analysis.summary}`;
+                            addLog(`✅ Análisis completado. Nota asignada: ${analysis.scoreContribution?.toFixed(2)} / 5.0`);
+                        } catch (fileError: any) {
+                            addLog(`⚠️ Error en archivo ${file.path}: ${fileError.message}`);
+                            const targetBranch = repoInfo.branch === "HEAD" ? "main" : repoInfo.branch;
+                            const encodedFile = file.path.split('/').map((part: string) => encodeURIComponent(part)).join('/');
+                            analyses.push({
+                                filename: file.path,
+                                repoUrl: submission.url,
+                                fileUrl: `https://github.com/${repoInfo.owner}/${repoInfo.repo}/blob/${targetBranch}/${encodedFile}`,
+                                summary: `Error al analizar: ${fileError.message}`,
+                                strengths: [],
+                                weaknesses: [`Error de análisis: ${fileError.message}`],
+                                errors: [],
+                                scoreContribution: 0
+                            });
+                        }
                     }
+
+                    addLog(`📊 Generando nota final y feedback para ${student.name}...`);
+                    finalResult = await finalizeGitHubGradingAction(
+                        activity.id,
+                        student.id,
+                        submission.url,
+                        activity.statement || "",
+                        analyses,
+                        missingFiles,
+                        validFiles.length + missingFiles.length,
+                        activity.courseId
+                    );
+                } else if (activity.type === "PDF_REVIEW") {
+                    // --- LÓGICA PDF ---
+                    addLog(`📄 Procesando PDF de ${student.name}...`);
+                    finalResult = await gradePdfReviewAction(
+                        activity.id,
+                        student.id,
+                        submission.url,
+                        activity.statement || "",
+                        activity.courseId
+                    );
+                } else {
+                    throw new Error("Tipo de actividad no soportado para evaluación por lote con IA.");
                 }
 
-                // 3. Finalizar
-                addLog(`📊 Generando nota final y feedback para ${student.name}...`);
-                const result = await finalizeGitHubGradingAction(
-                    activity.id,
-                    student.id,
-                    submission.url,
-                    activity.statement || "",
-                    analyses,
-                    missingFiles,
-                    validFiles.length + missingFiles.length,
-                    activity.courseId
-                );
-
-                addLog(`✅ ⭐ Calificación de ${student.name}: ${result.grade.toFixed(1)} / 5.0`);
-                report.push({ name: student.name, grade: result.grade });
+                if (finalResult) {
+                    addLog(`✅ ⭐ Calificación de ${student.name}: ${finalResult.grade.toFixed(1)} / 5.0`);
+                    report.push({ name: student.name, grade: finalResult.grade });
+                    urlCache.set(normalizedUrl, { grade: finalResult.grade, feedback: finalResult.feedback || "" });
+                }
 
             } catch (error: any) {
                 addLog(`❌ Error con ${student.name}: ${error.message}`);
@@ -471,11 +846,13 @@ export function ActivityDetail({
 
             <Tabs defaultValue="results" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 md:inline-flex md:w-auto">
-                    <TabsTrigger value="instructions" className="flex items-center gap-1 sm:gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span className="hidden sm:inline">Instrucciones</span>
-                        <span className="sm:hidden">Inst.</span>
-                    </TabsTrigger>
+                    {activity.type !== "MANUAL" && activity.type !== "PDF_REVIEW" && activity.type !== "CODE_PROJECT" && (
+                        <TabsTrigger value="instructions" className="flex items-center gap-1 sm:gap-2">
+                            <FileText className="h-4 w-4" />
+                            <span className="hidden sm:inline">Instrucciones</span>
+                            <span className="sm:hidden">Inst.</span>
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="statement" className="flex items-center gap-1 sm:gap-2">
                         <ClipboardList className="h-4 w-4" />
                         <span className="hidden sm:inline">Enunciado</span>
@@ -488,15 +865,17 @@ export function ActivityDetail({
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="instructions" className="space-y-4 mt-6">
-                    <div data-color-mode={mode} className="rounded-md border p-6 bg-card w-full max-w-full overflow-x-auto [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
-                        <h3 className="text-lg font-semibold mb-4">Instrucciones de la Actividad</h3>
-                        <MDEditor.Markdown
-                            source={activity.description || "**No hay instrucciones disponibles.**"}
-                            style={{ background: 'transparent' }}
-                        />
-                    </div>
-                </TabsContent>
+                {activity.type !== "MANUAL" && activity.type !== "PDF_REVIEW" && activity.type !== "CODE_PROJECT" && (
+                    <TabsContent value="instructions" className="space-y-4 mt-6">
+                        <div data-color-mode={mode} className="rounded-md border p-6 bg-card w-full max-w-full overflow-x-auto [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
+                            <h3 className="text-lg font-semibold mb-4">Instrucciones de la Actividad</h3>
+                            <MDEditor.Markdown
+                                source={activity.description || "**No hay instrucciones disponibles.**"}
+                                style={{ background: 'transparent' }}
+                            />
+                        </div>
+                    </TabsContent>
+                )}
 
                 <TabsContent value="statement" className="space-y-4 mt-6">
                     <div data-color-mode={mode} className="rounded-md border p-6 bg-card w-full max-w-full overflow-x-auto [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word! [&_table]:w-full! [&_td]:wrap-break-word!">
@@ -538,7 +917,7 @@ export function ActivityDetail({
                             <Search className="w-4 h-4 mr-2" />
                             {isValidating ? "Validando..." : "Validar Enlaces"}
                         </Button>
-                        {activity.type === "GITHUB" && (
+                        {(activity.type === "GITHUB" || activity.type === "PDF_REVIEW") && (
                             <Button
                                 onClick={isBatchGrading ? () => setShowBatchSheet(true) : handleOpenBatchSelection}
                                 disabled={!studentStatus.some(s => s.submission)}
@@ -592,7 +971,7 @@ export function ActivityDetail({
                                         <TableCell>
                                             {status === "pending" && <Badge variant="outline">Pendiente</Badge>}
                                             {status === "submitted" && (
-                                                activity.type === "GITHUB" ? (
+                                                (activity.type === "GITHUB" || activity.type === "PDF_REVIEW" || activity.type === "CODE_PROJECT") ? (
                                                     <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100 border-orange-200">
                                                         ⭐ Por Calificar
                                                     </Badge>
@@ -669,12 +1048,19 @@ export function ActivityDetail({
             {(() => {
                 if (selectedStudentIndex === null) return null;
                 const { student, submission, isRejected } = studentStatus[selectedStudentIndex];
-                const total = studentStatus.length;
+                const total = students.length;
+
                 const goPrev = () => setSelectedStudentIndex(i => i === null ? null : (i - 1 + total) % total);
                 const goNext = () => setSelectedStudentIndex(i => i === null ? null : (i + 1) % total);
 
                 return (
-                    <Sheet open={selectedStudentIndex !== null} onOpenChange={open => { if (!open) setSelectedStudentIndex(null); }}>
+                    <Sheet open={selectedStudentIndex !== null} onOpenChange={open => { 
+                        if (!open) {
+                            setSelectedStudentIndex(null); 
+                            setShowBulkConfirmation(false);
+                            setBulkGradeData(null);
+                        } 
+                    }}>
                         <SheetContent side="right" className="w-full max-w-none sm:max-w-none p-0">
                             <SheetHeader className="px-6 py-4 border-b">
                                 <div className="flex items-center justify-between gap-4">
@@ -746,9 +1132,9 @@ export function ActivityDetail({
                                     <div className="rounded-lg border p-4">
                                         <h4 className="font-semibold mb-3">Enlace de Entrega</h4>
                                         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-                                            {activity.type === "GITHUB" ? (
+                                            {activity.type === "GITHUB" || activity.type === "CODE_PROJECT" ? (
                                                 <Github className="h-5 w-5 text-muted-foreground shrink-0" />
-                                            ) : activity.type === "GOOGLE_COLAB" ? (
+                                            ) : activity.type === "GOOGLE_COLAB" || activity.type === "PDF_REVIEW" ? (
                                                 <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                                             ) : (
                                                 <Eye className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -759,8 +1145,9 @@ export function ActivityDetail({
                                                 rel="noreferrer"
                                                 className="text-blue-600 hover:underline font-medium text-sm break-all"
                                             >
-                                                {activity.type === "GITHUB" ? "Ver Repositorio en GitHub" :
+                                                {activity.type === "GITHUB" || activity.type === "CODE_PROJECT" ? "Ver Repositorio en GitHub" :
                                                     activity.type === "GOOGLE_COLAB" ? "Ver Notebook en Google Colab" :
+                                                    activity.type === "PDF_REVIEW" ? "Ver PDF entregado" :
                                                         submission.url}
                                             </a>
                                         </div>
@@ -869,13 +1256,20 @@ export function ActivityDetail({
 
                                         <div className="border-t pt-4">
                                             <h5 className="text-sm font-medium mb-3">Calificación Manual</h5>
-                                            <form action={async (formData) => {
-                                                formData.append("activityId", activity.id);
-                                                formData.append("userId", student.id);
-                                                formData.append("courseId", activity.courseId);
-                                                await import("@/app/actions").then(mod => mod.gradeManualActivityAction(formData));
-                                                toast.success("Calificación guardada");
-                                            }}>
+                                            <BulkConfirmationUI userId={student.id} activityId={activity.id} />
+                                            {!showBulkConfirmation && (
+                                                <form 
+                                                    id={`form-github-${student.id}`}
+                                                    action={async (formData) => {
+                                                        const grade = formData.get("grade") as string;
+                                                        const feedback = formData.get("feedback") as string;
+                                                        if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
+                                                        if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
+                                                        await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                    }}
+                                                >
+                                                <input type="hidden" name="activityId" value={activity.id} />
+                                                <input type="hidden" name="userId" value={student.id} />
                                                 <div className="space-y-3">
                                                     <div className="space-y-1">
                                                         <Label htmlFor={`grade-github-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
@@ -888,6 +1282,7 @@ export function ActivityDetail({
                                                             max="5"
                                                             defaultValue={submission?.grade ?? ""}
                                                             placeholder="Ej: 4.5"
+                                                            required
                                                         />
                                                     </div>
                                                     <div className="space-y-1">
@@ -904,7 +1299,6 @@ export function ActivityDetail({
                                                                     if (!text || text.length < 10) { toast.error("Escribe al menos 10 caracteres."); return; }
                                                                     const toastId = toast.loading("Mejorando redacción con IA...");
                                                                     try {
-                                                                        const { improveFeedbackAction } = await import("@/app/actions");
                                                                         const improved = await improveFeedbackAction(text);
                                                                         textarea.value = improved;
                                                                         toast.success("Texto mejorado", { id: toastId });
@@ -928,6 +1322,236 @@ export function ActivityDetail({
                                                     </Button>
                                                 </div>
                                             </form>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Calificación PDF — IA */}
+                                {activity.type === "PDF_REVIEW" && submission && (
+                                    <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
+                                        <h4 className="font-semibold flex items-center gap-2">
+                                            <Sparkles className="h-4 w-4 text-primary" />
+                                            Calificar Entrega PDF
+                                        </h4>
+
+                                        <div className="space-y-3">
+                                            <Button
+                                                type="button"
+                                                variant="default"
+                                                size="sm"
+                                                className="gap-2"
+                                                disabled={isPdfGrading === student.id}
+                                                onClick={() => handleGradePdfWithAI(student.id, submission.url)}
+                                            >
+                                                {isPdfGrading === student.id ? (
+                                                    <><Loader2 className="h-4 w-4 animate-spin" />Calificando...</>
+                                                ) : (
+                                                    <><Bot className="h-4 w-4" />Calificar con IA (Gemini)</>
+                                                )}
+                                            </Button>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Esto descargará el PDF y lo evaluará según la rúbrica definida en el enunciado.
+                                            </p>
+                                        </div>
+
+                                        <div className="border-t pt-4">
+                                            <h5 className="text-sm font-medium mb-3">Calificación Manual</h5>
+                                            <BulkConfirmationUI userId={student.id} activityId={activity.id} />
+                                            {!showBulkConfirmation && (
+                                                <form 
+                                                    id={`form-pdf-${student.id}`}
+                                                    action={async (formData) => {
+                                                        const grade = formData.get("grade") as string;
+                                                        const feedback = formData.get("feedback") as string;
+                                                        if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
+                                                        if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
+                                                        await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                    }}
+                                                >
+                                                <input type="hidden" name="activityId" value={activity.id} />
+                                                <input type="hidden" name="userId" value={student.id} />
+                                                <div className="space-y-3">
+                                                    <div className="space-y-1">
+                                                        <Label htmlFor={`grade-pdf-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
+                                                        <Input
+                                                            id={`grade-pdf-${student.id}`}
+                                                            name="grade"
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            max="5"
+                                                            defaultValue={submission?.grade ?? ""}
+                                                            placeholder="Ej: 4.5"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label htmlFor={`feedback-pdf-${student.id}`} className="text-xs">Retroalimentación</Label>
+                                                        </div>
+                                                        <Textarea
+                                                            id={`feedback-pdf-${student.id}`}
+                                                            name="feedback"
+                                                            defaultValue={submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? ""}
+                                                            placeholder="Comentarios para el estudiante..."
+                                                            rows={3}
+                                                        />
+                                                    </div>
+                                                    <Button type="submit" size="sm" className="w-full">
+                                                        {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activity.type === "CODE_PROJECT" && submission && (
+                                    <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
+                                        <h4 className="font-semibold flex items-center gap-2">
+                                            <Github className="h-4 w-4" />
+                                            Revisión de Proyecto de Código
+                                        </h4>
+
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                    disabled={scanningRepoStudentId === student.id}
+                                                    onClick={() => handleScanRepo(student.id, submission.url)}
+                                                >
+                                                    {scanningRepoStudentId === student.id ? (
+                                                        <><Loader2 className="h-4 w-4 animate-spin" /> Escaneando...</>
+                                                    ) : (
+                                                        <><Search className="h-4 w-4" /> Escanear Repositorio</>
+                                                    )}
+                                                </Button>
+                                            </div>
+
+                                            {scannedRepoFiles.length > 0 && (
+                                                <div className="space-y-3">
+                                                    <Label className="text-xs font-medium">Selecciona los archivos para evaluar:</Label>
+                                                    <div className="max-h-60 overflow-y-auto border rounded-md bg-background p-2 space-y-1">
+                                                        {scannedRepoFiles.map((path) => (
+                                                            <div key={path} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded transition-colors">
+                                                                <Checkbox
+                                                                    id={`file-${path}`}
+                                                                    checked={selectedRepoFiles.includes(path)}
+                                                                    onCheckedChange={(checked) => {
+                                                                        if (checked) setSelectedRepoFiles(prev => [...prev, path]);
+                                                                        else setSelectedRepoFiles(prev => prev.filter(p => p !== path));
+                                                                    }}
+                                                                />
+                                                                <label
+                                                                    htmlFor={`file-${path}`}
+                                                                    className="text-xs font-mono truncate cursor-pointer flex-1"
+                                                                >
+                                                                    {path}
+                                                                </label>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 pt-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="default"
+                                                            size="sm"
+                                                            className="flex-1 gap-2"
+                                                            disabled={isCodeProjectGrading === student.id || selectedRepoFiles.length === 0}
+                                                            onClick={() => handleGradeCodeProjectWithAI(student.id, submission.url)}
+                                                        >
+                                                            {isCodeProjectGrading === student.id ? (
+                                                                <><Loader2 className="h-4 w-4 animate-spin" /> Evaluando...</>
+                                                            ) : (
+                                                                <><Sparkles className="h-4 w-4" /> Calificar Selección con IA</>
+                                                            )}
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => setShowGradingLogs(v => !v)}
+                                                        >
+                                                            {showGradingLogs ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                                        </Button>
+                                                    </div>
+
+                                                    {showGradingLogs && gradingLogs.length > 0 && (
+                                                        <div
+                                                            ref={scrollRef}
+                                                            className="space-y-1 max-h-40 overflow-y-auto text-[10px] font-mono bg-background p-2 rounded border"
+                                                        >
+                                                            {gradingLogs.map((log, i) => (
+                                                                <div key={i} className="border-b border-muted/30 pb-1 last:border-0">
+                                                                    {log}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {gradingResult && (
+                                                <div className="p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 rounded text-xs text-green-700 dark:text-green-400 flex items-center gap-2">
+                                                    <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                                                    <span>Calificación guardada: <strong>{gradingResult.grade.toFixed(1)} / 5.0</strong></span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="border-t pt-4">
+                                            <h5 className="text-sm font-medium mb-3">Calificación Manual</h5>
+                                            <BulkConfirmationUI userId={student.id} activityId={activity.id} />
+                                            {!showBulkConfirmation && (
+                                                <form 
+                                                    id={`form-cp-${student.id}`}
+                                                    action={async (formData) => {
+                                                        const grade = formData.get("grade") as string;
+                                                        const feedback = formData.get("feedback") as string;
+                                                        if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
+                                                        if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
+                                                        await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                    }}
+                                                >
+                                                <input type="hidden" name="activityId" value={activity.id} />
+                                                <input type="hidden" name="userId" value={student.id} />
+                                                <div className="space-y-3">
+                                                    <div className="space-y-1">
+                                                        <Label htmlFor={`grade-cp-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
+                                                        <Input
+                                                            id={`grade-cp-${student.id}`}
+                                                            name="grade"
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            max="5"
+                                                            defaultValue={submission?.grade ?? ""}
+                                                            placeholder="Ej: 4.5"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label htmlFor={`feedback-cp-${student.id}`} className="text-xs">Retroalimentación</Label>
+                                                        <Textarea
+                                                            id={`feedback-cp-${student.id}`}
+                                                            name="feedback"
+                                                            defaultValue={submission?.feedback ?? ""}
+                                                            placeholder="Comentarios para el estudiante..."
+                                                            rows={3}
+                                                        />
+                                                    </div>
+                                                    <Button type="submit" size="sm" className="w-full">
+                                                        {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -936,10 +1560,20 @@ export function ActivityDetail({
                                 {activity.type === "MANUAL" && (
                                     <div className="rounded-lg border p-4 bg-muted/30">
                                         <h4 className="font-semibold mb-3">Calificación Manual</h4>
-                                        <form>
+                                        <BulkConfirmationUI userId={student.id} activityId={activity.id} />
+                                        {!showBulkConfirmation && (
+                                            <form 
+                                                id={`form-manual-${student.id}`}
+                                                action={async (formData) => {
+                                                    const grade = formData.get("grade") as string;
+                                                    const feedback = formData.get("feedback") as string;
+                                                    if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
+                                                    if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
+                                                    await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                }}
+                                            >
                                             <input type="hidden" name="activityId" value={activity.id} />
                                             <input type="hidden" name="userId" value={student.id} />
-                                            <input type="hidden" name="courseId" value={activity.courseId} />
                                             <div className="space-y-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor={`grade-manual-${student.id}`}>Nota (0.0 - 5.0)</Label>
@@ -995,23 +1629,40 @@ export function ActivityDetail({
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <Button 
-                                                        type="submit" 
+                                                        type="button" 
                                                         className="flex-1"
-                                                        formAction={async (formData) => {
-                                                            await import("@/app/actions").then(mod => mod.gradeManualActivityAction(formData));
-                                                            toast.success("Calificación guardada");
+                                                        onClick={async () => {
+                                                            try {
+                                                                const form = document.getElementById(`form-manual-${student.id}`) as HTMLFormElement;
+                                                                if (!form) {
+                                                                    toast.error("Error: Formulario no encontrado en el DOM");
+                                                                    return;
+                                                                }
+                                                                const formData = new FormData(form);
+                                                                const grade = formData.get("grade") as string;
+                                                                const feedback = formData.get("feedback") as string;
+                                                                if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
+                                                                if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
+                                                                await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                            } catch (err: any) {
+                                                                toast.error("Error crítico en el botón", { description: err.message });
+                                                            }
                                                         }}
                                                     >
                                                         {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
                                                     </Button>
                                                     {submission && (
                                                         <Button 
-                                                            type="submit"
-                                                            formAction={async (formData) => {
-                                                                await import("@/app/actions").then(mod => mod.rejectManualActivityAction(formData));
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                const { rejectManualActivityAction } = await import("@/app/actions");
+                                                                const formData = new FormData();
+                                                                formData.append("activityId", activity.id);
+                                                                formData.append("userId", student.id);
+                                                                formData.append("courseId", activity.courseId);
+                                                                await rejectManualActivityAction(formData);
                                                                 toast.success("Entrega rechazada");
                                                             }}
-                                                            formNoValidate
                                                             variant="outline"
                                                             className="text-destructive hover:bg-destructive/10"
                                                         >
@@ -1020,7 +1671,8 @@ export function ActivityDetail({
                                                     )}
                                                 </div>
                                             </div>
-                                        </form>
+                                            </form>
+                                        )}
                                     </div>
                                 )}
 
@@ -1368,20 +2020,52 @@ export function ActivityDetail({
                                 </Table>
                             </div>
 
-                            <div className="flex gap-2 justify-end mt-6">
-                                <Button variant="outline" onClick={() => setShowBatchSheet(false)}>
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    onClick={handleBatchGradeWithAI}
-                                    disabled={selectedStudentsForBatch.length === 0}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                                >
-                                    <Bot className="w-4 h-4 mr-2" />
-                                    Evaluar Seleccionados ({selectedStudentsForBatch.length})
-                                </Button>
+                            <div className="mt-6 p-4 rounded-lg bg-muted/50 border space-y-4">
+                                <h4 className="text-sm font-semibold flex items-center gap-2">
+                                    <Settings className="h-4 w-4" />
+                                    Optimización de Lote
+                                </h4>
+                                <div className="space-y-3">
+                                    <div className="flex items-start gap-3">
+                                        <Checkbox 
+                                            id="batch-auto-dup" 
+                                            checked={batchAutoDuplicate}
+                                            onCheckedChange={(v) => setBatchAutoDuplicate(!!v)}
+                                            className="mt-1"
+                                        />
+                                        <div className="grid gap-1.5 leading-none">
+                                            <Label htmlFor="batch-auto-dup" className="text-xs font-medium cursor-pointer">Confirmación de Duplicidad Automática</Label>
+                                            <p className="text-[10px] text-muted-foreground">Asignar automáticamente la misma nota a todos los registros que compartan el mismo enlace.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <Checkbox 
+                                            id="batch-skip-graded" 
+                                            checked={batchSkipGraded}
+                                            onCheckedChange={(v) => setBatchSkipGraded(!!v)}
+                                            className="mt-1"
+                                        />
+                                        <div className="grid gap-1.5 leading-none">
+                                            <Label htmlFor="batch-skip-graded" className="text-xs font-medium cursor-pointer">Depuración de la Cola</Label>
+                                            <p className="text-[10px] text-muted-foreground">Excluir automáticamente de la evaluación a estudiantes que ya cuentan con una nota previa.</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    )}
+
+                    {batchStep === "selection" && (
+                        <SheetFooter className="mt-6 pt-4 border-t">
+                            <Button 
+                                className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2 h-11"
+                                disabled={selectedStudentsForBatch.length === 0}
+                                onClick={handleBatchGradeWithAI}
+                            >
+                                <Bot className="h-5 w-5" />
+                                Iniciar Evaluación de {selectedStudentsForBatch.length} Estudiantes
+                            </Button>
+                        </SheetFooter>
                     )}
 
                     {batchStep === "progress" && (
@@ -1468,6 +2152,7 @@ export function ActivityDetail({
                             </div>
                         </div>
                     )}
+
                 </SheetContent>
             </Sheet>
         </div>
