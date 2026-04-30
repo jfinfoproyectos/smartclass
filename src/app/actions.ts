@@ -869,13 +869,14 @@ export async function analyzeGitHubFileAction(
     content: string,
     statement: string,
     repoUrl: string,
-    accumulatedContext?: string
+    accumulatedContext?: string,
+    gradingMode: string = "normal"
 ) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
 
     const { analyzeFile } = await import("@/services/gemini/codeAnalysisService");
-    return await analyzeFile(path, content, statement, repoUrl, session.user.id, accumulatedContext);
+    return await analyzeFile(path, content, statement, repoUrl, session.user.id, accumulatedContext, gradingMode);
 }
 
 // 3. Finalizar y guardar calificación (PROFESOR)
@@ -887,13 +888,14 @@ export async function finalizeGitHubGradingAction(
     analyses: any[],
     missingFiles: string[],
     totalExpectedFiles: number,
-    courseId: string
+    courseId: string,
+    gradingMode: string = "normal"
 ) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") throw new Error("Unauthorized");
 
     const { finalizeSubmission } = await import("@/services/gemini/gradingService");
-    const result = await finalizeSubmission(analyses, statement, missingFiles, session.user.id, totalExpectedFiles);
+    const result = await finalizeSubmission(analyses, statement, missingFiles, session.user.id, totalExpectedFiles, gradingMode);
 
     const apiRequestsCount = analyses.length + 1;
     const feedbackText = result.feedback + `\n\n*(Calificado por IA - Peticiones API: ${apiRequestsCount})*`;
@@ -1647,7 +1649,7 @@ export async function getScheduleViewAction() {
 }
 
 
-export async function gradeGoogleColabAction(activityId: string, colabUrl: string, statement: string) {
+export async function gradeGoogleColabAction(activityId: string, colabUrl: string, statement: string, gradingMode: string = "normal") {
     const session = await getSession();
     if (!session || session.user.role !== "student") {
         throw new Error("Unauthorized");
@@ -1660,7 +1662,7 @@ export async function gradeGoogleColabAction(activityId: string, colabUrl: strin
     const teacherId = activity?.course.teacherId;
 
     const { gradeGoogleColabSubmission } = await import("@/services/gemini/gradingService");
-    const result = await gradeGoogleColabSubmission(statement, colabUrl, teacherId);
+    const result = await gradeGoogleColabSubmission(statement, colabUrl, teacherId, gradingMode);
 
     // Log API usage if global key is active
     if (result.apiRequestsCount) {
@@ -1732,7 +1734,8 @@ export async function gradePdfReviewAction(
     studentUserId: string, 
     pdfUrl: string, 
     statement: string,
-    courseId: string
+    courseId: string,
+    gradingMode: string = "normal"
 ) {
     const session = await getSession();
     if (!session || session.user.role !== "teacher") {
@@ -1747,7 +1750,7 @@ export async function gradePdfReviewAction(
     const teacherId = activity.course.teacherId;
 
     const { gradePdfReviewSubmission } = await import("@/services/gemini/pdfReviewService");
-    const result = await gradePdfReviewSubmission(statement, pdfUrl, teacherId);
+    const result = await gradePdfReviewSubmission(statement, pdfUrl, teacherId, gradingMode);
 
     // Log API usage if global key is active
     if (result.apiRequestsCount) {

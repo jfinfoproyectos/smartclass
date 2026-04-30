@@ -44,6 +44,7 @@ export async function analyzeFile(
     repoUrl: string,
     userId?: string,
     previousContextText?: string,
+    gradingMode: string = "normal",
     maxRetries = 3
 ): Promise<FileAnalysis> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -67,10 +68,14 @@ export async function analyzeFile(
             Actúa como un tutor experto y evaluador de código senior.
             Analiza el siguiente archivo de código individualmente con respecto a la rúbrica proporcionada.
             
-            **REGLAS ESTRICTAS**: 
-            1. Evalúa **EXCLUSIVAMENTE** lo que se solicita en la "Rúbrica/Enunciado". NO supongas que faltan características, manejo de errores, o funcionalidades adicionales si no fueron explícitamente solicitadas en la rúbrica.
-            2. Al evaluar ejercicios de Java o lenguajes orientados a objetos, **NO penalices** por problemas de dependencias, falta de imports, o clases no definidas en el archivo. Asume que están en el contexto del proyecto.
-            3. No evalúes estrictamente inconsistencias menores de indentación o formato. Evalúa solo la calidad de la lógica construida.
+            **REGLAS DE EVALUACIÓN (${gradingMode.toUpperCase()})**:
+            1. Evalúa **EXCLUSIVAMENTE** lo que se solicita en la "Rúbrica/Enunciado". NO supongas que faltan características si no fueron solicitadas.
+            2. Al evaluar ejercicios de Java o lenguajes orientados a objetos, **NO penalices** por problemas de dependencias o falta de imports.
+            3. ${gradingMode === "strict" 
+                ? "SÉ EXTREMADAMENTE ESTRICTO. Penaliza rigurosamente errores de redacción, ortografía (en comentarios y logs), falta de coherencia, cohesión y cumplimiento estricto de normatividad de documentación." 
+                : gradingMode === "moderate" 
+                ? "Evaluación moderada: considera legibilidad, estructura y mejores prácticas básicas además de la lógica." 
+                : "Evaluación estándar: enfócate principalmente en la funcionalidad y lógica básica solicitada."}
             
             **Rúbrica/Enunciado**: "${description}"
             ${contextSection}

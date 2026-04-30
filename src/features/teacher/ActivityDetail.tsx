@@ -95,6 +95,7 @@ export function ActivityDetail({
     const [scannedRepoFiles, setScannedRepoFiles] = useState<string[]>([]);
     const [selectedRepoFiles, setSelectedRepoFiles] = useState<string[]>([]);
     const [isCodeProjectGrading, setIsCodeProjectGrading] = useState<string | null>(null);
+    const [gradingMode, setGradingMode] = useState<"normal" | "moderate" | "strict">("normal");
 
     // Estado para calificación por lote
     const [isBatchGrading, setIsBatchGrading] = useState(false);
@@ -265,7 +266,8 @@ export function ActivityDetail({
                         file.content,
                         activity.statement || "",
                         repoUrl,
-                        accumulatedContext
+                        accumulatedContext,
+                        gradingMode
                     );
 
                     analyses.push(analysis);
@@ -306,12 +308,20 @@ export function ActivityDetail({
                 analyses,
                 missingFiles,
                 (activity.filePaths || "").split(',').length,
-                activity.courseId
+                activity.courseId,
+                gradingMode
             );
 
             setGradingResult(result);
             addLog(`✅ Calificación completada. Nota final: ${result.grade.toFixed(1)} / 5.0`);
-            toast.success(`Calificación guardada: ${result.grade.toFixed(1)} / 5.0`);
+            
+            if (duplicatesForCurrent.length > 0) {
+                setBulkGradeData({ grade: result.grade, feedback: result.feedback });
+                setShowBulkConfirmation(true);
+                toast.success(`Análisis completado. ¿Deseas aplicar esta nota a los ${duplicatesForCurrent.length + 1} estudiantes vinculados?`);
+            } else {
+                toast.success(`Calificación guardada: ${result.grade.toFixed(1)} / 5.0`);
+            }
         } catch (error: any) {
             addLog(`❌ Error crítico: ${error.message}`);
             toast.error("Error al calificar", { description: error.message });
@@ -322,15 +332,24 @@ export function ActivityDetail({
 
     const handleGradePdfWithAI = async (studentId: string, pdfUrl: string) => {
         setIsPdfGrading(studentId);
+        setGradingResult(null);
         try {
             const result = await gradePdfReviewAction(
                 activity.id,
                 studentId,
                 pdfUrl,
                 activity.statement || "",
-                activity.courseId
+                activity.courseId,
+                gradingMode
             );
-            toast.success(`PDF evaluado: ${result.grade.toFixed(1)} / 5.0`);
+            setGradingResult(result);
+            if (duplicatesForCurrent.length > 0) {
+                setBulkGradeData({ grade: result.grade, feedback: result.feedback });
+                setShowBulkConfirmation(true);
+                toast.success(`Análisis PDF completado. ¿Deseas aplicar esta nota a todos los estudiantes vinculados?`);
+            } else {
+                toast.success(`PDF evaluado: ${result.grade.toFixed(1)} / 5.0`);
+            }
         } catch (error: any) {
             toast.error("Error al evaluar PDF", { description: error.message });
         } finally {
@@ -393,7 +412,8 @@ export function ActivityDetail({
                     file.content,
                     activity.statement || "",
                     repoUrl,
-                    accumulatedContext
+                    accumulatedContext,
+                    gradingMode
                 );
 
                 analyses.push(analysis);
@@ -410,12 +430,20 @@ export function ActivityDetail({
                 analyses,
                 [],
                 selectedRepoFiles.length,
-                activity.courseId
+                activity.courseId,
+                gradingMode
             );
 
             setGradingResult(result);
             addLog(`✅ Calificación completada. Nota final: ${result.grade.toFixed(1)} / 5.0`);
-            toast.success(`Calificación guardada: ${result.grade.toFixed(1)} / 5.0`);
+            
+            if (duplicatesForCurrent.length > 0) {
+                setBulkGradeData({ grade: result.grade, feedback: result.feedback });
+                setShowBulkConfirmation(true);
+                toast.success(`Calificación generada. ¿Deseas aplicarla a los duplicados detectados?`);
+            } else {
+                toast.success(`Calificación guardada: ${result.grade.toFixed(1)} / 5.0`);
+            }
         } catch (error: any) {
             addLog(`❌ Error: ${error.message}`);
             toast.error("Error al calificar", { description: error.message });
@@ -441,7 +469,8 @@ export function ActivityDetail({
                 lastAnalyses,
                 lastMissingFiles,
                 (activity.filePaths || "").split(',').length,
-                activity.courseId
+                activity.courseId,
+                gradingMode
             );
 
             setGradingResult(result);
@@ -504,14 +533,15 @@ export function ActivityDetail({
                     <Button 
                         size="sm"
                         onClick={handleApplyBulkGrade}
-                        className="bg-amber-600 hover:bg-amber-700 text-white flex-1"
+                        className="bg-amber-600 hover:bg-amber-700 text-white flex-1 h-9 text-xs font-bold shadow-md"
                     >
-                        Aplicar a todos ({duplicatesForCurrent.length + 1})
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Aplicar a todos vinculados ({duplicatesForCurrent.length + 1})
                     </Button>
                     <Button 
                         variant="outline" 
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 h-9 text-xs border-amber-200 hover:bg-amber-100 dark:border-amber-900/50"
                         onClick={async () => {
                             try {
                                 const formData = new FormData();
@@ -530,11 +560,12 @@ export function ActivityDetail({
                             }
                         }}
                     >
-                        Solo este estudiante
+                        Evaluar solo al actual
                     </Button>
                     <Button 
                         variant="ghost" 
                         size="sm"
+                        className="h-9 text-xs"
                         onClick={() => {
                             setShowBulkConfirmation(false);
                             setBulkGradeData(null);
@@ -1006,16 +1037,14 @@ export function ActivityDetail({
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                {(submission || activity.type === "MANUAL") && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setSelectedStudentIndex(studentStatus.indexOf(studentStatus.find(s => s.student.id === student.id)!))}
-                                                    >
-                                                        <Eye className="h-4 w-4 mr-2" />
-                                                        {activity.type === "MANUAL" && !submission ? "Calificar" : "Ver Detalle"}
-                                                    </Button>
-                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setSelectedStudentIndex(studentStatus.indexOf(studentStatus.find(s => s.student.id === student.id)!))}
+                                                >
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    {!submission ? "Calificar" : "Ver Detalle"}
+                                                </Button>
                                                 {submission && (
                                                     <Button
                                                         variant="ghost"
@@ -1050,13 +1079,30 @@ export function ActivityDetail({
                 const { student, submission, isRejected } = studentStatus[selectedStudentIndex];
                 const total = students.length;
 
-                const goPrev = () => setSelectedStudentIndex(i => i === null ? null : (i - 1 + total) % total);
-                const goNext = () => setSelectedStudentIndex(i => i === null ? null : (i + 1) % total);
+                const resetGradingState = () => {
+                    setGradingResult(null);
+                    setGradingLogs([]);
+                    setShowGradingLogs(false);
+                    setShowBulkConfirmation(false);
+                    setBulkGradeData(null);
+                };
+
+                const goPrev = () => {
+                    resetGradingState();
+                    setSelectedStudentIndex(i => i === null ? null : (i - 1 + total) % total);
+                };
+                const goNext = () => {
+                    resetGradingState();
+                    setSelectedStudentIndex(i => i === null ? null : (i + 1) % total);
+                };
 
                 return (
                     <Sheet open={selectedStudentIndex !== null} onOpenChange={open => { 
                         if (!open) {
                             setSelectedStudentIndex(null); 
+                            setGradingResult(null);
+                            setGradingLogs([]);
+                            setShowGradingLogs(false);
                             setShowBulkConfirmation(false);
                             setBulkGradeData(null);
                         } 
@@ -1154,6 +1200,8 @@ export function ActivityDetail({
                                     </div>
                                 )}
 
+                                <DuplicateAlert />
+
                                 {/* Grade */}
                                 {submission && submission.grade !== null && (
                                     <div className="rounded-lg border p-4 bg-green-50 dark:bg-green-950/20">
@@ -1178,15 +1226,16 @@ export function ActivityDetail({
                                 )}
 
                                 {/* Calificación GitHub — IA y Manual */}
-                                {activity.type === "GITHUB" && submission && (
+                                {activity.type === "GITHUB" && (
                                     <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
                                         <h4 className="font-semibold flex items-center gap-2">
                                             <Sparkles className="h-4 w-4 text-primary" />
                                             Calificar Entrega GitHub
                                         </h4>
 
-                                        {activity.filePaths && (
+                                        {submission && activity.filePaths && (
                                             <div className="space-y-3">
+                                                <GradingModeSelector gradingMode={gradingMode} setGradingMode={setGradingMode} />
                                                 <div className="flex items-center gap-2">
                                                     <Button
                                                         type="button"
@@ -1258,299 +1307,422 @@ export function ActivityDetail({
                                             <h5 className="text-sm font-medium mb-3">Calificación Manual</h5>
                                             <BulkConfirmationUI userId={student.id} activityId={activity.id} />
                                             {!showBulkConfirmation && (
-                                                <form 
-                                                    id={`form-github-${student.id}`}
-                                                    action={async (formData) => {
-                                                        const grade = formData.get("grade") as string;
-                                                        const feedback = formData.get("feedback") as string;
-                                                        if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
-                                                        if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
-                                                        await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
-                                                    }}
-                                                >
-                                                <input type="hidden" name="activityId" value={activity.id} />
-                                                <input type="hidden" name="userId" value={student.id} />
-                                                <div className="space-y-3">
-                                                    <div className="space-y-1">
-                                                        <Label htmlFor={`grade-github-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
-                                                        <Input
-                                                            id={`grade-github-${student.id}`}
-                                                            name="grade"
-                                                            type="number"
-                                                            step="0.1"
-                                                            min="0"
-                                                            max="5"
-                                                            defaultValue={submission?.grade ?? ""}
-                                                            placeholder="Ej: 4.5"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center justify-between">
-                                                            <Label htmlFor={`feedback-github-${student.id}`} className="text-xs">Retroalimentación</Label>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-6 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                <form id={`form-github-${student.id}`}>
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor={`grade-github-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
+                                                            <Input
+                                                                id={`grade-github-${student.id}`}
+                                                                name="grade"
+                                                                type="number"
+                                                                step="0.1"
+                                                                min="0"
+                                                                max="5"
+                                                                defaultValue={gradingResult?.grade ?? submission?.grade ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "0.0" : "")}
+                                                                placeholder="Ej: 4.5"
+                                                                required
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label htmlFor={`feedback-github-${student.id}`} className="text-xs">Retroalimentación</Label>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 text-[10px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                    onClick={async () => {
+                                                                        const textarea = document.getElementById(`feedback-github-${student.id}`) as HTMLTextAreaElement;
+                                                                        const text = textarea.value;
+                                                                        if (!text || text.length < 10) { toast.error("Escribe al menos 10 caracteres."); return; }
+                                                                        const toastId = toast.loading("Mejorando redacción con IA...");
+                                                                        try {
+                                                                            const improved = await improveFeedbackAction(text);
+                                                                            textarea.value = improved;
+                                                                            toast.success("Texto mejorado", { id: toastId });
+                                                                        } catch { toast.error("Error al mejorar texto", { id: toastId }); }
+                                                                    }}
+                                                                >
+                                                                    <Sparkles className="w-3 h-3 mr-1" />
+                                                                    Mejorar con IA
+                                                                </Button>
+                                                            </div>
+                                                            <Textarea
+                                                                id={`feedback-github-${student.id}`}
+                                                                name="feedback"
+                                                                defaultValue={gradingResult?.feedback ?? submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "No realizó entrega" : "")}
+                                                                placeholder="Comentarios para el estudiante..."
+                                                                rows={3}
+                                                            />
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                className="flex-1"
                                                                 onClick={async () => {
-                                                                    const textarea = document.getElementById(`feedback-github-${student.id}`) as HTMLTextAreaElement;
-                                                                    const text = textarea.value;
-                                                                    if (!text || text.length < 10) { toast.error("Escribe al menos 10 caracteres."); return; }
-                                                                    const toastId = toast.loading("Mejorando redacción con IA...");
-                                                                    try {
-                                                                        const improved = await improveFeedbackAction(text);
-                                                                        textarea.value = improved;
-                                                                        toast.success("Texto mejorado", { id: toastId });
-                                                                    } catch { toast.error("Error al mejorar texto", { id: toastId }); }
+                                                                    const form = document.getElementById(`form-github-${student.id}`) as HTMLFormElement;
+                                                                    const formData = new FormData(form);
+                                                                    const grade = formData.get("grade") as string;
+                                                                    const feedback = formData.get("feedback") as string;
+                                                                    await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
                                                                 }}
                                                             >
-                                                                <Sparkles className="w-3 h-3 mr-1" />
-                                                                Mejorar con IA
+                                                                {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
                                                             </Button>
+                                                            {submission && (
+                                                                <Button 
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    onClick={async () => {
+                                                                        const { rejectManualActivityAction } = await import("@/app/actions");
+                                                                        const formData = new FormData();
+                                                                        formData.append("activityId", activity.id);
+                                                                        formData.append("userId", student.id);
+                                                                        formData.append("courseId", activity.courseId);
+                                                                        const feedback = (document.getElementById(`feedback-github-${student.id}`) as HTMLTextAreaElement)?.value;
+                                                                        if (feedback) formData.append("feedback", feedback);
+                                                                        await rejectManualActivityAction(formData);
+                                                                        toast.success("Entrega rechazada");
+                                                                    }}
+                                                                    variant="outline"
+                                                                    className="text-destructive hover:bg-destructive/10"
+                                                                >
+                                                                    Rechazar
+                                                                </Button>
+                                                            )}
                                                         </div>
-                                                        <Textarea
-                                                            id={`feedback-github-${student.id}`}
-                                                            name="feedback"
-                                                            defaultValue=""
-                                                            placeholder="Comentarios para el estudiante..."
-                                                            rows={3}
-                                                        />
                                                     </div>
-                                                    <Button type="submit" size="sm" className="w-full">
-                                                        {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
-                                                    </Button>
-                                                </div>
-                                            </form>
+                                                </form>
                                             )}
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Calificación PDF — IA */}
-                                {activity.type === "PDF_REVIEW" && submission && (
+                                {activity.type === "PDF_REVIEW" && (
                                     <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
                                         <h4 className="font-semibold flex items-center gap-2">
                                             <Sparkles className="h-4 w-4 text-primary" />
                                             Calificar Entrega PDF
                                         </h4>
 
-                                        <div className="space-y-3">
-                                            <Button
-                                                type="button"
-                                                variant="default"
-                                                size="sm"
-                                                className="gap-2"
-                                                disabled={isPdfGrading === student.id}
-                                                onClick={() => handleGradePdfWithAI(student.id, submission.url)}
-                                            >
-                                                {isPdfGrading === student.id ? (
-                                                    <><Loader2 className="h-4 w-4 animate-spin" />Calificando...</>
-                                                ) : (
-                                                    <><Bot className="h-4 w-4" />Calificar con IA (Gemini)</>
+                                        {submission && (
+                                            <div className="space-y-3">
+                                                <GradingModeSelector gradingMode={gradingMode} setGradingMode={setGradingMode} />
+                                                <Button
+                                                    type="button"
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                    disabled={isPdfGrading === student.id}
+                                                    onClick={() => handleGradePdfWithAI(student.id, submission.url)}
+                                                >
+                                                    {isPdfGrading === student.id ? (
+                                                        <><Loader2 className="h-4 w-4 animate-spin" />Calificando...</>
+                                                    ) : (
+                                                        <><Bot className="h-4 w-4" />Calificar con IA (Gemini)</>
+                                                    )}
+                                                </Button>
+                                                {gradingResult && (
+                                                    <div className="p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 rounded text-xs text-green-700 dark:text-green-400 flex items-center gap-2">
+                                                        <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                                                        <span>Calificación guardada: <strong>{gradingResult.grade.toFixed(1)} / 5.0</strong>.</span>
+                                                    </div>
                                                 )}
-                                            </Button>
-                                            <p className="text-[10px] text-muted-foreground">
-                                                Esto descargará el PDF y lo evaluará según la rúbrica definida en el enunciado.
-                                            </p>
-                                        </div>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Esto descargará el PDF y lo evaluará según la rúbrica definida en el enunciado.
+                                                </p>
+                                            </div>
+                                        )}
 
                                         <div className="border-t pt-4">
                                             <h5 className="text-sm font-medium mb-3">Calificación Manual</h5>
                                             <BulkConfirmationUI userId={student.id} activityId={activity.id} />
                                             {!showBulkConfirmation && (
-                                                <form 
-                                                    id={`form-pdf-${student.id}`}
-                                                    action={async (formData) => {
-                                                        const grade = formData.get("grade") as string;
-                                                        const feedback = formData.get("feedback") as string;
-                                                        if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
-                                                        if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
-                                                        await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
-                                                    }}
-                                                >
-                                                <input type="hidden" name="activityId" value={activity.id} />
-                                                <input type="hidden" name="userId" value={student.id} />
-                                                <div className="space-y-3">
-                                                    <div className="space-y-1">
-                                                        <Label htmlFor={`grade-pdf-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
-                                                        <Input
-                                                            id={`grade-pdf-${student.id}`}
-                                                            name="grade"
-                                                            type="number"
-                                                            step="0.1"
-                                                            min="0"
-                                                            max="5"
-                                                            defaultValue={submission?.grade ?? ""}
-                                                            placeholder="Ej: 4.5"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center justify-between">
-                                                            <Label htmlFor={`feedback-pdf-${student.id}`} className="text-xs">Retroalimentación</Label>
+                                                <form id={`form-pdf-${student.id}`}>
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor={`grade-pdf-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
+                                                            <Input
+                                                                id={`grade-pdf-${student.id}`}
+                                                                name="grade"
+                                                                type="number"
+                                                                step="0.1"
+                                                                min="0"
+                                                                max="5"
+                                                                defaultValue={gradingResult?.grade ?? submission?.grade ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "0.0" : "")}
+                                                                placeholder="Ej: 4.5"
+                                                                required
+                                                            />
                                                         </div>
-                                                        <Textarea
-                                                            id={`feedback-pdf-${student.id}`}
-                                                            name="feedback"
-                                                            defaultValue={submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? ""}
-                                                            placeholder="Comentarios para el estudiante..."
-                                                            rows={3}
-                                                        />
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label htmlFor={`feedback-pdf-${student.id}`} className="text-xs">Retroalimentación</Label>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 text-[10px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                    onClick={async () => {
+                                                                        const textarea = document.getElementById(`feedback-pdf-${student.id}`) as HTMLTextAreaElement;
+                                                                        const text = textarea.value;
+                                                                        if (!text || text.length < 10) { toast.error("Escribe al menos 10 caracteres."); return; }
+                                                                        const toastId = toast.loading("Mejorando redacción con IA...");
+                                                                        try {
+                                                                            const improved = await improveFeedbackAction(text);
+                                                                            textarea.value = improved;
+                                                                            toast.success("Texto mejorado", { id: toastId });
+                                                                        } catch { toast.error("Error al mejorar texto", { id: toastId }); }
+                                                                    }}
+                                                                >
+                                                                    <Sparkles className="w-3 h-3 mr-1" />
+                                                                    Mejorar con IA
+                                                                </Button>
+                                                            </div>
+                                                            <Textarea
+                                                                id={`feedback-pdf-${student.id}`}
+                                                                name="feedback"
+                                                                defaultValue={gradingResult?.feedback ?? submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "No realizó entrega" : "")}
+                                                                placeholder="Comentarios para el estudiante..."
+                                                                rows={3}
+                                                            />
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                className="flex-1"
+                                                                onClick={async () => {
+                                                                    const form = document.getElementById(`form-pdf-${student.id}`) as HTMLFormElement;
+                                                                    const formData = new FormData(form);
+                                                                    const grade = formData.get("grade") as string;
+                                                                    const feedback = formData.get("feedback") as string;
+                                                                    await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                                }}
+                                                            >
+                                                                {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
+                                                            </Button>
+                                                            {submission && (
+                                                                <Button 
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    onClick={async () => {
+                                                                        const { rejectManualActivityAction } = await import("@/app/actions");
+                                                                        const formData = new FormData();
+                                                                        formData.append("activityId", activity.id);
+                                                                        formData.append("userId", student.id);
+                                                                        formData.append("courseId", activity.courseId);
+                                                                        const feedback = (document.getElementById(`feedback-pdf-${student.id}`) as HTMLTextAreaElement)?.value;
+                                                                        if (feedback) formData.append("feedback", feedback);
+                                                                        await rejectManualActivityAction(formData);
+                                                                        toast.success("Entrega rechazada");
+                                                                    }}
+                                                                    variant="outline"
+                                                                    className="text-destructive hover:bg-destructive/10"
+                                                                >
+                                                                    Rechazar
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <Button type="submit" size="sm" className="w-full">
-                                                        {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
-                                                    </Button>
-                                                </div>
-                                            </form>
+                                                </form>
                                             )}
                                         </div>
                                     </div>
                                 )}
 
-                                {activity.type === "CODE_PROJECT" && submission && (
+                                {activity.type === "CODE_PROJECT" && (
                                     <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
                                         <h4 className="font-semibold flex items-center gap-2">
                                             <Github className="h-4 w-4" />
                                             Revisión de Proyecto de Código
                                         </h4>
 
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="gap-2"
-                                                    disabled={scanningRepoStudentId === student.id}
-                                                    onClick={() => handleScanRepo(student.id, submission.url)}
-                                                >
-                                                    {scanningRepoStudentId === student.id ? (
-                                                        <><Loader2 className="h-4 w-4 animate-spin" /> Escaneando...</>
-                                                    ) : (
-                                                        <><Search className="h-4 w-4" /> Escanear Repositorio</>
-                                                    )}
-                                                </Button>
-                                            </div>
+                                        {submission && (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="gap-2"
+                                                        disabled={scanningRepoStudentId === student.id}
+                                                        onClick={() => handleScanRepo(student.id, submission.url)}
+                                                    >
+                                                        {scanningRepoStudentId === student.id ? (
+                                                            <><Loader2 className="h-4 w-4 animate-spin" /> Escaneando...</>
+                                                        ) : (
+                                                            <><Search className="h-4 w-4" /> Escanear Repositorio</>
+                                                        )}
+                                                    </Button>
+                                                </div>
 
-                                            {scannedRepoFiles.length > 0 && (
-                                                <div className="space-y-3">
-                                                    <Label className="text-xs font-medium">Selecciona los archivos para evaluar:</Label>
-                                                    <div className="max-h-60 overflow-y-auto border rounded-md bg-background p-2 space-y-1">
-                                                        {scannedRepoFiles.map((path) => (
-                                                            <div key={path} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded transition-colors">
-                                                                <Checkbox
-                                                                    id={`file-${path}`}
-                                                                    checked={selectedRepoFiles.includes(path)}
-                                                                    onCheckedChange={(checked) => {
-                                                                        if (checked) setSelectedRepoFiles(prev => [...prev, path]);
-                                                                        else setSelectedRepoFiles(prev => prev.filter(p => p !== path));
-                                                                    }}
-                                                                />
-                                                                <label
-                                                                    htmlFor={`file-${path}`}
-                                                                    className="text-xs font-mono truncate cursor-pointer flex-1"
-                                                                >
-                                                                    {path}
-                                                                </label>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="flex items-center gap-2 pt-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="default"
-                                                            size="sm"
-                                                            className="flex-1 gap-2"
-                                                            disabled={isCodeProjectGrading === student.id || selectedRepoFiles.length === 0}
-                                                            onClick={() => handleGradeCodeProjectWithAI(student.id, submission.url)}
-                                                        >
-                                                            {isCodeProjectGrading === student.id ? (
-                                                                <><Loader2 className="h-4 w-4 animate-spin" /> Evaluando...</>
-                                                            ) : (
-                                                                <><Sparkles className="h-4 w-4" /> Calificar Selección con IA</>
-                                                            )}
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => setShowGradingLogs(v => !v)}
-                                                        >
-                                                            {showGradingLogs ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                                                        </Button>
-                                                    </div>
-
-                                                    {showGradingLogs && gradingLogs.length > 0 && (
-                                                        <div
-                                                            ref={scrollRef}
-                                                            className="space-y-1 max-h-40 overflow-y-auto text-[10px] font-mono bg-background p-2 rounded border"
-                                                        >
-                                                            {gradingLogs.map((log, i) => (
-                                                                <div key={i} className="border-b border-muted/30 pb-1 last:border-0">
-                                                                    {log}
+                                                {scannedRepoFiles.length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <GradingModeSelector gradingMode={gradingMode} setGradingMode={setGradingMode} />
+                                                        <Label className="text-xs font-medium">Selecciona los archivos para evaluar:</Label>
+                                                        <div className="max-h-60 overflow-y-auto border rounded-md bg-background p-2 space-y-1">
+                                                            {scannedRepoFiles.map((path) => (
+                                                                <div key={path} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded transition-colors">
+                                                                    <Checkbox
+                                                                        id={`file-${path}`}
+                                                                        checked={selectedRepoFiles.includes(path)}
+                                                                        onCheckedChange={(checked) => {
+                                                                            if (checked) setSelectedRepoFiles(prev => [...prev, path]);
+                                                                            else setSelectedRepoFiles(prev => prev.filter(p => p !== path));
+                                                                        }}
+                                                                    />
+                                                                    <label
+                                                                        htmlFor={`file-${path}`}
+                                                                        className="text-xs font-mono truncate cursor-pointer flex-1"
+                                                                    >
+                                                                        {path}
+                                                                    </label>
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
 
-                                            {gradingResult && (
-                                                <div className="p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 rounded text-xs text-green-700 dark:text-green-400 flex items-center gap-2">
-                                                    <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                                                    <span>Calificación guardada: <strong>{gradingResult.grade.toFixed(1)} / 5.0</strong></span>
-                                                </div>
-                                            )}
-                                        </div>
+                                                        <div className="flex items-center gap-2 pt-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="default"
+                                                                size="sm"
+                                                                className="flex-1 gap-2"
+                                                                disabled={isCodeProjectGrading === student.id || selectedRepoFiles.length === 0}
+                                                                onClick={() => handleGradeCodeProjectWithAI(student.id, submission.url)}
+                                                            >
+                                                                {isCodeProjectGrading === student.id ? (
+                                                                    <><Loader2 className="h-4 w-4 animate-spin" /> Evaluando...</>
+                                                                ) : (
+                                                                    <><Sparkles className="h-4 w-4" /> Calificar Selección con IA</>
+                                                                )}
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => setShowGradingLogs(v => !v)}
+                                                            >
+                                                                {showGradingLogs ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                                            </Button>
+                                                        </div>
+
+                                                        {showGradingLogs && gradingLogs.length > 0 && (
+                                                            <div
+                                                                ref={scrollRef}
+                                                                className="space-y-1 max-h-40 overflow-y-auto text-[10px] font-mono bg-background p-2 rounded border"
+                                                            >
+                                                                {gradingLogs.map((log, i) => (
+                                                                    <div key={i} className="border-b border-muted/30 pb-1 last:border-0">
+                                                                        {log}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {gradingResult && (
+                                                    <div className="p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 rounded text-xs text-green-700 dark:text-green-400 flex items-center gap-2">
+                                                        <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                                                        <span>Calificación guardada: <strong>{gradingResult.grade.toFixed(1)} / 5.0</strong></span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         <div className="border-t pt-4">
                                             <h5 className="text-sm font-medium mb-3">Calificación Manual</h5>
                                             <BulkConfirmationUI userId={student.id} activityId={activity.id} />
                                             {!showBulkConfirmation && (
-                                                <form 
-                                                    id={`form-cp-${student.id}`}
-                                                    action={async (formData) => {
-                                                        const grade = formData.get("grade") as string;
-                                                        const feedback = formData.get("feedback") as string;
-                                                        if (!student?.id) { toast.error("Error: ID de estudiante no encontrado"); return; }
-                                                        if (!activity?.id) { toast.error("Error: ID de actividad no encontrado"); return; }
-                                                        await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
-                                                    }}
-                                                >
-                                                <input type="hidden" name="activityId" value={activity.id} />
-                                                <input type="hidden" name="userId" value={student.id} />
-                                                <div className="space-y-3">
-                                                    <div className="space-y-1">
-                                                        <Label htmlFor={`grade-cp-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
-                                                        <Input
-                                                            id={`grade-cp-${student.id}`}
-                                                            name="grade"
-                                                            type="number"
-                                                            step="0.1"
-                                                            min="0"
-                                                            max="5"
-                                                            defaultValue={submission?.grade ?? ""}
-                                                            placeholder="Ej: 4.5"
-                                                            required
-                                                        />
+                                                <form id={`form-cp-${student.id}`}>
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor={`grade-cp-${student.id}`} className="text-xs">Nota (0.0 - 5.0)</Label>
+                                                            <Input
+                                                                id={`grade-cp-${student.id}`}
+                                                                name="grade"
+                                                                type="number"
+                                                                step="0.1"
+                                                                min="0"
+                                                                max="5"
+                                                                defaultValue={gradingResult?.grade ?? submission?.grade ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "0.0" : "")}
+                                                                placeholder="Ej: 4.5"
+                                                                required
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label htmlFor={`feedback-cp-${student.id}`} className="text-xs">Retroalimentación</Label>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 text-[10px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                    onClick={async () => {
+                                                                        const textarea = document.getElementById(`feedback-cp-${student.id}`) as HTMLTextAreaElement;
+                                                                        const text = textarea.value;
+                                                                        if (!text || text.length < 10) { toast.error("Escribe al menos 10 caracteres."); return; }
+                                                                        const toastId = toast.loading("Mejorando redacción con IA...");
+                                                                        try {
+                                                                            const improved = await improveFeedbackAction(text);
+                                                                            textarea.value = improved;
+                                                                            toast.success("Texto mejorado", { id: toastId });
+                                                                        } catch { toast.error("Error al mejorar texto", { id: toastId }); }
+                                                                    }}
+                                                                >
+                                                                    <Sparkles className="w-3 h-3 mr-1" />
+                                                                    Mejorar con IA
+                                                                </Button>
+                                                            </div>
+                                                            <Textarea
+                                                                id={`feedback-cp-${student.id}`}
+                                                                name="feedback"
+                                                                defaultValue={gradingResult?.feedback ?? submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "No realizó entrega" : "")}
+                                                                placeholder="Comentarios para el estudiante..."
+                                                                rows={3}
+                                                            />
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                className="flex-1"
+                                                                onClick={async () => {
+                                                                    const form = document.getElementById(`form-cp-${student.id}`) as HTMLFormElement;
+                                                                    const formData = new FormData(form);
+                                                                    const grade = formData.get("grade") as string;
+                                                                    const feedback = formData.get("feedback") as string;
+                                                                    await handleGradeManual(grade, feedback, student.id, activity.id, duplicatesForCurrent);
+                                                                }}
+                                                            >
+                                                                {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
+                                                            </Button>
+                                                            {submission && (
+                                                                <Button 
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    onClick={async () => {
+                                                                        const { rejectManualActivityAction } = await import("@/app/actions");
+                                                                        const formData = new FormData();
+                                                                        formData.append("activityId", activity.id);
+                                                                        formData.append("userId", student.id);
+                                                                        formData.append("courseId", activity.courseId);
+                                                                        const feedback = (document.getElementById(`feedback-cp-${student.id}`) as HTMLTextAreaElement)?.value;
+                                                                        if (feedback) formData.append("feedback", feedback);
+                                                                        await rejectManualActivityAction(formData);
+                                                                        toast.success("Entrega rechazada");
+                                                                    }}
+                                                                    variant="outline"
+                                                                    className="text-destructive hover:bg-destructive/10"
+                                                                >
+                                                                    Rechazar
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <Label htmlFor={`feedback-cp-${student.id}`} className="text-xs">Retroalimentación</Label>
-                                                        <Textarea
-                                                            id={`feedback-cp-${student.id}`}
-                                                            name="feedback"
-                                                            defaultValue={submission?.feedback ?? ""}
-                                                            placeholder="Comentarios para el estudiante..."
-                                                            rows={3}
-                                                        />
-                                                    </div>
-                                                    <Button type="submit" size="sm" className="w-full">
-                                                        {submission?.grade !== null && submission?.grade !== undefined ? "Actualizar Nota" : "Guardar Nota"}
-                                                    </Button>
-                                                </div>
-                                            </form>
+                                                </form>
                                             )}
                                         </div>
                                     </div>
@@ -1574,59 +1746,59 @@ export function ActivityDetail({
                                             >
                                             <input type="hidden" name="activityId" value={activity.id} />
                                             <input type="hidden" name="userId" value={student.id} />
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor={`grade-manual-${student.id}`}>Nota (0.0 - 5.0)</Label>
-                                                    <Input
-                                                        id={`grade-manual-${student.id}`}
-                                                        name="grade"
-                                                        type="number"
-                                                        step="0.1"
-                                                        min="0"
-                                                        max="5"
-                                                        defaultValue={submission?.grade ?? ""}
-                                                        required
-                                                        placeholder="Ej: 4.5"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <Label htmlFor={`feedback-manual-${student.id}`}>Retroalimentación</Label>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-6 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                            onClick={async () => {
-                                                                const textarea = document.getElementById(`feedback-manual-${student.id}`) as HTMLTextAreaElement;
-                                                                const text = textarea.value;
-                                                                if (!text || text.length < 10) {
-                                                                    toast.error("Escribe al menos 10 caracteres para mejorar.");
-                                                                    return;
-                                                                }
-                                                                const toastId = toast.loading("Mejorando redacción con IA...");
-                                                                try {
-                                                                    const { improveFeedbackAction } = await import("@/app/actions");
-                                                                    const improved = await improveFeedbackAction(text);
-                                                                    textarea.value = improved;
-                                                                    toast.success("Texto mejorado", { id: toastId });
-                                                                } catch (error) {
-                                                                    toast.error("Error al mejorar texto", { id: toastId });
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Sparkles className="w-3 h-3 mr-1" />
-                                                            Mejorar con IA
-                                                        </Button>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor={`grade-manual-${student.id}`}>Nota (0.0 - 5.0)</Label>
+                                                        <Input
+                                                            id={`grade-manual-${student.id}`}
+                                                            name="grade"
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            max="5"
+                                                            defaultValue={submission?.grade ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "0.0" : "")}
+                                                            required
+                                                            placeholder="Ej: 4.5"
+                                                        />
                                                     </div>
-                                                    <Textarea
-                                                        id={`feedback-manual-${student.id}`}
-                                                        name="feedback"
-                                                        defaultValue={submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? ""}
-                                                        placeholder="Comentarios para el estudiante..."
-                                                        rows={4}
-                                                    />
-                                                </div>
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label htmlFor={`feedback-manual-${student.id}`}>Retroalimentación</Label>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-6 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                onClick={async () => {
+                                                                    const textarea = document.getElementById(`feedback-manual-${student.id}`) as HTMLTextAreaElement;
+                                                                    const text = textarea.value;
+                                                                    if (!text || text.length < 10) {
+                                                                        toast.error("Escribe al menos 10 caracteres para mejorar.");
+                                                                        return;
+                                                                    }
+                                                                    const toastId = toast.loading("Mejorando redacción con IA...");
+                                                                    try {
+                                                                        const { improveFeedbackAction } = await import("@/app/actions");
+                                                                        const improved = await improveFeedbackAction(text);
+                                                                        textarea.value = improved;
+                                                                        toast.success("Texto mejorado", { id: toastId });
+                                                                    } catch (error) {
+                                                                        toast.error("Error al mejorar texto", { id: toastId });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Sparkles className="w-3 h-3 mr-1" />
+                                                                Mejorar con IA
+                                                            </Button>
+                                                        </div>
+                                                        <Textarea
+                                                            id={`feedback-manual-${student.id}`}
+                                                            name="feedback"
+                                                            defaultValue={submission?.feedback?.replace("[ENTREGA RECHAZADA]\n", "")?.replace("[ENTREGA RECHAZADA]", "") ?? (!submission && activity.deadline && new Date(activity.deadline) < new Date() ? "No realizó entrega" : "")}
+                                                            placeholder="Comentarios para el estudiante..."
+                                                            rows={4}
+                                                        />
+                                                    </div>
                                                 <div className="flex gap-2">
                                                     <Button 
                                                         type="button" 
@@ -1676,14 +1848,6 @@ export function ActivityDetail({
                                     </div>
                                 )}
 
-                                {/* No Submission Yet */}
-                                {!submission && activity.type !== "MANUAL" && (
-                                    <div className="rounded-lg border border-dashed p-6 text-center">
-                                        <p className="text-muted-foreground">
-                                            El estudiante aún no ha realizado ninguna entrega.
-                                        </p>
-                                    </div>
-                                )}
                             </div>
                         </SheetContent>
                     </Sheet>
@@ -2155,6 +2319,38 @@ export function ActivityDetail({
 
                 </SheetContent>
             </Sheet>
+        </div>
+    );
+}
+
+function GradingModeSelector({ gradingMode, setGradingMode }: { gradingMode: string, setGradingMode: (m: any) => void }) {
+    return (
+        <div className="flex flex-col gap-1.5 mb-2">
+            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Nivel de Exigencia IA</Label>
+            <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-full border border-muted">
+                {(['normal', 'moderate', 'strict'] as const).map((mode) => (
+                    <Button 
+                        key={mode}
+                        type="button"
+                        variant={gradingMode === mode ? "secondary" : "ghost"} 
+                        size="sm" 
+                        className={`flex-1 h-8 text-[11px] capitalize transition-all ${
+                            gradingMode === mode 
+                                ? "bg-white dark:bg-background shadow-sm font-semibold text-primary" 
+                                : "text-muted-foreground hover:text-foreground"
+                        }`} 
+                        onClick={() => setGradingMode(mode)}
+                    >
+                        {mode === 'normal' ? 'Normal' : mode === 'moderate' ? 'Moderado' : 'Estricto'}
+                    </Button>
+                ))}
+            </div>
+            {gradingMode === 'strict' && (
+                <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-1 px-1 flex items-center gap-1 font-medium">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Penaliza redacción, ortografía y normas de documentación.
+                </p>
+            )}
         </div>
     );
 }

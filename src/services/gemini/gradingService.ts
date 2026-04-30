@@ -22,6 +22,7 @@ export async function finalizeSubmission(
     missingFiles: string[],
     userId?: string,
     totalExpectedFiles?: number,  // total files expected (found + missing)
+    gradingMode: string = "normal",
     maxRetries = 3
 ): Promise<GradingResult> {
 
@@ -57,9 +58,14 @@ export async function finalizeSubmission(
             Actúa como un evaluador principal. Tu tarea es generar únicamente el texto de retroalimentación.
             La nota ya fue calculada matemáticamente por el servidor — NO la cambies.
 
-            **REGLAS ESTRICTAS**:
+            **REGLAS DE EVALUACIÓN (${gradingMode.toUpperCase()})**:
             1. Evalúa EXCLUSIVAMENTE lo que se solicita en la "Rúbrica". No penalices por extras no pedidos.
-            2. No penalices por dependencias, imports faltantes o indentación.
+            2. No penalices por dependencias o imports faltantes.
+            3. ${gradingMode === "strict" 
+                ? "SÉ EXTREMADAMENTE ESTRICTO. Asegúrate de que el feedback refleje una evaluación rigurosa de la redacción, ortografía, coherencia, cohesión y cumplimiento de normatividad de documentación." 
+                : gradingMode === "moderate" 
+                ? "Evaluación moderada: el feedback debe considerar legibilidad y estructura además de la lógica." 
+                : "Evaluación estándar: enfócate en la funcionalidad y lógica básica."}
 
             **Rúbrica**: "${description}"
 
@@ -160,7 +166,8 @@ export async function gradeSubmission(
     description: string,
     repoUrl: string,
     filePaths?: string,
-    userId?: string
+    userId?: string,
+    gradingMode: string = "normal"
 ): Promise<GradingResult> {
     try {
         const repoInfo = githubService.parseGitHubUrl(repoUrl);
@@ -189,7 +196,7 @@ export async function gradeSubmission(
                 console.log(`[GradingService] Analyzing file: ${path}`);
 
                 // Pass accumulated context to analyzeFile (except for the first file where it's empty)
-                const analysis = await analyzeFile(path, content, description, repoUrl, userId, accumulatedContext || undefined);
+                const analysis = await analyzeFile(path, content, description, repoUrl, userId, accumulatedContext || undefined, gradingMode);
                 apiRequestsCount++;
                 analyses.push(analysis);
 
@@ -208,8 +215,8 @@ export async function gradeSubmission(
         }
 
         // REDUCE STEP: Consolidate analyses into final grade
-        console.log(`[GradingService] Finalizing submission with ${analyses.length} analyses, ${missingFiles.length} missing.`);
-        const finalResult = await finalizeSubmission(analyses, description, missingFiles, userId, paths.length);
+        console.log(`[GradingService] Finalizing submission with ${analyses.length} analyses, ${missingFiles.length} missing. Mode: ${gradingMode}`);
+        const finalResult = await finalizeSubmission(analyses, description, missingFiles, userId, paths.length, gradingMode);
         apiRequestsCount++;
         finalResult.apiRequestsCount = apiRequestsCount;
 
@@ -293,7 +300,8 @@ async function fetchColabContent(url: string): Promise<string | null> {
 export async function gradeGoogleColabSubmission(
     description: string,
     colabUrl: string,
-    userId?: string
+    userId?: string,
+    gradingMode: string = "normal"
 ): Promise<GradingResult> {
     try {
         console.log(`[GradingService] Grading Colab: ${colabUrl}`);
@@ -305,10 +313,10 @@ export async function gradeGoogleColabSubmission(
 
         // Treat as a single file analysis
         // We use a generic name "notebook.ipynb"
-        const analysis = await analyzeFile("notebook.ipynb", content, description, colabUrl, userId);
+        const analysis = await analyzeFile("notebook.ipynb", content, description, colabUrl, userId, undefined, gradingMode);
 
         // Reuse finalizeSubmission for consistent grading format
-        const finalResult = await finalizeSubmission([analysis], description, [], userId);
+        const finalResult = await finalizeSubmission([analysis], description, [], userId, 1, gradingMode);
         finalResult.apiRequestsCount = 2; // 1 for analyzeFile, 1 for finalizeSubmission
         return finalResult;
 

@@ -53,7 +53,8 @@ async function fetchPdfContent(url: string): Promise<{ base64: string; mimeType:
 export async function gradePdfReviewSubmission(
     criteria: string,
     pdfUrl: string,
-    teacherId?: string
+    teacherId?: string,
+    gradingMode: string = "normal"
 ): Promise<GradingResult> {
     const ai = await getGeminiClient(teacherId);
 
@@ -73,11 +74,16 @@ export async function gradePdfReviewSubmission(
 **CRITERIOS DE EVALUACIÓN (Rúbrica)**:
 ${criteria}
 
-**INSTRUCCIONES PARA LA EVALUACIÓN**:
+**INSTRUCCIONES PARA LA EVALUACIÓN (${gradingMode.toUpperCase()})**:
 1. Lee el documento completo.
 2. Para cada criterio, asigna una puntuación parcial basada en el peso indicado.
 3. La nota final es la suma de todas las puntuaciones parciales (escala 0.0 a 5.0).
 4. Si la suma supera 5.0, limítala a 5.0.
+5. ${gradingMode === "strict" 
+    ? "SÉ EXTREMADAMENTE ESTRICTO. Penaliza rigurosamente errores de redacción, ortografía, falta de coherencia, cohesión y cumplimiento estricto de normatividad de documentación y presentación." 
+    : gradingMode === "moderate" 
+    ? "Evaluación moderada: considera legibilidad, estructura y claridad además del contenido." 
+    : "Evaluación estándar: enfócate principalmente en el cumplimiento de los criterios solicitados."}
 
 **FORMATO DE RESPUESTA** (JSON estricto):
 {
